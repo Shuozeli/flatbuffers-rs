@@ -1,0 +1,10 @@
+namespace System.Attributes;
+
+table SystemAttributesTable {
+  deprecated_field:bool (deprecated);
+  required_field:bool (required);
+  key_field:int (key);
+  optional_field:string (optional);
+  id_field:string (id: 1);
+  multi:long (required, key, deprecated, id: 3);
+}

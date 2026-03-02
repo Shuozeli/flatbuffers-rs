@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_enum_duplicate_value_name.fbs"), line: 3, col: 3 }): duplicate enum value name 'Y' in enum 'X'

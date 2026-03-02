@@ -1,0 +1,5 @@
+namespace Com.Company.Product.Module;
+
+struct Point { x:float; y:float; }
+enum Status:byte { OK, Error }
+table Config { origin: Point; status: Status; }

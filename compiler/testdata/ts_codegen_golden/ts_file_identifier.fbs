@@ -1,0 +1,7 @@
+file_identifier "TEST";
+
+table Root {
+  value: int;
+}
+
+root_type Root;

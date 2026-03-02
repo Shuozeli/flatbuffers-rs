@@ -1,0 +1,7 @@
+attribute "display_name";
+
+enum Status : byte {
+  Active = 0 (display_name: "Active Status"),
+  Inactive,
+  Deleted (display_name: "Removed"),
+}

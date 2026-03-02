@@ -1,0 +1,139 @@
+{
+  "objects": [
+    {
+      "name": "Matrix2x2",
+      "fields": [
+        {
+          "name": "values",
+          "type": {
+            "base_type": "BASE_TYPE_ARRAY",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_FLOAT",
+            "fixed_length": 4,
+            "span": {
+              "file": "testdata/golden/struct_with_fixed_array.fbs",
+              "line": 2,
+              "col": 11
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/struct_with_fixed_array.fbs",
+            "line": 2,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 16,
+      "span": {
+        "file": "testdata/golden/struct_with_fixed_array.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Pair",
+      "fields": [
+        {
+          "name": "a",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_with_fixed_array.fbs",
+              "line": 6,
+              "col": 6
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/struct_with_fixed_array.fbs",
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "b",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_with_fixed_array.fbs",
+              "line": 7,
+              "col": 6
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/struct_with_fixed_array.fbs",
+            "line": 7,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 8,
+      "span": {
+        "file": "testdata/golden/struct_with_fixed_array.fbs",
+        "line": 5,
+        "col": 1
+      }
+    },
+    {
+      "name": "Container",
+      "fields": [
+        {
+          "name": "matrix",
+          "type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/struct_with_fixed_array.fbs",
+              "line": 11,
+              "col": 11
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/struct_with_fixed_array.fbs",
+            "line": 11,
+            "col": 3
+          }
+        },
+        {
+          "name": "pairs",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRUCT",
+            "index": 1,
+            "span": {
+              "file": "testdata/golden/struct_with_fixed_array.fbs",
+              "line": 12,
+              "col": 10
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/struct_with_fixed_array.fbs",
+            "line": 12,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/struct_with_fixed_array.fbs",
+        "line": 10,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

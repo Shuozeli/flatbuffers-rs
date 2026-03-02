@@ -1,0 +1,2367 @@
+{
+  "tests": [
+    {
+      "name": "macro_check_eq",
+      "file": "integration_test.rs",
+      "line": 113,
+      "preview": "assert!(check_eq!(1, 1).is_ok()); assert!(check_eq!(1, 2).is_err()); }",
+      "category": "test_helper"
+    },
+    {
+      "name": "macro_check_is_some",
+      "file": "integration_test.rs",
+      "line": 130,
+      "preview": "let some: Option<usize> = Some(0); let none: Option<usize> = None; assert!(check_is_some!(some).is_ok());",
+      "category": "test_helper"
+    },
+    {
+      "name": "object_api_defaults",
+      "file": "integration_test.rs",
+      "line": 138,
+      "preview": "use my_game::example::*; assert_eq!( Vec3T::default(), Vec3T {",
+      "category": "object_api"
+    },
+    {
+      "name": "test_object_api_reads_correctly",
+      "file": "integration_test.rs",
+      "line": 346,
+      "preview": "let mut fbb = flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_library_code(&mut fbb); let m = my_game::example::root_as_monster(fbb.finished_data()).unwrap().unpack();",
+      "category": "object_api"
+    },
+    {
+      "name": "builder_abort_with_greater_than_maximum_buffer_size",
+      "file": "integration_test.rs",
+      "line": 397,
+      "preview": "flatbuffers::FlatBufferBuilder::with_capacity(flatbuffers::FLATBUFFERS_MAX_BUFFER_SIZE+1); } #[test]",
+      "category": "builder"
+    },
+    {
+      "name": "builder_collapses_into_vec",
+      "file": "integration_test.rs",
+      "line": 402,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(&mut b); let (backing_buf, head) = b.collapse();",
+      "category": "builder"
+    },
+    {
+      "name": "verifier_one_byte_errors_do_not_crash",
+      "file": "integration_test.rs",
+      "line": 411,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_library_code(&mut b); let mut badbuf = b.finished_data().to_vec();",
+      "category": "builder"
+    },
+    {
+      "name": "verifier_too_many_tables",
+      "file": "integration_test.rs",
+      "line": 438,
+      "preview": "use my_game::example::*; let b = &mut flatbuffers::FlatBufferBuilder::new(); let r = Referrable::create(b, &ReferrableArgs { id: 42 });",
+      "category": "builder"
+    },
+    {
+      "name": "verifier_apparent_size_too_large",
+      "file": "integration_test.rs",
+      "line": 463,
+      "preview": "use my_game::example::*; let b = &mut flatbuffers::FlatBufferBuilder::new(); let name = Some(b.create_string(\"foo\"));",
+      "category": "builder"
+    },
+    {
+      "name": "verifier_in_too_deep",
+      "file": "integration_test.rs",
+      "line": 488,
+      "preview": "use my_game::example::*; let b = &mut flatbuffers::FlatBufferBuilder::new(); let name = Some(b.create_string(\"foo\"));",
+      "category": "builder"
+    },
+    {
+      "name": "monster_identifier",
+      "file": "integration_test.rs",
+      "line": 518,
+      "preview": "assert_eq!(\"MONS\", my_game::example::MONSTER_IDENTIFIER); } #[test]",
+      "category": "root_type"
+    },
+    {
+      "name": "monster_file_extension",
+      "file": "integration_test.rs",
+      "line": 523,
+      "preview": "assert_eq!(\"mon\", my_game::example::MONSTER_EXTENSION); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "enum_constants_are_public",
+      "file": "integration_test.rs",
+      "line": 528,
+      "preview": "assert_eq!(-1, my_game::example::Race::ENUM_MIN); assert_eq!(2, my_game::example::Race::ENUM_MAX); assert_eq!(my_game::example::Race::ENUM_VALUES, [",
+      "category": "enum"
+    },
+    {
+      "name": "table_get_field_from_static_buffer_1",
+      "file": "integration_test.rs",
+      "line": 578,
+      "preview": "let buf = load_file(\"../monsterdata_test.mon\").expect(\"missing monsterdata_test.mon\"); let slice: &[u8] = &buf; let slice: &'static [u8] = unsafe { mem::transmute(slice) };",
+      "category": "memory"
+    },
+    {
+      "name": "table_get_field_from_static_buffer_2",
+      "file": "integration_test.rs",
+      "line": 591,
+      "preview": "static DATA: [u8; 4] = [0, 0, 0, 0]; // some binary data let table: flatbuffers::Table<'static> = unsafe { flatbuffers::Table::new(&DATA, 0) }; unsafe { table.get::<&'static str>(0, None) };",
+      "category": "memory"
+    },
+    {
+      "name": "table_object_self_lifetime_in_closure",
+      "file": "integration_test.rs",
+      "line": 599,
+      "preview": "let buf = load_file(\"../monsterdata_test.mon\").expect(\"missing monsterdata_test.mon\"); let monster = my_game::example::root_as_monster(&buf).unwrap(); let enemy: Option<my_game::example::Monster> = monster.enemy();",
+      "category": "other"
+    },
+    {
+      "name": "scalar_store",
+      "file": "integration_test.rs",
+      "line": 631,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{hp: 123, name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "scalar_default",
+      "file": "integration_test.rs",
+      "line": 638,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "string_store",
+      "file": "integration_test.rs",
+      "line": 645,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foobar\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "struct_store",
+      "file": "integration_test.rs",
+      "line": 652,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{",
+      "category": "builder"
+    },
+    {
+      "name": "struct_default",
+      "file": "integration_test.rs",
+      "line": 667,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "enum_store",
+      "file": "integration_test.rs",
+      "line": 674,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), color: my_game::example::Color::Red, ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "enum_default",
+      "file": "integration_test.rs",
+      "line": 681,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "union_store",
+      "file": "integration_test.rs",
+      "line": 688,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); { let name_inner = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "union_default",
+      "file": "integration_test.rs",
+      "line": 717,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "table_full_namespace_store",
+      "file": "integration_test.rs",
+      "line": 725,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); { let name_inner = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "table_full_namespace_default",
+      "file": "integration_test.rs",
+      "line": 748,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "table_store",
+      "file": "integration_test.rs",
+      "line": 755,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); { let id_inner = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "table_default",
+      "file": "integration_test.rs",
+      "line": 778,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "nested_flatbuffer_store",
+      "file": "integration_test.rs",
+      "line": 785,
+      "preview": "let b0 = { let mut b0 = flatbuffers::FlatBufferBuilder::new(); let args = my_game::example::MonsterArgs{",
+      "category": "builder"
+    },
+    {
+      "name": "nested_flatbuffer_default",
+      "file": "integration_test.rs",
+      "line": 826,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let name = b.create_string(\"foo\"); let m = build_mon(&mut b, &my_game::example::MonsterArgs{name: Some(name), ..Default::default()});",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_string_store_helper_build",
+      "file": "integration_test.rs",
+      "line": 833,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let strings = &[b.create_string(\"foobar\"), b.create_string(\"baz\")]; let v = b.create_vector(strings);",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_string_store_manual_build",
+      "file": "integration_test.rs",
+      "line": 858,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let s0 = b.create_string(\"foobar\"); let s1 = b.create_string(\"baz\");",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_ubyte_store",
+      "file": "integration_test.rs",
+      "line": 883,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let v = b.create_vector(&[123u8, 234u8][..]); let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_bool_store",
+      "file": "integration_test.rs",
+      "line": 894,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let v = b.create_vector(&[false, true, false, true][..]); let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_f64_store",
+      "file": "integration_test.rs",
+      "line": 910,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let v = b.create_vector(&[3.14159265359f64][..]); let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_struct_store",
+      "file": "integration_test.rs",
+      "line": 930,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let v = b.create_vector(&[my_game::example::Test::new(127, -128), my_game::example::Test::new(3, 123)][..]); let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_struct_store_with_type_inference",
+      "file": "integration_test.rs",
+      "line": 946,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let v = b.create_vector(&[my_game::example::Test::new(127, -128), my_game::example::Test::new(3, 123),",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_enums_store",
+      "file": "integration_test.rs",
+      "line": 959,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let v = b.create_vector::<my_game::example::Color>(&[my_game::example::Color::Red, my_game::example::Color::Green][..]); let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "vector_of_table_store",
+      "file": "integration_test.rs",
+      "line": 971,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); let t0 = { let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "enum_color_is_1_byte",
+      "file": "integration_test.rs",
+      "line": 1017,
+      "preview": "assert_eq!(1, ::core::mem::size_of::<my_game::example::Color>()); } #[test]",
+      "category": "enum"
+    },
+    {
+      "name": "union_any_is_1_byte",
+      "file": "integration_test.rs",
+      "line": 1022,
+      "preview": "assert_eq!(1, ::core::mem::size_of::<my_game::example::Any>()); } #[test]",
+      "category": "union"
+    },
+    {
+      "name": "union_any_is_aligned_to_1",
+      "file": "integration_test.rs",
+      "line": 1027,
+      "preview": "assert_eq!(1, ::core::mem::align_of::<my_game::example::Any>()); } #[test]",
+      "category": "union"
+    },
+    {
+      "name": "struct_test_is_4_bytes",
+      "file": "integration_test.rs",
+      "line": 1031,
+      "preview": "assert_eq!(4, ::core::mem::size_of::<my_game::example::Test>()); } #[test]",
+      "category": "struct"
+    },
+    {
+      "name": "struct_vec3_is_32_bytes",
+      "file": "integration_test.rs",
+      "line": 1035,
+      "preview": "assert_eq!(32, ::core::mem::size_of::<my_game::example::Vec3>()); } #[test]",
+      "category": "struct"
+    },
+    {
+      "name": "struct_vec3_is_written_with_correct_alignment_in_table",
+      "file": "integration_test.rs",
+      "line": 1040,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); { let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "struct_ability_is_8_bytes",
+      "file": "integration_test.rs",
+      "line": 1065,
+      "preview": "assert_eq!(8, ::core::mem::size_of::<my_game::example::Ability>()); } #[test]",
+      "category": "struct"
+    },
+    {
+      "name": "struct_ability_is_written_with_correct_alignment_in_table_vector",
+      "file": "integration_test.rs",
+      "line": 1070,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); { let name = b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "easy_u8",
+      "file": "integration_test.rs",
+      "line": 1185,
+      "preview": "prop::<u8>(vec![]); prop::<u8>(vec![1u8]); prop::<u8>(vec![1u8, 2u8]);",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_bool",
+      "file": "integration_test.rs",
+      "line": 1194,
+      "preview": "#[test] fn fuzz_u8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u8> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u8",
+      "file": "integration_test.rs",
+      "line": 1196,
+      "preview": "#[test] fn fuzz_i8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i8> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i8",
+      "file": "integration_test.rs",
+      "line": 1198,
+      "preview": "#[test] fn fuzz_u16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u16> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u16",
+      "file": "integration_test.rs",
+      "line": 1200,
+      "preview": "#[test] fn fuzz_i16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i16> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i16",
+      "file": "integration_test.rs",
+      "line": 1202,
+      "preview": "#[test] fn fuzz_u32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u32> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u32",
+      "file": "integration_test.rs",
+      "line": 1204,
+      "preview": "#[test] fn fuzz_i32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i32> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i32",
+      "file": "integration_test.rs",
+      "line": 1206,
+      "preview": "#[test] fn fuzz_u64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u64> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u64",
+      "file": "integration_test.rs",
+      "line": 1208,
+      "preview": "#[test] fn fuzz_i64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i64> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i64",
+      "file": "integration_test.rs",
+      "line": 1210,
+      "preview": "#[test] fn fuzz_f32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<f32> as fn(Vec<_>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f32",
+      "file": "integration_test.rs",
+      "line": 1212,
+      "preview": "#[test] fn fuzz_f64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<f64> as fn(Vec<_>)); } }",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f64",
+      "file": "integration_test.rs",
+      "line": 1214,
+      "preview": "} #[cfg(test)] mod string_manual_build {",
+      "category": "other"
+    },
+    {
+      "name": "fuzz",
+      "file": "integration_test.rs",
+      "line": 1253,
+      "preview": "quickcheck::QuickCheck::new().max_tests(20).quickcheck(prop as fn(Vec<_>)); } }",
+      "category": "other"
+    },
+    {
+      "name": "fuzz",
+      "file": "integration_test.rs",
+      "line": 1286,
+      "preview": "quickcheck::QuickCheck::new().max_tests(100).quickcheck(prop as fn(Vec<_>)); } }",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_manual_build",
+      "file": "integration_test.rs",
+      "line": 1301,
+      "preview": "fn prop(vec: Vec<u8>) { let xs = &vec[..]; let mut b1 = flatbuffers::FlatBufferBuilder::new();",
+      "category": "builder"
+    },
+    {
+      "name": "test_size_prefixed_buffer",
+      "file": "integration_test.rs",
+      "line": 1329,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let args = &my_game::example::MonsterArgs{ mana: 200,",
+      "category": "builder"
+    },
+    {
+      "name": "table_of_mixed_scalars_fuzz",
+      "file": "integration_test.rs",
+      "line": 1365,
+      "preview": "let bool_val: bool = true; let char_val: i8 = -127;  // 0x81 let uchar_val: u8 = 0xFF;",
+      "category": "other"
+    },
+    {
+      "name": "table_of_byte_strings_fuzz",
+      "file": "integration_test.rs",
+      "line": 1474,
+      "preview": "fn prop(vec: Vec<Vec<u8>>) { use flatbuffers::field_index_to_field_offset as fi2fo; use flatbuffers::Follow;",
+      "category": "string"
+    },
+    {
+      "name": "fuzz_table_of_strings",
+      "file": "integration_test.rs",
+      "line": 1511,
+      "preview": "fn prop(vec: Vec<String>) { use flatbuffers::field_index_to_field_offset as fi2fo; use flatbuffers::Follow;",
+      "category": "string"
+    },
+    {
+      "name": "fuzz_bool",
+      "file": "integration_test.rs",
+      "line": 1602,
+      "preview": "#[test] fn fuzz_u8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u8>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u8",
+      "file": "integration_test.rs",
+      "line": 1605,
+      "preview": "#[test] fn fuzz_u16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u16>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u16",
+      "file": "integration_test.rs",
+      "line": 1607,
+      "preview": "#[test] fn fuzz_u32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u32>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u32",
+      "file": "integration_test.rs",
+      "line": 1609,
+      "preview": "#[test] fn fuzz_u64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u64>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u64",
+      "file": "integration_test.rs",
+      "line": 1611,
+      "preview": "#[test] fn fuzz_i8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u8>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i8",
+      "file": "integration_test.rs",
+      "line": 1614,
+      "preview": "#[test] fn fuzz_i16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u16>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i16",
+      "file": "integration_test.rs",
+      "line": 1616,
+      "preview": "#[test] fn fuzz_i32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u32>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i32",
+      "file": "integration_test.rs",
+      "line": 1618,
+      "preview": "#[test] fn fuzz_i64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<u64>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i64",
+      "file": "integration_test.rs",
+      "line": 1620,
+      "preview": "#[test] fn fuzz_f32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<f32>>)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f32",
+      "file": "integration_test.rs",
+      "line": 1623,
+      "preview": "#[test] fn fuzz_f64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop as fn(Vec<Vec<f64>>)); } }",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f64",
+      "file": "integration_test.rs",
+      "line": 1625,
+      "preview": "} } #[cfg(not(miri))]  // slow.",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_bool",
+      "file": "integration_test.rs",
+      "line": 1648,
+      "preview": "#[test] fn fuzz_u8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u8> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u8",
+      "file": "integration_test.rs",
+      "line": 1650,
+      "preview": "#[test] fn fuzz_i8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i8> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i8",
+      "file": "integration_test.rs",
+      "line": 1652,
+      "preview": "#[test] fn fuzz_u16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u16> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u16",
+      "file": "integration_test.rs",
+      "line": 1655,
+      "preview": "#[test] fn fuzz_i16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i16> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i16",
+      "file": "integration_test.rs",
+      "line": 1657,
+      "preview": "#[test] fn fuzz_u32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u32> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u32",
+      "file": "integration_test.rs",
+      "line": 1660,
+      "preview": "#[test] fn fuzz_i32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i32> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i32",
+      "file": "integration_test.rs",
+      "line": 1662,
+      "preview": "#[test] fn fuzz_u64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<u64> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u64",
+      "file": "integration_test.rs",
+      "line": 1665,
+      "preview": "#[test] fn fuzz_i64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<i64> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i64",
+      "file": "integration_test.rs",
+      "line": 1667,
+      "preview": "#[test] fn fuzz_f32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<f32> as fn(_)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f32",
+      "file": "integration_test.rs",
+      "line": 1670,
+      "preview": "#[test] fn fuzz_f64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop::<f64> as fn(_)); } }",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f64",
+      "file": "integration_test.rs",
+      "line": 1672,
+      "preview": "} #[cfg(test)] #[cfg(not(miri))]  // slow.",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_bool",
+      "file": "integration_test.rs",
+      "line": 1712,
+      "preview": "#[test] fn fuzz_u8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_u8 as fn(u8)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u8",
+      "file": "integration_test.rs",
+      "line": 1714,
+      "preview": "#[test] fn fuzz_i8() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_i8 as fn(i8)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i8",
+      "file": "integration_test.rs",
+      "line": 1716,
+      "preview": "#[test] fn fuzz_u16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_u16 as fn(u16)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u16",
+      "file": "integration_test.rs",
+      "line": 1718,
+      "preview": "#[test] fn fuzz_i16() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_i16 as fn(i16)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i16",
+      "file": "integration_test.rs",
+      "line": 1720,
+      "preview": "#[test] fn fuzz_u32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_u32 as fn(u32)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u32",
+      "file": "integration_test.rs",
+      "line": 1722,
+      "preview": "#[test] fn fuzz_i32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_i32 as fn(i32)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i32",
+      "file": "integration_test.rs",
+      "line": 1724,
+      "preview": "#[test] fn fuzz_u64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_u64 as fn(u64)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_u64",
+      "file": "integration_test.rs",
+      "line": 1726,
+      "preview": "#[test] fn fuzz_i64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_i64 as fn(i64)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_i64",
+      "file": "integration_test.rs",
+      "line": 1728,
+      "preview": "#[test] fn fuzz_f32() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_f32 as fn(f32)); } #[test]",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f32",
+      "file": "integration_test.rs",
+      "line": 1730,
+      "preview": "#[test] fn fuzz_f64() { quickcheck::QuickCheck::new().max_tests(N).quickcheck(prop_f64 as fn(f64)); } }",
+      "category": "other"
+    },
+    {
+      "name": "fuzz_f64",
+      "file": "integration_test.rs",
+      "line": 1732,
+      "preview": "} #[cfg(test)] mod write_and_read_examples {",
+      "category": "other"
+    },
+    {
+      "name": "generated_code_creates_correct_example",
+      "file": "integration_test.rs",
+      "line": 1745,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(b); let buf = b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "generated_code_debug_prints_correctly",
+      "file": "integration_test.rs",
+      "line": 1753,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(b); let buf = b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "generated_code_creates_correct_example_repeatedly_with_reset",
+      "file": "integration_test.rs",
+      "line": 1817,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); for _ in 0..100 { create_serialized_example_with_generated_code(b);",
+      "category": "builder"
+    },
+    {
+      "name": "library_code_creates_correct_example",
+      "file": "integration_test.rs",
+      "line": 1830,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_library_code(b); let buf = b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "library_code_creates_correct_example_repeatedly_with_reset",
+      "file": "integration_test.rs",
+      "line": 1839,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); for _ in 0..100 { create_serialized_example_with_library_code(b);",
+      "category": "builder"
+    },
+    {
+      "name": "gold_cpp_example_data_is_accessible_and_correct",
+      "file": "integration_test.rs",
+      "line": 1863,
+      "preview": "let buf = load_file(\"../monsterdata_test.mon\").expect(\"missing monsterdata_test.mon\"); serialized_example_is_accessible_and_correct(&buf[..], true, false).unwrap(); }",
+      "category": "accessor"
+    },
+    {
+      "name": "java_wire_example_data_is_accessible_and_correct",
+      "file": "integration_test.rs",
+      "line": 1868,
+      "preview": "let buf = load_file(\"../monsterdata_java_wire.mon\"); if buf.is_err() { println!(\"skipping java wire test because it is not present\");",
+      "category": "accessor"
+    },
+    {
+      "name": "java_wire_size_prefixed_example_data_is_accessible_and_correct",
+      "file": "integration_test.rs",
+      "line": 1878,
+      "preview": "let buf = load_file(\"../monsterdata_java_wire_sp.mon\"); if buf.is_err() { println!(\"skipping java wire test because it is not present\");",
+      "category": "accessor"
+    },
+    {
+      "name": "monster_builder_fails_when_name_is_missing",
+      "file": "integration_test.rs",
+      "line": 1897,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); my_game::example::Monster::create(b, &my_game::example::MonsterArgs{..Default::default()}); }",
+      "category": "builder"
+    },
+    {
+      "name": "struct_ability_key_compare_less_than",
+      "file": "integration_test.rs",
+      "line": 1910,
+      "preview": "let a = my_game::example::Ability::new(1, 2); let b = my_game::example::Ability::new(2, 1); let c = my_game::example::Ability::new(3, 3);",
+      "category": "struct"
+    },
+    {
+      "name": "struct_key_compare_with_value",
+      "file": "integration_test.rs",
+      "line": 1930,
+      "preview": "let a = my_game::example::Ability::new(1, 2); assert_eq!(a.key_compare_with_value(0), ::core::cmp::Ordering::Greater); assert_eq!(a.key_compare_with_value(1), ::core::cmp::Ordering::Equal);",
+      "category": "struct"
+    },
+    {
+      "name": "struct_key_compare_less_than",
+      "file": "integration_test.rs",
+      "line": 1939,
+      "preview": "let a = my_game::example::Ability::new(1, 2); let b = my_game::example::Ability::new(2, 1); let c = my_game::example::Ability::new(3, 3);",
+      "category": "struct"
+    },
+    {
+      "name": "table_key_compare_with_value",
+      "file": "integration_test.rs",
+      "line": 1959,
+      "preview": "let builder = &mut flatbuffers::FlatBufferBuilder::new(); super::create_serialized_example_with_library_code(builder); let buf = builder.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "table_key_compare_less_than",
+      "file": "integration_test.rs",
+      "line": 1975,
+      "preview": "let builder = &mut flatbuffers::FlatBufferBuilder::new(); super::create_serialized_example_with_library_code(builder); let buf = builder.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "namespace_test_mod_is_importable",
+      "file": "integration_test.rs",
+      "line": 2000,
+      "preview": "use super::namespace_test_generated::{ namespace_a, namespace_a::namespace_b,",
+      "category": "namespace"
+    },
+    {
+      "name": "end_table_should_panic_when_not_in_table",
+      "file": "integration_test.rs",
+      "line": 2016,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.end_table(flatbuffers::WIPOffset::new(0)); }",
+      "category": "builder"
+    },
+    {
+      "name": "create_string_should_panic_when_in_table",
+      "file": "integration_test.rs",
+      "line": 2023,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_table(); b.create_string(\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "create_byte_string_should_panic_when_in_table",
+      "file": "integration_test.rs",
+      "line": 2031,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_table(); b.create_byte_string(b\"foo\");",
+      "category": "builder"
+    },
+    {
+      "name": "push_struct_slot_should_panic_when_not_in_table",
+      "file": "integration_test.rs",
+      "line": 2039,
+      "preview": "#[derive(Copy, Clone, Debug, PartialEq)] #[repr(C, packed)] struct foo { }",
+      "category": "struct"
+    },
+    {
+      "name": "finished_bytes_should_panic_when_table_is_not_finished",
+      "file": "integration_test.rs",
+      "line": 2053,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_table(); b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "required_panics_when_field_not_set",
+      "file": "integration_test.rs",
+      "line": 2061,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let start = b.start_table(); let o = b.end_table(start);",
+      "category": "builder"
+    },
+    {
+      "name": "to_u8",
+      "file": "integration_test.rs",
+      "line": 2114,
+      "preview": "let vec: Vec<u8> = vec![255, 3]; let fs: flatbuffers::FollowStart<u8> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { fs.self_follow(&vec[..], 1) }, 3);",
+      "category": "other"
+    },
+    {
+      "name": "to_u16",
+      "file": "integration_test.rs",
+      "line": 2121,
+      "preview": "let vec: Vec<u8> = vec![255, 255, 3, 4]; let fs: flatbuffers::FollowStart<u16> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { fs.self_follow(&vec[..], 2) }, 1027);",
+      "category": "other"
+    },
+    {
+      "name": "to_f32",
+      "file": "integration_test.rs",
+      "line": 2128,
+      "preview": "let vec: Vec<u8> = vec![255, 255, 255, 255, /* start of value */ 208, 15, 73, 64]; let fs: flatbuffers::FollowStart<f32> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { fs.self_follow(&vec[..], 4) }, 3.14159);",
+      "category": "other"
+    },
+    {
+      "name": "to_string",
+      "file": "integration_test.rs",
+      "line": 2135,
+      "preview": "let vec: Vec<u8> = vec![255,255,255,255, 3, 0, 0, 0, 'f' as u8, 'o' as u8, 'o' as u8, 0]; let off: flatbuffers::FollowStart<&str> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { off.self_follow(&vec[..], 4) }, \"foo\");",
+      "category": "string"
+    },
+    {
+      "name": "to_byte_slice",
+      "file": "integration_test.rs",
+      "line": 2142,
+      "preview": "let vec: Vec<u8> = vec![255, 255, 255, 255, 4, 0, 0, 0, 1, 2, 3, 4]; let off: flatbuffers::FollowStart<flatbuffers::Vector<u8>> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { off.self_follow(&vec[..], 4).bytes() }, &[1, 2, 3, 4][..]);",
+      "category": "vector"
+    },
+    {
+      "name": "to_vector_of_u16",
+      "file": "integration_test.rs",
+      "line": 2149,
+      "preview": "let vec: Vec<u8> = vec![255, 255, 255, 255, 2, 0, 0, 0, 1, 2, 3, 4]; let off: flatbuffers::FollowStart<flatbuffers::Vector<u16>> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { off.self_follow(&vec[..], 4).len() }, 2);",
+      "category": "vector"
+    },
+    {
+      "name": "to_struct",
+      "file": "integration_test.rs",
+      "line": 2158,
+      "preview": "let vec: Vec<u8> = vec![255, 255, 255, 255, 1, 2, 3, 4]; let off: flatbuffers::FollowStart<&FooStruct> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { *off.self_follow(&vec[..], 4) }, FooStruct::new(1, 2, 1027));",
+      "category": "struct"
+    },
+    {
+      "name": "to_vector_of_offset_to_string_elements",
+      "file": "integration_test.rs",
+      "line": 2165,
+      "preview": "let buf: Vec<u8> = vec![/* vec len */ 1, 0, 0, 0, /* offset to string */ 4, 0, 0, 0, /* str length */ 3, 0, 0, 0, 'f' as u8, 'o' as u8, 'o' as u8, 0]; let s: flatbuffers::FollowStart<flatbuffers::Vector<flatbuffers::ForwardsUOffset<&str>>> = flatbuffers::FollowStart::new(); assert_eq!(unsafe {s.self_follow(&buf[..], 0).len() }, 1);",
+      "category": "vector"
+    },
+    {
+      "name": "to_vector_of_struct_elements",
+      "file": "integration_test.rs",
+      "line": 2173,
+      "preview": "let buf: Vec<u8> = vec![1, 0, 0, 0, /* struct data */ 1, 2, 3, 4]; let fs: flatbuffers::FollowStart<flatbuffers::Vector<FooStruct>> = flatbuffers::FollowStart::new(); assert_eq!(unsafe { fs.self_follow(&buf[..], 0).len() }, 1);",
+      "category": "vector"
+    },
+    {
+      "name": "to_root_to_empty_table",
+      "file": "integration_test.rs",
+      "line": 2181,
+      "preview": "let buf: Vec<u8> = vec![ 12, 0, 0, 0, // offset to root table 4, 0, // vtable len",
+      "category": "root_type"
+    },
+    {
+      "name": "to_root_table_get_slot_scalar_u8",
+      "file": "integration_test.rs",
+      "line": 2198,
+      "preview": "let buf: Vec<u8> = vec![ 14, 0, 0, 0, // offset to root table 6, 0, // vtable len",
+      "category": "root_type"
+    },
+    {
+      "name": "to_root_to_table_get_slot_scalar_u8_default_via_vtable_len",
+      "file": "integration_test.rs",
+      "line": 2218,
+      "preview": "let buf: Vec<u8> = vec![ 12, 0, 0, 0, // offset to root table 4, 0, // vtable len",
+      "category": "default"
+    },
+    {
+      "name": "to_root_to_table_get_slot_scalar_u8_default_via_vtable_zero",
+      "file": "integration_test.rs",
+      "line": 2236,
+      "preview": "let buf: Vec<u8> = vec![ 14, 0, 0, 0, // offset to root table 6, 0, // vtable len",
+      "category": "default"
+    },
+    {
+      "name": "to_root_to_table_get_slot_string_multiple_types",
+      "file": "integration_test.rs",
+      "line": 2255,
+      "preview": "let buf: Vec<u8> = vec![ 14, 0, 0, 0, // offset to root table 6, 0, // vtable len",
+      "category": "string"
+    },
+    {
+      "name": "to_root_to_table_get_slot_string_multiple_types_default_via_vtable_len",
+      "file": "integration_test.rs",
+      "line": 2285,
+      "preview": "let buf: Vec<u8> = vec![ 12, 0, 0, 0, // offset to root table 4, 0, // vtable len",
+      "category": "string"
+    },
+    {
+      "name": "to_root_to_table_get_slot_string_multiple_types_default_via_vtable_zero",
+      "file": "integration_test.rs",
+      "line": 2315,
+      "preview": "let buf: Vec<u8> = vec![ 14, 0, 0, 0, // offset to root table 6, 0, // vtable len",
+      "category": "string"
+    },
+    {
+      "name": "push_u8",
+      "file": "integration_test.rs",
+      "line": 2357,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(123u8); check(&b, &[123]);",
+      "category": "builder"
+    },
+    {
+      "name": "push_u64",
+      "file": "integration_test.rs",
+      "line": 2364,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(0x12345678); check(&b, &[0x78, 0x56, 0x34, 0x12]);",
+      "category": "builder"
+    },
+    {
+      "name": "push_f64",
+      "file": "integration_test.rs",
+      "line": 2371,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(3.14159265359f64); check(&b, &[234, 46, 68, 84, 251, 33, 9, 64]);",
+      "category": "builder"
+    },
+    {
+      "name": "push_generated_struct",
+      "file": "integration_test.rs",
+      "line": 2378,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(my_game::example::Test::new(10, 20)); check(&b, &[10, 0, 20, 0]);",
+      "category": "builder"
+    },
+    {
+      "name": "push_u8_vector_with_offset_with_alignment",
+      "file": "integration_test.rs",
+      "line": 2385,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.create_vector(&[1u8, 2, 3, 4, 5, 6, 7, 8, 9][..]); b.push(off);",
+      "category": "builder"
+    },
+    {
+      "name": "push_u8_u16_alignment",
+      "file": "integration_test.rs",
+      "line": 2393,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(1u8); b.push(2u16);",
+      "category": "builder"
+    },
+    {
+      "name": "push_u8_u32_alignment",
+      "file": "integration_test.rs",
+      "line": 2401,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(1u8); b.push(2u32);",
+      "category": "builder"
+    },
+    {
+      "name": "push_u8_u64_alignment",
+      "file": "integration_test.rs",
+      "line": 2409,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(1u8); b.push(2u64);",
+      "category": "builder"
+    },
+    {
+      "name": "push_u8_generated_struct_alignment",
+      "file": "integration_test.rs",
+      "line": 2420,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(1u8); b.push(my_game::example::Test::new(10, 20));",
+      "category": "builder"
+    },
+    {
+      "name": "one_empty_table",
+      "file": "integration_test.rs",
+      "line": 2439,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let start0 = b.start_table(); b.end_table(start0);",
+      "category": "builder"
+    },
+    {
+      "name": "two_empty_tables_are_deduplicated",
+      "file": "integration_test.rs",
+      "line": 2452,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let start0 = b.start_table(); b.end_table(start0);",
+      "category": "builder"
+    },
+    {
+      "name": "two_tables_with_two_conveniently_sized_inline_elements_are_deduplicated",
+      "file": "integration_test.rs",
+      "line": 2469,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let start0 = b.start_table(); b.push_slot::<u64>(fi2fo(0), 100, 0);",
+      "category": "builder"
+    },
+    {
+      "name": "many_identical_tables_use_few_vtables",
+      "file": "integration_test.rs",
+      "line": 2498,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); for _ in 0..1000 { let start = b.start_table();",
+      "category": "builder"
+    },
+    {
+      "name": "layout_01_basic_numbers",
+      "file": "integration_test.rs",
+      "line": 2521,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(true); check(&b, &[1]);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_01b_bigger_numbers",
+      "file": "integration_test.rs",
+      "line": 2540,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.push(0x1122334455667788u64); check(&b, &[0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11]);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_02_1xbyte_vector",
+      "file": "integration_test.rs",
+      "line": 2547,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); check(&b, &[]); b.start_vector::<u8>(1);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_03_2xbyte_vector",
+      "file": "integration_test.rs",
+      "line": 2559,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_vector::<u8>(2); check(&b, &[0, 0]); // align to 4bytes",
+      "category": "builder"
+    },
+    {
+      "name": "layout_03b_11xbyte_vector_matches_builder_size",
+      "file": "integration_test.rs",
+      "line": 2572,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::with_capacity(12); b.start_vector::<u8>(8); let mut gold = vec![0u8; 0];",
+      "category": "builder"
+    },
+    {
+      "name": "layout_04_1xuint16_vector",
+      "file": "integration_test.rs",
+      "line": 2589,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_vector::<u16>(1); check(&b, &[0, 0]); // align to 4bytes",
+      "category": "builder"
+    },
+    {
+      "name": "layout_05_2xuint16_vector",
+      "file": "integration_test.rs",
+      "line": 2600,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let _off = b.start_vector::<u16>(2); check(&b, &[]); // align to 4bytes",
+      "category": "builder"
+    },
+    {
+      "name": "layout_06_create_string",
+      "file": "integration_test.rs",
+      "line": 2613,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off0 = b.create_string(\"foo\"); assert_eq!(8, off0.value());",
+      "category": "builder"
+    },
+    {
+      "name": "layout_06b_create_string_unicode",
+      "file": "integration_test.rs",
+      "line": 2625,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let uni_str = \"\\u{65e5}\\u{672c}\\u{8a9e}\"; let off0 = b.create_string(uni_str);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_06c_create_byte_string",
+      "file": "integration_test.rs",
+      "line": 2638,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off0 = b.create_byte_string(b\"foo\"); assert_eq!(8, off0.value());",
+      "category": "builder"
+    },
+    {
+      "name": "layout_07_empty_vtable",
+      "file": "integration_test.rs",
+      "line": 2650,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off0 = b.start_table(); check(&b, &[]);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_08_vtable_with_one_true_bool",
+      "file": "integration_test.rs",
+      "line": 2661,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); check(&b, &[]); let off0 = b.start_table();",
+      "category": "builder"
+    },
+    {
+      "name": "layout_09_vtable_with_one_default_bool",
+      "file": "integration_test.rs",
+      "line": 2682,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); check(&b, &[]); let off = b.start_table();",
+      "category": "builder"
+    },
+    {
+      "name": "layout_09b_vtable_with_one_default_bool_force_defaults",
+      "file": "integration_test.rs",
+      "line": 2698,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); check(&b, &[]); let off = b.start_table();",
+      "category": "builder"
+    },
+    {
+      "name": "layout_10_vtable_with_one_int16",
+      "file": "integration_test.rs",
+      "line": 2717,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); check(&b, &[]); let off = b.start_table();",
+      "category": "builder"
+    },
+    {
+      "name": "layout_11_vtable_with_two_int16",
+      "file": "integration_test.rs",
+      "line": 2734,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot(fi2fo(0), 0x3456i16, 0);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_12_vtable_with_int16_and_bool",
+      "file": "integration_test.rs",
+      "line": 2752,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot(fi2fo(0), 0x3456i16, 0);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_12b_vtable_with_empty_vector",
+      "file": "integration_test.rs",
+      "line": 2771,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_vector::<u8>(0); let vecend = b.end_vector::<u8>(0);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_12c_vtable_with_empty_vector_of_byte_and_some_scalars",
+      "file": "integration_test.rs",
+      "line": 2789,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_vector::<u8>(0); let vecend = b.end_vector::<u8>(0);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_13_vtable_with_1_int16_and_2_vector_of_i16",
+      "file": "integration_test.rs",
+      "line": 2810,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_vector::<i16>(2); b.push(0x1234i16);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_14_vtable_with_1_struct_of_int8_and_int16_and_int32",
+      "file": "integration_test.rs",
+      "line": 2835,
+      "preview": "#[derive(Copy, Clone, Debug, Eq, PartialEq)] #[repr(C, packed)] struct foo {",
+      "category": "struct"
+    },
+    {
+      "name": "layout_15_vtable_with_1_vector_of_4_int8",
+      "file": "integration_test.rs",
+      "line": 2875,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); b.start_vector::<i8>(4); b.push(33i8);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_16_table_with_some_elements",
+      "file": "integration_test.rs",
+      "line": 2902,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot(fi2fo(0), 33i8, 0);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_17_one_unfinished_table_and_one_finished_table",
+      "file": "integration_test.rs",
+      "line": 2927,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); { let off = b.start_table();",
+      "category": "builder"
+    },
+    {
+      "name": "layout_18_a_bunch_of_bools",
+      "file": "integration_test.rs",
+      "line": 2974,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot(fi2fo(0), true, false);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_19_three_bools",
+      "file": "integration_test.rs",
+      "line": 3015,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot(fi2fo(0), true, false);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_20_some_floats",
+      "file": "integration_test.rs",
+      "line": 3044,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot(fi2fo(0), 1.0f32, 0.0);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_21_vtable_defaults",
+      "file": "integration_test.rs",
+      "line": 3061,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot::<i8>(fi2fo(0), 1, 1);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_22_root",
+      "file": "integration_test.rs",
+      "line": 3081,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot::<i16>(fi2fo(1), 3, 2);",
+      "category": "builder"
+    },
+    {
+      "name": "layout_23_varied_slots_and_root",
+      "file": "integration_test.rs",
+      "line": 3103,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); let off = b.start_table(); b.push_slot::<i16>(fi2fo(0), 1, 0);",
+      "category": "builder"
+    },
+    {
+      "name": "follow_types_implement_copy_and_clone",
+      "file": "integration_test.rs",
+      "line": 3134,
+      "preview": "static_assertions::assert_impl_all!(flatbuffers::WIPOffset<u32>: Copy, Clone); static_assertions::assert_impl_all!(flatbuffers::WIPOffset<Vec<u32>>: Copy, Clone); static_assertions::assert_impl_all!(flatbuffers::ForwardsUOffset<u32>: Copy, Clone);",
+      "category": "other"
+    },
+    {
+      "name": "fully_qualified_name_generated",
+      "file": "integration_test.rs",
+      "line": 3149,
+      "preview": "assert!(check_eq!(super::my_game::example::Monster::get_fully_qualified_name(), \"MyGame.Example.Monster\").is_ok()); assert!(check_eq!(super::my_game::example_2::Monster::get_fully_qualified_name(), \"MyGame.Example2.Monster\").is_ok()); assert!(check_eq!(super::my_game::example::Vec3::get_fully_qualified_name(), \"MyGame.Example.Vec3\").is_ok());",
+      "category": "other"
+    },
+    {
+      "name": "write_example_wire_data_to_file",
+      "file": "integration_test.rs",
+      "line": 3163,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(b); use ::std::io::Write;",
+      "category": "builder"
+    },
+    {
+      "name": "test_shared_strings",
+      "file": "integration_test.rs",
+      "line": 3182,
+      "preview": "let mut builder = flatbuffers::FlatBufferBuilder::new(); let offset1 = builder.create_shared_string(\"welcome to flatbuffers!!\"); let offset2 = builder.create_shared_string(\"welcome\");",
+      "category": "builder"
+    },
+    {
+      "name": "generated_code_creates_correct_example",
+      "file": "arrays_test.rs",
+      "line": 109,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(&mut b); let buf = b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "struct_netsted_struct_is_32_bytes",
+      "file": "arrays_test.rs",
+      "line": 117,
+      "preview": "assert_eq!(32, ::core::mem::size_of::<NestedStruct>()); } #[test]",
+      "category": "struct"
+    },
+    {
+      "name": "struct_array_struct_is_160_bytes",
+      "file": "arrays_test.rs",
+      "line": 122,
+      "preview": "assert_eq!(160, ::core::mem::size_of::<ArrayStruct>()); } #[test]",
+      "category": "struct"
+    },
+    {
+      "name": "test_object_api_reads_correctly",
+      "file": "arrays_test.rs",
+      "line": 127,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(&mut b); let array_table = root_as_array_table(b.finished_data()).unwrap().unpack();",
+      "category": "object_api"
+    },
+    {
+      "name": "object_api_defaults",
+      "file": "arrays_test.rs",
+      "line": 166,
+      "preview": "use arrays_test_generated::my_game::example::*; assert_eq!( NestedStructT::default(),",
+      "category": "object_api"
+    },
+    {
+      "name": "generated_code_debug_prints_correctly",
+      "file": "arrays_test.rs",
+      "line": 193,
+      "preview": "let b = &mut flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(b); let buf = b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "assert_on_too_small_array_buf",
+      "file": "arrays_test.rs",
+      "line": 211,
+      "preview": "let a = [0u8; 19]; unsafe { flatbuffers::Array::<i32, 5>::new(&a) }; }",
+      "category": "fixed_array"
+    },
+    {
+      "name": "assert_on_too_big_array_buf",
+      "file": "arrays_test.rs",
+      "line": 218,
+      "preview": "let a = [0u8; 21]; unsafe { flatbuffers::Array::<i32, 5>::new(&a) }; }",
+      "category": "fixed_array"
+    },
+    {
+      "name": "verify_struct_array_alignment",
+      "file": "arrays_test.rs",
+      "line": 225,
+      "preview": "let mut b = flatbuffers::FlatBufferBuilder::new(); create_serialized_example_with_generated_code(&mut b); let buf = b.finished_data();",
+      "category": "builder"
+    },
+    {
+      "name": "test_struct",
+      "file": "arrays_test.rs",
+      "line": 337,
+      "preview": "quickcheck::QuickCheck::new() .max_tests(MAX_TESTS) .quickcheck(prop_struct as fn(FakeArray<NestedStructWrapper, ARRAY_SIZE>));",
+      "category": "struct"
+    },
+    {
+      "name": "object_api_defaults",
+      "file": "optional_scalars_test.rs",
+      "line": 76,
+      "preview": "assert_eq!( ScalarStuffT::default(), ScalarStuffT {",
+      "category": "object_api"
+    },
+    {
+      "name": "object_defaults",
+      "file": "more_defaults_test.rs",
+      "line": 12,
+      "preview": "assert_eq!( MoreDefaultsT::default(), MoreDefaultsT {",
+      "category": "default"
+    },
+    {
+      "name": "nonpresent_values",
+      "file": "more_defaults_test.rs",
+      "line": 27,
+      "preview": "let m = flatbuffers::root::<MoreDefaults>(&[0; 4]).unwrap(); assert_eq!(m.ints().len(), 0); assert_eq!(m.floats().len(), 0);",
+      "category": "other"
+    },
+    {
+      "name": "test_vtable_zeroed_with_garbage_allocator",
+      "file": "vtable_zeroed_test.rs",
+      "line": 103,
+      "preview": "let allocator = GarbageFilledAllocator::new(256); let mut builder: FlatBufferBuilder<GarbageFilledAllocator> = FlatBufferBuilder::new_in(allocator);",
+      "category": "builder"
+    }
+  ],
+  "generated_modules": [
+    {
+      "directory": "monster_test",
+      "schema": "monster_test.fbs",
+      "file_count": 23,
+      "files": [
+        "mod.rs",
+        "my_game/example/ability_generated.rs",
+        "my_game/example/any_ambiguous_aliases_generated.rs",
+        "my_game/example/any_generated.rs",
+        "my_game/example/any_unique_aliases_generated.rs",
+        "my_game/example/color_generated.rs",
+        "my_game/example/long_enum_generated.rs",
+        "my_game/example/monster_generated.rs",
+        "my_game/example/race_generated.rs",
+        "my_game/example/referrable_generated.rs",
+        "my_game/example/stat_generated.rs",
+        "my_game/example/struct_of_structs_generated.rs",
+        "my_game/example/struct_of_structs_of_structs_generated.rs",
+        "my_game/example/test_generated.rs",
+        "my_game/example/test_simple_table_with_enum_generated.rs",
+        "my_game/example/type_aliases_generated.rs",
+        "my_game/example/vec_3_generated.rs",
+        "my_game/example_2/monster_generated.rs",
+        "my_game/in_parent_namespace_generated.rs",
+        "my_game/other_name_space/from_include_generated.rs",
+        "my_game/other_name_space/table_b_generated.rs",
+        "my_game/other_name_space/unused_generated.rs",
+        "table_a_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "my_game/example/ability_generated.rs",
+          "type": "struct",
+          "name": "Ability",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/any_ambiguous_aliases_generated.rs",
+          "type": "struct",
+          "name": "AnyAmbiguousAliases",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/any_generated.rs",
+          "type": "struct",
+          "name": "Any",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/any_unique_aliases_generated.rs",
+          "type": "struct",
+          "name": "AnyUniqueAliases",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/color_generated.rs",
+          "type": "struct",
+          "name": "Color",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/long_enum_generated.rs",
+          "type": "struct",
+          "name": "LongEnum",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/monster_generated.rs",
+          "type": "table",
+          "name": "MonsterOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/race_generated.rs",
+          "type": "struct",
+          "name": "Race",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/referrable_generated.rs",
+          "type": "table",
+          "name": "ReferrableOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/stat_generated.rs",
+          "type": "table",
+          "name": "StatOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/struct_of_structs_generated.rs",
+          "type": "unknown",
+          "name": "StructOfStructs",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/struct_of_structs_of_structs_generated.rs",
+          "type": "unknown",
+          "name": "StructOfStructsOfStructs",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/test_generated.rs",
+          "type": "struct",
+          "name": "Test",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/test_simple_table_with_enum_generated.rs",
+          "type": "table",
+          "name": "TestSimpleTableWithEnumOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/type_aliases_generated.rs",
+          "type": "table",
+          "name": "TypeAliasesOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/vec_3_generated.rs",
+          "type": "struct",
+          "name": "Vec3",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example_2/monster_generated.rs",
+          "type": "table",
+          "name": "MonsterOffset",
+          "namespace": "my_game.example_2"
+        },
+        {
+          "file": "my_game/in_parent_namespace_generated.rs",
+          "type": "table",
+          "name": "InParentNamespaceOffset",
+          "namespace": "my_game"
+        },
+        {
+          "file": "my_game/other_name_space/from_include_generated.rs",
+          "type": "struct",
+          "name": "FromInclude",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/table_b_generated.rs",
+          "type": "table",
+          "name": "TableBOffset",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/unused_generated.rs",
+          "type": "struct",
+          "name": "Unused",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "table_a_generated.rs",
+          "type": "table",
+          "name": "TableAOffset",
+          "namespace": ""
+        }
+      ]
+    },
+    {
+      "directory": "monster_test_serialize",
+      "schema": "monster_test.fbs",
+      "file_count": 23,
+      "files": [
+        "mod.rs",
+        "my_game/example/ability_generated.rs",
+        "my_game/example/any_ambiguous_aliases_generated.rs",
+        "my_game/example/any_generated.rs",
+        "my_game/example/any_unique_aliases_generated.rs",
+        "my_game/example/color_generated.rs",
+        "my_game/example/long_enum_generated.rs",
+        "my_game/example/monster_generated.rs",
+        "my_game/example/race_generated.rs",
+        "my_game/example/referrable_generated.rs",
+        "my_game/example/stat_generated.rs",
+        "my_game/example/struct_of_structs_generated.rs",
+        "my_game/example/struct_of_structs_of_structs_generated.rs",
+        "my_game/example/test_generated.rs",
+        "my_game/example/test_simple_table_with_enum_generated.rs",
+        "my_game/example/type_aliases_generated.rs",
+        "my_game/example/vec_3_generated.rs",
+        "my_game/example_2/monster_generated.rs",
+        "my_game/in_parent_namespace_generated.rs",
+        "my_game/other_name_space/from_include_generated.rs",
+        "my_game/other_name_space/table_b_generated.rs",
+        "my_game/other_name_space/unused_generated.rs",
+        "table_a_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "my_game/example/ability_generated.rs",
+          "type": "struct",
+          "name": "Ability",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/any_ambiguous_aliases_generated.rs",
+          "type": "struct",
+          "name": "AnyAmbiguousAliases",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/any_generated.rs",
+          "type": "struct",
+          "name": "Any",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/any_unique_aliases_generated.rs",
+          "type": "struct",
+          "name": "AnyUniqueAliases",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/color_generated.rs",
+          "type": "struct",
+          "name": "Color",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/long_enum_generated.rs",
+          "type": "struct",
+          "name": "LongEnum",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/monster_generated.rs",
+          "type": "table",
+          "name": "MonsterOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/race_generated.rs",
+          "type": "struct",
+          "name": "Race",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/referrable_generated.rs",
+          "type": "table",
+          "name": "ReferrableOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/stat_generated.rs",
+          "type": "table",
+          "name": "StatOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/struct_of_structs_generated.rs",
+          "type": "unknown",
+          "name": "StructOfStructs",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/struct_of_structs_of_structs_generated.rs",
+          "type": "unknown",
+          "name": "StructOfStructsOfStructs",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/test_generated.rs",
+          "type": "struct",
+          "name": "Test",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/test_simple_table_with_enum_generated.rs",
+          "type": "table",
+          "name": "TestSimpleTableWithEnumOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/type_aliases_generated.rs",
+          "type": "table",
+          "name": "TypeAliasesOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/vec_3_generated.rs",
+          "type": "struct",
+          "name": "Vec3",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example_2/monster_generated.rs",
+          "type": "table",
+          "name": "MonsterOffset",
+          "namespace": "my_game.example_2"
+        },
+        {
+          "file": "my_game/in_parent_namespace_generated.rs",
+          "type": "table",
+          "name": "InParentNamespaceOffset",
+          "namespace": "my_game"
+        },
+        {
+          "file": "my_game/other_name_space/from_include_generated.rs",
+          "type": "struct",
+          "name": "FromInclude",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/table_b_generated.rs",
+          "type": "table",
+          "name": "TableBOffset",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/unused_generated.rs",
+          "type": "struct",
+          "name": "Unused",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "table_a_generated.rs",
+          "type": "table",
+          "name": "TableAOffset",
+          "namespace": ""
+        }
+      ]
+    },
+    {
+      "directory": "arrays_test",
+      "schema": "arrays_test.fbs",
+      "file_count": 5,
+      "files": [
+        "mod.rs",
+        "my_game/example/array_struct_generated.rs",
+        "my_game/example/array_table_generated.rs",
+        "my_game/example/nested_struct_generated.rs",
+        "my_game/example/test_enum_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "my_game/example/array_struct_generated.rs",
+          "type": "struct",
+          "name": "ArrayStruct",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/array_table_generated.rs",
+          "type": "table",
+          "name": "ArrayTableOffset",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/nested_struct_generated.rs",
+          "type": "struct",
+          "name": "NestedStruct",
+          "namespace": "my_game.example"
+        },
+        {
+          "file": "my_game/example/test_enum_generated.rs",
+          "type": "struct",
+          "name": "TestEnum",
+          "namespace": "my_game.example"
+        }
+      ]
+    },
+    {
+      "directory": "namespace_test",
+      "schema": "namespace_test/namespace_test2.fbs",
+      "file_count": 8,
+      "files": [
+        "mod.rs",
+        "namespace_a/namespace_b/enum_in_nested_ns_generated.rs",
+        "namespace_a/namespace_b/struct_in_nested_ns_generated.rs",
+        "namespace_a/namespace_b/table_in_nested_ns_generated.rs",
+        "namespace_a/namespace_b/union_in_nested_ns_generated.rs",
+        "namespace_a/second_table_in_a_generated.rs",
+        "namespace_a/table_in_first_ns_generated.rs",
+        "namespace_c/table_in_c_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "namespace_a/namespace_b/enum_in_nested_ns_generated.rs",
+          "type": "struct",
+          "name": "EnumInNestedNS",
+          "namespace": "namespace_a.namespace_b"
+        },
+        {
+          "file": "namespace_a/namespace_b/struct_in_nested_ns_generated.rs",
+          "type": "struct",
+          "name": "StructInNestedNS",
+          "namespace": "namespace_a.namespace_b"
+        },
+        {
+          "file": "namespace_a/namespace_b/table_in_nested_ns_generated.rs",
+          "type": "table",
+          "name": "TableInNestedNSOffset",
+          "namespace": "namespace_a.namespace_b"
+        },
+        {
+          "file": "namespace_a/namespace_b/union_in_nested_ns_generated.rs",
+          "type": "struct",
+          "name": "UnionInNestedNS",
+          "namespace": "namespace_a.namespace_b"
+        },
+        {
+          "file": "namespace_a/second_table_in_a_generated.rs",
+          "type": "table",
+          "name": "SecondTableInAOffset",
+          "namespace": "namespace_a"
+        },
+        {
+          "file": "namespace_a/table_in_first_ns_generated.rs",
+          "type": "table",
+          "name": "TableInFirstNSOffset",
+          "namespace": "namespace_a"
+        },
+        {
+          "file": "namespace_c/table_in_c_generated.rs",
+          "type": "table",
+          "name": "TableInCOffset",
+          "namespace": "namespace_c"
+        }
+      ]
+    },
+    {
+      "directory": "optional_scalars",
+      "schema": "optional_scalars.fbs",
+      "file_count": 3,
+      "files": [
+        "mod.rs",
+        "optional_scalars/optional_byte_generated.rs",
+        "optional_scalars/scalar_stuff_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "optional_scalars/optional_byte_generated.rs",
+          "type": "struct",
+          "name": "OptionalByte",
+          "namespace": "optional_scalars"
+        },
+        {
+          "file": "optional_scalars/scalar_stuff_generated.rs",
+          "type": "table",
+          "name": "ScalarStuffOffset",
+          "namespace": "optional_scalars"
+        }
+      ]
+    },
+    {
+      "directory": "more_defaults",
+      "schema": "more_defaults.fbs",
+      "file_count": 3,
+      "files": [
+        "abc_generated.rs",
+        "mod.rs",
+        "more_defaults_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "abc_generated.rs",
+          "type": "struct",
+          "name": "ABC",
+          "namespace": ""
+        },
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "more_defaults_generated.rs",
+          "type": "table",
+          "name": "MoreDefaultsOffset",
+          "namespace": ""
+        }
+      ]
+    },
+    {
+      "directory": "keyword_test",
+      "schema": "keyword_test.fbs",
+      "file_count": 6,
+      "files": [
+        "keyword_test/abc_generated.rs",
+        "keyword_test/keywords_in_table_generated.rs",
+        "keyword_test/keywords_in_union_generated.rs",
+        "keyword_test/public_generated.rs",
+        "keyword_test/table_2_generated.rs",
+        "mod.rs"
+      ],
+      "entities": [
+        {
+          "file": "keyword_test/abc_generated.rs",
+          "type": "struct",
+          "name": "ABC",
+          "namespace": "keyword_test"
+        },
+        {
+          "file": "keyword_test/keywords_in_table_generated.rs",
+          "type": "table",
+          "name": "KeywordsInTableOffset",
+          "namespace": "keyword_test"
+        },
+        {
+          "file": "keyword_test/keywords_in_union_generated.rs",
+          "type": "struct",
+          "name": "KeywordsInUnion",
+          "namespace": "keyword_test"
+        },
+        {
+          "file": "keyword_test/public_generated.rs",
+          "type": "struct",
+          "name": "public",
+          "namespace": "keyword_test"
+        },
+        {
+          "file": "keyword_test/table_2_generated.rs",
+          "type": "table",
+          "name": "Table2Offset",
+          "namespace": "keyword_test"
+        },
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        }
+      ]
+    },
+    {
+      "directory": "rust_namer_test",
+      "schema": "rust_namer_test.fbs",
+      "file_count": 10,
+      "files": [
+        "mod.rs",
+        "rust_namer_test/field_table_generated.rs",
+        "rust_namer_test/field_union_generated.rs",
+        "rust_namer_test/game_message_generated.rs",
+        "rust_namer_test/game_message_wrapper_generated.rs",
+        "rust_namer_test/player_input_change_generated.rs",
+        "rust_namer_test/player_spectate_generated.rs",
+        "rust_namer_test/player_stat_event_generated.rs",
+        "rust_namer_test/possibly_reserved_words_generated.rs",
+        "rust_namer_test/root_table_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "rust_namer_test/field_table_generated.rs",
+          "type": "table",
+          "name": "FieldTableOffset",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/field_union_generated.rs",
+          "type": "struct",
+          "name": "FieldUnion",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/game_message_generated.rs",
+          "type": "struct",
+          "name": "GameMessage",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/game_message_wrapper_generated.rs",
+          "type": "table",
+          "name": "GameMessageWrapperOffset",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/player_input_change_generated.rs",
+          "type": "table",
+          "name": "PlayerInputChangeOffset",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/player_spectate_generated.rs",
+          "type": "table",
+          "name": "PlayerSpectateOffset",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/player_stat_event_generated.rs",
+          "type": "table",
+          "name": "PlayerStatEventOffset",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/possibly_reserved_words_generated.rs",
+          "type": "struct",
+          "name": "PossiblyReservedWords",
+          "namespace": "rust_namer_test"
+        },
+        {
+          "file": "rust_namer_test/root_table_generated.rs",
+          "type": "table",
+          "name": "RootTableOffset",
+          "namespace": "rust_namer_test"
+        }
+      ]
+    },
+    {
+      "directory": "private_annotation_test",
+      "schema": "private_annotation_test.fbs",
+      "file_count": 6,
+      "files": [
+        "ab_generated.rs",
+        "annotations_generated.rs",
+        "any_generated.rs",
+        "game_generated.rs",
+        "mod.rs",
+        "object_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "ab_generated.rs",
+          "type": "enum",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "annotations_generated.rs",
+          "type": "unknown",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "any_generated.rs",
+          "type": "enum",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "game_generated.rs",
+          "type": "unknown",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "object_generated.rs",
+          "type": "unknown",
+          "name": "",
+          "namespace": ""
+        }
+      ]
+    },
+    {
+      "directory": "include_test1",
+      "schema": "include_test/include_test1.fbs",
+      "file_count": 5,
+      "files": [
+        "mod.rs",
+        "my_game/other_name_space/from_include_generated.rs",
+        "my_game/other_name_space/table_b_generated.rs",
+        "my_game/other_name_space/unused_generated.rs",
+        "table_a_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "my_game/other_name_space/from_include_generated.rs",
+          "type": "struct",
+          "name": "FromInclude",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/table_b_generated.rs",
+          "type": "table",
+          "name": "TableBOffset",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/unused_generated.rs",
+          "type": "struct",
+          "name": "Unused",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "table_a_generated.rs",
+          "type": "table",
+          "name": "TableAOffset",
+          "namespace": ""
+        }
+      ]
+    },
+    {
+      "directory": "include_test2",
+      "schema": "include_test/sub/include_test2.fbs",
+      "file_count": 5,
+      "files": [
+        "mod.rs",
+        "my_game/other_name_space/from_include_generated.rs",
+        "my_game/other_name_space/table_b_generated.rs",
+        "my_game/other_name_space/unused_generated.rs",
+        "table_a_generated.rs"
+      ],
+      "entities": [
+        {
+          "file": "mod.rs",
+          "type": "module_root",
+          "name": "",
+          "namespace": ""
+        },
+        {
+          "file": "my_game/other_name_space/from_include_generated.rs",
+          "type": "struct",
+          "name": "FromInclude",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/table_b_generated.rs",
+          "type": "table",
+          "name": "TableBOffset",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "my_game/other_name_space/unused_generated.rs",
+          "type": "struct",
+          "name": "Unused",
+          "namespace": "my_game.other_name_space"
+        },
+        {
+          "file": "table_a_generated.rs",
+          "type": "table",
+          "name": "TableAOffset",
+          "namespace": ""
+        }
+      ]
+    }
+  ],
+  "schemas": [
+    {
+      "path": "monster_test.fbs",
+      "exists": true,
+      "tables": 7,
+      "structs": 5,
+      "enums": 5,
+      "unions": 3,
+      "services": 1,
+      "total_types": 21,
+      "includes": [
+        "include_test1.fbs"
+      ],
+      "root_type": "Monster",
+      "file_identifier": "MONS",
+      "features": [
+        "bit_flags",
+        "key_fields",
+        "force_align",
+        "nested_flatbuffer"
+      ]
+    },
+    {
+      "path": "arrays_test.fbs",
+      "exists": true,
+      "tables": 1,
+      "structs": 2,
+      "enums": 1,
+      "unions": 0,
+      "services": 0,
+      "total_types": 4,
+      "includes": [],
+      "root_type": "ArrayTable",
+      "file_identifier": "ARRT",
+      "features": [
+        "fixed_arrays"
+      ]
+    },
+    {
+      "path": "optional_scalars.fbs",
+      "exists": true,
+      "tables": 2,
+      "structs": 0,
+      "enums": 1,
+      "unions": 0,
+      "services": 0,
+      "total_types": 3,
+      "includes": [],
+      "root_type": "ScalarStuff",
+      "file_identifier": "NULL",
+      "features": []
+    },
+    {
+      "path": "more_defaults.fbs",
+      "exists": true,
+      "tables": 1,
+      "structs": 0,
+      "enums": 1,
+      "unions": 0,
+      "services": 0,
+      "total_types": 2,
+      "includes": [],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "keyword_test.fbs",
+      "exists": true,
+      "tables": 2,
+      "structs": 0,
+      "enums": 2,
+      "unions": 1,
+      "services": 0,
+      "total_types": 5,
+      "includes": [],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "rust_namer_test.fbs",
+      "exists": true,
+      "tables": 6,
+      "structs": 1,
+      "enums": 0,
+      "unions": 2,
+      "services": 0,
+      "total_types": 9,
+      "includes": [],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "private_annotation_test.fbs",
+      "exists": true,
+      "tables": 2,
+      "structs": 1,
+      "enums": 1,
+      "unions": 1,
+      "services": 0,
+      "total_types": 5,
+      "includes": [],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "namespace_test/namespace_test1.fbs",
+      "exists": true,
+      "tables": 1,
+      "structs": 1,
+      "enums": 1,
+      "unions": 1,
+      "services": 0,
+      "total_types": 4,
+      "includes": [],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "namespace_test/namespace_test2.fbs",
+      "exists": true,
+      "tables": 3,
+      "structs": 0,
+      "enums": 0,
+      "unions": 0,
+      "services": 0,
+      "total_types": 3,
+      "includes": [
+        "namespace_test1.fbs"
+      ],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "include_test/include_test1.fbs",
+      "exists": true,
+      "tables": 1,
+      "structs": 0,
+      "enums": 0,
+      "unions": 0,
+      "services": 0,
+      "total_types": 1,
+      "includes": [
+        "sub/include_test2.fbs",
+        "sub/include_test2.fbs",
+        "include_test1.fbs"
+      ],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    },
+    {
+      "path": "include_test/sub/include_test2.fbs",
+      "exists": true,
+      "tables": 1,
+      "structs": 1,
+      "enums": 1,
+      "unions": 0,
+      "services": 0,
+      "total_types": 3,
+      "includes": [
+        "include_test1.fbs",
+        "sub/include_test2.fbs"
+      ],
+      "root_type": null,
+      "file_identifier": null,
+      "features": []
+    }
+  ],
+  "summary": {
+    "total_tests": 198,
+    "total_generated_files": 97,
+    "total_schemas": 11,
+    "test_files_scanned": 6,
+    "categories": {
+      "builder": 95,
+      "other": 56,
+      "struct": 12,
+      "string": 6,
+      "object_api": 5,
+      "vector": 4,
+      "root_type": 3,
+      "accessor": 3,
+      "default": 3,
+      "test_helper": 2,
+      "enum": 2,
+      "memory": 2,
+      "union": 2,
+      "fixed_array": 2,
+      "namespace": 1
+    }
+  }
+}

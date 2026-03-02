@@ -1,0 +1,12 @@
+struct Vec2 { x:float; y:float; }
+enum Tag:byte { A, B }
+
+table AllVectors {
+  ints: [int];
+  floats: [float];
+  strings: [string];
+  structs: [Vec2];
+  tags: [Tag];
+  bools: [bool];
+  bytes: [ubyte];
+}

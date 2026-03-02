@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_unresolved_type.fbs"), line: 2, col: 10 }): unresolved type 'UnknownType' in Monster.weapon

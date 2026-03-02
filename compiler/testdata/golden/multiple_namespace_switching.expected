@@ -1,0 +1,102 @@
+{
+  "objects": [
+    {
+      "name": "TableA",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_namespace_switching.fbs",
+              "line": 3,
+              "col": 19
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_namespace_switching.fbs",
+            "line": 3,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "First"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_namespace_switching.fbs",
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "TableB",
+      "fields": [
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_namespace_switching.fbs",
+              "line": 7,
+              "col": 19
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_namespace_switching.fbs",
+            "line": 7,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Second"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_namespace_switching.fbs",
+        "line": 7,
+        "col": 1
+      }
+    },
+    {
+      "name": "TableC",
+      "fields": [
+        {
+          "name": "a",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/multiple_namespace_switching.fbs",
+              "line": 11,
+              "col": 19
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_namespace_switching.fbs",
+            "line": 11,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "First"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_namespace_switching.fbs",
+        "line": 11,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,165 @@
+{
+  "objects": [
+    {
+      "name": "TypeAliases",
+      "fields": [
+        {
+          "name": "i8_field",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "span": {
+              "line": 2,
+              "col": 13
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "u8_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_BYTE",
+            "base_size": 1,
+            "span": {
+              "line": 3,
+              "col": 13
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "i16_field",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 4,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "u16_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 5,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "i32_field",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "u32_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_INT",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "i64_field",
+          "type": {
+            "base_type": "BASE_TYPE_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 8,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "u64_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 9,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "f32_field",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 10,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 10,
+            "col": 3
+          }
+        },
+        {
+          "name": "f64_field",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "line": 11,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 11,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

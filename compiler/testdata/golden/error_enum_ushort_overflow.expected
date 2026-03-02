@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_enum_ushort_overflow.fbs"), line: 2, col: 3 }): enum value 65536 does not fit in ushort for enum 'X'

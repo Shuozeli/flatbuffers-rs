@@ -1,0 +1,7 @@
+namespace MyGame.Example.SubModule;
+
+table DeepType { val: int; }
+
+namespace MyGame;
+
+table ShallowType { val: int; }

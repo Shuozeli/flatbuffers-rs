@@ -1,0 +1,11 @@
+{
+  "advanced_features": 0,
+  "fbs_files": [
+    {
+      "filename": "test1.fbs"
+    },
+    {
+      "filename": "test2.fbs"
+    }
+  ]
+}

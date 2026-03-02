@@ -1,0 +1,8 @@
+table ScalarStuff {
+  just_i8: int8;
+  maybe_i8: int8 = null;
+  default_i8: int8 = 42;
+  just_bool: bool;
+  maybe_bool: bool = null;
+  default_bool: bool = true;
+}

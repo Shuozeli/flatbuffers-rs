@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_mixed_id_assignment.fbs"), line: 1, col: 1 }): mixed id assignment in table 'BadTable': either all fields must have id or none

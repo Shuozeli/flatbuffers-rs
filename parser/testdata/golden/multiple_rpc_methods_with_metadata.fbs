@@ -1,0 +1,10 @@
+table Req { id: int; }
+table Resp { data: string; }
+
+rpc_service Service {
+  Unary(Req): Resp;
+  ServerStream(Req): Resp (streaming: "server");
+  ClientStream(Req): Resp (streaming: "client");
+  BidiStream(Req): Resp (streaming: "bidi");
+  Idempotent(Req): Resp (idempotent);
+}

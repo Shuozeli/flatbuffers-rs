@@ -1,0 +1,63 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/root_type_resolution.fbs",
+              "line": 2,
+              "col": 8
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/root_type_resolution.fbs",
+            "line": 2,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/root_type_resolution.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "root_table": {
+    "name": "Monster",
+    "fields": [
+      {
+        "name": "name",
+        "type": {
+          "base_type": "BASE_TYPE_STRING",
+          "base_size": 4,
+          "span": {
+            "file": "testdata/golden/root_type_resolution.fbs",
+            "line": 2,
+            "col": 8
+          }
+        },
+        "id": 0,
+        "span": {
+          "file": "testdata/golden/root_type_resolution.fbs",
+          "line": 2,
+          "col": 3
+        }
+      }
+    ],
+    "is_struct": false,
+    "span": {
+      "file": "testdata/golden/root_type_resolution.fbs",
+      "line": 1,
+      "col": 1
+    }
+  },
+  "advanced_features": 0
+}

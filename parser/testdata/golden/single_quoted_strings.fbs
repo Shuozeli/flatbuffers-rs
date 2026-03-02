@@ -1,0 +1,3 @@
+include 'other_file.fbs';
+
+table Foo { x: int; }

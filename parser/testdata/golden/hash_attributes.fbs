@@ -1,0 +1,6 @@
+table Monster {
+  testarrayofstring2:[string];
+  name:string (key);
+  testhashu32_fnv1:uint (hash:"fnv1_32");
+  testhashs64_fnv1a:long (hash:"fnv1a_64");
+}

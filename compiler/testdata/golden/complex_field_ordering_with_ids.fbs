@@ -1,0 +1,5 @@
+table Reordered {
+  z: string (id: 2);
+  x: int (id: 0);
+  y: float (id: 1);
+}

@@ -1,0 +1,180 @@
+{
+  "objects": [
+    {
+      "name": "AllScalars",
+      "fields": [
+        {
+          "name": "a",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "line": 2,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "b",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "span": {
+              "line": 3,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "c",
+          "type": {
+            "base_type": "BASE_TYPE_U_BYTE",
+            "base_size": 1,
+            "span": {
+              "line": 4,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "d",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 5,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "e",
+          "type": {
+            "base_type": "BASE_TYPE_U_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 6,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "f",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "g",
+          "type": {
+            "base_type": "BASE_TYPE_U_INT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "h",
+          "type": {
+            "base_type": "BASE_TYPE_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 9,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "i",
+          "type": {
+            "base_type": "BASE_TYPE_U_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 10,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 10,
+            "col": 3
+          }
+        },
+        {
+          "name": "j",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 11,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 11,
+            "col": 3
+          }
+        },
+        {
+          "name": "k",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "line": 12,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 12,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

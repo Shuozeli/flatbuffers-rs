@@ -1,0 +1,11 @@
+table Sword { damage:short; }
+table Shield { defense:short; }
+table Wand { magic:int; }
+
+union MeleeWeapon { Sword, Shield }
+union MagicWeapon { Wand }
+
+table Hero {
+  melee: MeleeWeapon;
+  magic: MagicWeapon;
+}

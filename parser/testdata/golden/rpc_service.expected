@@ -1,0 +1,85 @@
+{
+  "objects": [
+    {
+      "name": "HelloRequest",
+      "is_struct": false,
+      "namespace": {
+        "namespace": "example"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "HelloResponse",
+      "is_struct": false,
+      "namespace": {
+        "namespace": "example"
+      },
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "services": [
+    {
+      "name": "HelloService",
+      "calls": [
+        {
+          "name": "Hello",
+          "request": {
+            "name": "HelloRequest"
+          },
+          "response": {
+            "name": "HelloResponse"
+          },
+          "documentation": {
+            "lines": [
+              " Say hello"
+            ]
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "StreamServer",
+          "request": {
+            "name": "HelloRequest"
+          },
+          "response": {
+            "name": "HelloResponse"
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "streaming",
+                "value": "\"server\""
+              }
+            ]
+          },
+          "span": {
+            "line": 10,
+            "col": 3
+          }
+        }
+      ],
+      "documentation": {
+        "lines": [
+          " Hello service"
+        ]
+      },
+      "namespace": {
+        "namespace": "example"
+      },
+      "span": {
+        "line": 6,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

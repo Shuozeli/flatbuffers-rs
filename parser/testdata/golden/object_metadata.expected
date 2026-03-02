@@ -1,0 +1,100 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 7
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "attributes": {
+        "entries": [
+          {
+            "key": "original_order"
+          }
+        ]
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "attributes": {
+        "entries": [
+          {
+            "key": "force_align",
+            "value": "16"
+          }
+        ]
+      },
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,47 @@
+{
+  "objects": [
+    {
+      "name": "HexDefaults",
+      "fields": [
+        {
+          "name": "flags",
+          "type": {
+            "base_type": "BASE_TYPE_U_INT",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 10
+            }
+          },
+          "default_integer": 255,
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "mask",
+          "type": {
+            "base_type": "BASE_TYPE_U_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 3,
+              "col": 9
+            }
+          },
+          "default_integer": 3735928559,
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

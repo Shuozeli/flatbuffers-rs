@@ -1,0 +1,9 @@
+namespace A.B;
+
+struct Vec2 { x:float; y:float; }
+
+table Inner { pos: Vec2; }
+
+namespace A;
+
+table Outer { inner: A.B.Inner; }

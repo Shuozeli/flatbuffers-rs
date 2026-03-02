@@ -1,0 +1,99 @@
+{
+  "objects": [
+    {
+      "name": "Inner",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 19
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": true,
+      "namespace": {
+        "namespace": "A.B.C.D"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Outer",
+      "fields": [
+        {
+          "name": "inner",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Inner",
+            "span": {
+              "line": 6,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "vec",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "unresolved_name": "Inner",
+            "span": {
+              "line": 7,
+              "col": 8
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "arr",
+          "type": {
+            "base_type": "BASE_TYPE_ARRAY",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "fixed_length": 4,
+            "unresolved_name": "Inner",
+            "span": {
+              "line": 8,
+              "col": 8
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "A.B.C.D"
+      },
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

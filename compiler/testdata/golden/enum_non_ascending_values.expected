@@ -1,0 +1,45 @@
+{
+  "enums": [
+    {
+      "name": "E",
+      "values": [
+        {
+          "name": "Z",
+          "value": 10,
+          "span": {
+            "file": "testdata/golden/enum_non_ascending_values.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "V",
+          "value": 5,
+          "span": {
+            "file": "testdata/golden/enum_non_ascending_values.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "W",
+          "value": 20,
+          "span": {
+            "file": "testdata/golden/enum_non_ascending_values.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_INT"
+      },
+      "span": {
+        "file": "testdata/golden/enum_non_ascending_values.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

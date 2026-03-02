@@ -1,0 +1,35 @@
+{
+  "objects": [
+    {
+      "name": "Foo",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 16
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 13
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0,
+  "fbs_files": [
+    {
+      "filename": "other_file.fbs"
+    }
+  ]
+}

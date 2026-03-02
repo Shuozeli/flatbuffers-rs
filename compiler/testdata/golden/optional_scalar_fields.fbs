@@ -1,0 +1,6 @@
+table T {
+  x: int = null;
+  y: float = null;
+  z: bool = null;
+  w: short;
+}

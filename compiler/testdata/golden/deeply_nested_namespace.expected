@@ -1,0 +1,145 @@
+{
+  "objects": [
+    {
+      "name": "Point",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/deeply_nested_namespace.fbs",
+              "line": 3,
+              "col": 18
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/deeply_nested_namespace.fbs",
+            "line": 3,
+            "col": 16
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/deeply_nested_namespace.fbs",
+              "line": 3,
+              "col": 27
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/deeply_nested_namespace.fbs",
+            "line": 3,
+            "col": 25
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 8,
+      "namespace": {
+        "namespace": "Com.Company.Product.Module"
+      },
+      "span": {
+        "file": "testdata/golden/deeply_nested_namespace.fbs",
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Config",
+      "fields": [
+        {
+          "name": "origin",
+          "type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/deeply_nested_namespace.fbs",
+              "line": 5,
+              "col": 24
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/deeply_nested_namespace.fbs",
+            "line": 5,
+            "col": 16
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/deeply_nested_namespace.fbs",
+              "line": 5,
+              "col": 39
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/deeply_nested_namespace.fbs",
+            "line": 5,
+            "col": 31
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Com.Company.Product.Module"
+      },
+      "span": {
+        "file": "testdata/golden/deeply_nested_namespace.fbs",
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Status",
+      "values": [
+        {
+          "name": "OK",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/deeply_nested_namespace.fbs",
+            "line": 4,
+            "col": 20
+          }
+        },
+        {
+          "name": "Error",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/deeply_nested_namespace.fbs",
+            "line": 4,
+            "col": 24
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "namespace": {
+        "namespace": "Com.Company.Product.Module"
+      },
+      "span": {
+        "file": "testdata/golden/deeply_nested_namespace.fbs",
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

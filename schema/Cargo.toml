@@ -1,0 +1,8 @@
+[package]
+name = "flatc-rs-schema"
+version = "0.1.0"
+edition = "2021"
+description = "Schema types for the FlatBuffers Rust compiler"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }

@@ -1,0 +1,146 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    },
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "pos",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Vec3",
+            "span": {
+              "line": 12,
+              "col": 8
+            }
+          },
+          "span": {
+            "line": 12,
+            "col": 3
+          }
+        },
+        {
+          "name": "color",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Color",
+            "span": {
+              "line": 13,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 13,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 11,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "span": {
+            "line": 3,
+            "col": 21
+          }
+        },
+        {
+          "name": "Green",
+          "span": {
+            "line": 3,
+            "col": 26
+          }
+        },
+        {
+          "name": "Blue",
+          "span": {
+            "line": 3,
+            "col": 33
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

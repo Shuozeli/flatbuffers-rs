@@ -1,0 +1,9 @@
+/// The Color enum
+enum Color : byte {
+  /// Red color
+  Red = 0,
+  /// Green color
+  Green,
+  /// Blue color
+  Blue,
+}

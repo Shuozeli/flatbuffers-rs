@@ -1,0 +1,5 @@
+struct AlignedVec3 (force_align: 32) {
+  x: float;
+  y: float;
+  z: float;
+}

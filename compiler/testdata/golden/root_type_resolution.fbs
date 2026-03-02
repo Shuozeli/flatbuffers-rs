@@ -1,0 +1,5 @@
+table Monster {
+  name:string;
+}
+
+root_type Monster;

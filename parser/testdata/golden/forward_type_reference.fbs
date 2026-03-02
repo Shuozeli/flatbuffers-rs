@@ -1,0 +1,7 @@
+table Parent {
+  child: Child;
+}
+
+table Child {
+  name: string;
+}

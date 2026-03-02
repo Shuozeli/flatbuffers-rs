@@ -1,0 +1,138 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 1,
+              "col": 17
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 15
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 1,
+              "col": 26
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 24
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 1,
+              "col": 35
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 33
+          }
+        }
+      ],
+      "is_struct": true,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Weapon",
+      "fields": [
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 2,
+              "col": 23
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Equipment",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "weapon",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Weapon",
+            "span": {
+              "line": 5,
+              "col": 11
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "position",
+          "value": 2,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Vec3",
+            "span": {
+              "line": 6,
+              "col": 13
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

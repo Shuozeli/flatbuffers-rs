@@ -1,0 +1,94 @@
+{
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 1,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 1,
+            "col": 28
+          }
+        },
+        {
+          "name": "Blue",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 1,
+            "col": 35
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Status",
+      "values": [
+        {
+          "name": "Active",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 2,
+            "col": 19
+          }
+        },
+        {
+          "name": "Inactive",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 2,
+            "col": 31
+          }
+        },
+        {
+          "name": "Deleted",
+          "value": 10,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 2,
+            "col": 41
+          }
+        },
+        {
+          "name": "Archived",
+          "value": 11,
+          "span": {
+            "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+            "line": 2,
+            "col": 55
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_INT"
+      },
+      "span": {
+        "file": "testdata/golden/sequential_enum_value_assignment.fbs",
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

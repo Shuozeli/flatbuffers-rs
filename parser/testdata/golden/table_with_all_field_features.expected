@@ -1,0 +1,170 @@
+{
+  "objects": [
+    {
+      "name": "FullFeatured",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 9
+            }
+          },
+          "required": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "required"
+              }
+            ]
+          },
+          "documentation": {
+            "lines": [
+              " This field is required"
+            ]
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "old_field",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 14
+            }
+          },
+          "deprecated": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "deprecated"
+              }
+            ]
+          },
+          "documentation": {
+            "lines": [
+              " This field is deprecated"
+            ]
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 10,
+              "col": 7
+            }
+          },
+          "id": 2,
+          "attributes": {
+            "entries": [
+              {
+                "key": "id",
+                "value": "2"
+              }
+            ]
+          },
+          "documentation": {
+            "lines": [
+              " This field has an explicit ID"
+            ]
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "id",
+          "type": {
+            "base_type": "BASE_TYPE_U_INT",
+            "base_size": 4,
+            "span": {
+              "line": 12,
+              "col": 7
+            }
+          },
+          "id": 0,
+          "key": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "key"
+              },
+              {
+                "key": "id",
+                "value": "0"
+              }
+            ]
+          },
+          "documentation": {
+            "lines": [
+              " This field is the key"
+            ]
+          },
+          "span": {
+            "line": 11,
+            "col": 3
+          }
+        },
+        {
+          "name": "nickname",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 14,
+              "col": 13
+            }
+          },
+          "id": 1,
+          "attributes": {
+            "entries": [
+              {
+                "key": "id",
+                "value": "1"
+              }
+            ]
+          },
+          "documentation": {
+            "lines": [
+              " Optional field"
+            ]
+          },
+          "span": {
+            "line": 13,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "documentation": {
+        "lines": [
+          " A well-documented table"
+        ]
+      },
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_struct_force_align_not_pow2.fbs"), line: 1, col: 1 }): force_align must be a power of 2, got 7 on 'X'

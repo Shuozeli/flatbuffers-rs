@@ -1,0 +1,3 @@
+struct X (force_align: 7) {
+  Y: int;
+}

@@ -1,0 +1,391 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 12,
+              "col": 5
+            }
+          },
+          "span": {
+            "line": 12,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 13,
+              "col": 5
+            }
+          },
+          "span": {
+            "line": 13,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 14,
+              "col": 5
+            }
+          },
+          "span": {
+            "line": 14,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "namespace": {
+        "namespace": "MyGame.Sample"
+      },
+      "span": {
+        "line": 11,
+        "col": 1
+      }
+    },
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "pos",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Vec3",
+            "span": {
+              "line": 20,
+              "col": 7
+            }
+          },
+          "documentation": {
+            "lines": [
+              " Monster position"
+            ]
+          },
+          "span": {
+            "line": 19,
+            "col": 3
+          }
+        },
+        {
+          "name": "mana",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 21,
+              "col": 8
+            }
+          },
+          "default_integer": 150,
+          "span": {
+            "line": 21,
+            "col": 3
+          }
+        },
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 22,
+              "col": 6
+            }
+          },
+          "default_integer": 100,
+          "span": {
+            "line": 22,
+            "col": 3
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 23,
+              "col": 8
+            }
+          },
+          "span": {
+            "line": 23,
+            "col": 3
+          }
+        },
+        {
+          "name": "friendly",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "line": 24,
+              "col": 12
+            }
+          },
+          "default_integer": 0,
+          "deprecated": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "deprecated"
+              }
+            ]
+          },
+          "span": {
+            "line": 24,
+            "col": 3
+          }
+        },
+        {
+          "name": "inventory",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_U_BYTE",
+            "span": {
+              "line": 25,
+              "col": 13
+            }
+          },
+          "span": {
+            "line": 25,
+            "col": 3
+          }
+        },
+        {
+          "name": "color",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Color",
+            "span": {
+              "line": 26,
+              "col": 9
+            }
+          },
+          "default_string": "Blue",
+          "span": {
+            "line": 26,
+            "col": 3
+          }
+        },
+        {
+          "name": "weapons",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "unresolved_name": "Weapon",
+            "span": {
+              "line": 27,
+              "col": 11
+            }
+          },
+          "span": {
+            "line": 27,
+            "col": 3
+          }
+        },
+        {
+          "name": "equipped",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Equipment",
+            "span": {
+              "line": 28,
+              "col": 12
+            }
+          },
+          "span": {
+            "line": 28,
+            "col": 3
+          }
+        },
+        {
+          "name": "path",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "unresolved_name": "Vec3",
+            "span": {
+              "line": 29,
+              "col": 8
+            }
+          },
+          "span": {
+            "line": 29,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "documentation": {
+        "lines": [
+          " The Monster table"
+        ]
+      },
+      "namespace": {
+        "namespace": "MyGame.Sample"
+      },
+      "span": {
+        "line": 17,
+        "col": 1
+      }
+    },
+    {
+      "name": "Weapon",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 33,
+              "col": 8
+            }
+          },
+          "span": {
+            "line": 33,
+            "col": 3
+          }
+        },
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 34,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 34,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "MyGame.Sample"
+      },
+      "span": {
+        "line": 32,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "line": 7,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "span": {
+            "line": 7,
+            "col": 28
+          }
+        },
+        {
+          "name": "Blue",
+          "value": 2,
+          "span": {
+            "line": 7,
+            "col": 35
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "documentation": {
+        "lines": [
+          " Color Enum"
+        ]
+      },
+      "namespace": {
+        "namespace": "MyGame.Sample"
+      },
+      "span": {
+        "line": 6,
+        "col": 1
+      }
+    },
+    {
+      "name": "Equipment",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "Weapon",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Weapon"
+          },
+          "span": {
+            "line": 9,
+            "col": 19
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "namespace": {
+        "namespace": "MyGame.Sample"
+      },
+      "span": {
+        "line": 9,
+        "col": 1
+      }
+    }
+  ],
+  "file_ident": "MONS",
+  "file_ext": "mon",
+  "advanced_features": 0,
+  "fbs_files": [
+    {
+      "filename": "test1.fbs"
+    },
+    {
+      "filename": "test2.fbs"
+    }
+  ]
+}
+# root_type: Monster

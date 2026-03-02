@@ -1,0 +1,145 @@
+{
+  "objects": [
+    {
+      "name": "AllSizes",
+      "fields": [
+        {
+          "name": "a",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 2,
+              "col": 6
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "b",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 3,
+              "col": 6
+            }
+          },
+          "offset": 1,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "c",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 4,
+              "col": 6
+            }
+          },
+          "offset": 2,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "d",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 5,
+              "col": 6
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "e",
+          "type": {
+            "base_type": "BASE_TYPE_LONG",
+            "base_size": 8,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 6,
+              "col": 6
+            }
+          },
+          "offset": 8,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "f",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 7,
+              "col": 6
+            }
+          },
+          "offset": 16,
+          "padding": 4,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "g",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "file": "testdata/golden/struct_layout_all_sizes.fbs",
+              "line": 8,
+              "col": 6
+            }
+          },
+          "offset": 24,
+          "span": {
+            "file": "testdata/golden/struct_layout_all_sizes.fbs",
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 8,
+      "bytesize": 32,
+      "span": {
+        "file": "testdata/golden/struct_layout_all_sizes.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

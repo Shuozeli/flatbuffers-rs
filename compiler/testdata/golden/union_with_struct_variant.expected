@@ -1,0 +1,198 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 1,
+              "col": 17
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 1,
+            "col": 15
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 1,
+              "col": 26
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 1,
+            "col": 24
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 1,
+              "col": 35
+            }
+          },
+          "offset": 8,
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 1,
+            "col": 33
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 12,
+      "span": {
+        "file": "testdata/golden/union_with_struct_variant.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Weapon",
+      "fields": [
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 2,
+              "col": 23
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 2,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/union_with_struct_variant.fbs",
+        "line": 2,
+        "col": 1
+      }
+    },
+    {
+      "name": "Hero",
+      "fields": [
+        {
+          "name": "gear_type",
+          "type": {
+            "base_type": "BASE_TYPE_U_TYPE",
+            "base_size": 1,
+            "index": 0
+          },
+          "id": 0
+        },
+        {
+          "name": "gear",
+          "type": {
+            "base_type": "BASE_TYPE_UNION",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 10,
+              "col": 9
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 10,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/union_with_struct_variant.fbs",
+        "line": 9,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Equipment",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "weapon",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "index": 1,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 5,
+              "col": 11
+            }
+          },
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "position",
+          "value": 2,
+          "union_type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/union_with_struct_variant.fbs",
+              "line": 6,
+              "col": 13
+            }
+          },
+          "span": {
+            "file": "testdata/golden/union_with_struct_variant.fbs",
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "file": "testdata/golden/union_with_struct_variant.fbs",
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,141 @@
+{
+  "objects": [
+    {
+      "name": "Request",
+      "fields": [
+        {
+          "name": "data",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/rpc_type_resolution.fbs",
+              "line": 1,
+              "col": 22
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/rpc_type_resolution.fbs",
+            "line": 1,
+            "col": 17
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/rpc_type_resolution.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Response",
+      "fields": [
+        {
+          "name": "result",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/rpc_type_resolution.fbs",
+              "line": 2,
+              "col": 25
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/rpc_type_resolution.fbs",
+            "line": 2,
+            "col": 18
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/rpc_type_resolution.fbs",
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "services": [
+    {
+      "name": "TestService",
+      "calls": [
+        {
+          "name": "DoSomething",
+          "request": {
+            "name": "Request",
+            "fields": [
+              {
+                "name": "data",
+                "type": {
+                  "base_type": "BASE_TYPE_STRING",
+                  "base_size": 4,
+                  "span": {
+                    "file": "testdata/golden/rpc_type_resolution.fbs",
+                    "line": 1,
+                    "col": 22
+                  }
+                },
+                "id": 0,
+                "span": {
+                  "file": "testdata/golden/rpc_type_resolution.fbs",
+                  "line": 1,
+                  "col": 17
+                }
+              }
+            ],
+            "is_struct": false,
+            "span": {
+              "file": "testdata/golden/rpc_type_resolution.fbs",
+              "line": 1,
+              "col": 1
+            }
+          },
+          "response": {
+            "name": "Response",
+            "fields": [
+              {
+                "name": "result",
+                "type": {
+                  "base_type": "BASE_TYPE_INT",
+                  "base_size": 4,
+                  "span": {
+                    "file": "testdata/golden/rpc_type_resolution.fbs",
+                    "line": 2,
+                    "col": 25
+                  }
+                },
+                "id": 0,
+                "span": {
+                  "file": "testdata/golden/rpc_type_resolution.fbs",
+                  "line": 2,
+                  "col": 18
+                }
+              }
+            ],
+            "is_struct": false,
+            "span": {
+              "file": "testdata/golden/rpc_type_resolution.fbs",
+              "line": 2,
+              "col": 1
+            }
+          },
+          "span": {
+            "file": "testdata/golden/rpc_type_resolution.fbs",
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "span": {
+        "file": "testdata/golden/rpc_type_resolution.fbs",
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

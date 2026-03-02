@@ -1,0 +1,181 @@
+{
+  "objects": [
+    {
+      "name": "Vec2",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 17
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 15
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 26
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 24
+          }
+        }
+      ],
+      "is_struct": true,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Item",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 5,
+              "col": 19
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 14
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    },
+    {
+      "name": "Container",
+      "fields": [
+        {
+          "name": "positions",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "unresolved_name": "Vec2",
+            "span": {
+              "line": 8,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "colors",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "unresolved_name": "Color",
+            "span": {
+              "line": 9,
+              "col": 11
+            }
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "items",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_TABLE",
+            "unresolved_name": "Item",
+            "span": {
+              "line": 10,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 10,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 7,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "span": {
+            "line": 4,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "span": {
+            "line": 4,
+            "col": 24
+          }
+        },
+        {
+          "name": "Blue",
+          "span": {
+            "line": 4,
+            "col": 31
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

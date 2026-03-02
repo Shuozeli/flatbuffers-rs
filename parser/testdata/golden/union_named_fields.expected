@@ -1,0 +1,108 @@
+{
+  "objects": [
+    {
+      "name": "Attacker",
+      "fields": [
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 1,
+              "col": 26
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 18
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Shield",
+      "fields": [
+        {
+          "name": "defense",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 25
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Character",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "MuLan",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Attacker",
+            "span": {
+              "line": 5,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "Belle",
+          "value": 2,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Shield",
+            "span": {
+              "line": 6,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

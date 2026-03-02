@@ -1,0 +1,7 @@
+enum Color: byte { Red = 1, Green = 2, Blue = 8 }
+
+table Inventory {
+  items: [int];
+  names: [string];
+  colors: [Color];
+}

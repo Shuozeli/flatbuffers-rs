@@ -1,0 +1,26 @@
+namespace serde_test;
+
+enum Color: byte { Red = 1, Green = 2, Blue = 8 }
+
+enum Flags: ubyte (bit_flags) {
+  A, // 1
+  B, // 2
+  C, // 4
+}
+
+struct Vec3 {
+  x: float;
+  y: float;
+  z: float;
+}
+
+table Monster {
+  pos: Vec3;
+  hp: short = 100;
+  name: string;
+  color: Color;
+  inventory: [ubyte];
+  flags: Flags;
+}
+
+root_type Monster;

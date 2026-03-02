@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_empty_struct.fbs"), line: 1, col: 1 }): struct 'X' has no fields

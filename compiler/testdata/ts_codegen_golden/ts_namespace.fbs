@@ -1,0 +1,16 @@
+namespace MyGame.Example;
+
+enum Color: byte { Red = 1, Green = 2, Blue = 8 }
+
+struct Vec3 {
+  x: float;
+  y: float;
+  z: float;
+}
+
+table Monster {
+  pos: Vec3;
+  hp: int = 100;
+  name: string (required);
+  color: Color = Blue;
+}

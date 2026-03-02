@@ -1,0 +1,5 @@
+enum LongEnum : ulong {
+  A = 0,
+  B,
+  C = 100,
+}

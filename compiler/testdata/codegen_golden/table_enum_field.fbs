@@ -1,0 +1,6 @@
+enum Color : byte { Red = 1, Green = 2, Blue = 8 }
+table Weapon {
+  name: string;
+  color: Color = Green;
+  damage: short;
+}

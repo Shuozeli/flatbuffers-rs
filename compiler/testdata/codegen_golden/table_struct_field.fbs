@@ -1,0 +1,5 @@
+struct Vec2 { x: float; y: float; }
+table Sprite {
+  pos: Vec2;
+  name: string;
+}

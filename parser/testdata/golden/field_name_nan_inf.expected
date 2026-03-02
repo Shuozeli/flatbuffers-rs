@@ -1,0 +1,95 @@
+{
+  "objects": [
+    {
+      "name": "T",
+      "fields": [
+        {
+          "name": "nan",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 8
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "inf",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 8
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "positive_inf",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 4,
+              "col": 17
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "negative_inf",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 5,
+              "col": 17
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "infinity",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 13
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

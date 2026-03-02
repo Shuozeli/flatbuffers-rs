@@ -1,0 +1,4 @@
+table Inventory {
+  items: [ubyte];
+  names: [string];
+}

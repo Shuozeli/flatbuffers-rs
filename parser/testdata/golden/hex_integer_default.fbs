@@ -1,0 +1,4 @@
+table HexDefaults {
+  flags: uint = 0xFF;
+  mask: ulong = 0xDEADBEEF;
+}

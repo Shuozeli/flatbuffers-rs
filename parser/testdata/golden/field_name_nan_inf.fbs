@@ -1,0 +1,7 @@
+table T {
+  nan: float = nan;
+  inf: float = inf;
+  positive_inf: float = +inf;
+  negative_inf: float = -inf;
+  infinity: float = infinity;
+}

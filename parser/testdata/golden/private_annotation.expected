@@ -1,0 +1,72 @@
+{
+  "objects": [
+    {
+      "name": "TestSimple",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 4,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "attributes": {
+        "entries": [
+          {
+            "key": "private"
+          }
+        ]
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "AB",
+      "values": [
+        {
+          "name": "A",
+          "span": {
+            "line": 1,
+            "col": 28
+          }
+        },
+        {
+          "name": "B",
+          "span": {
+            "line": 1,
+            "col": 31
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "attributes": {
+        "entries": [
+          {
+            "key": "private"
+          }
+        ]
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

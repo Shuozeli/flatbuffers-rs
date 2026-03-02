@@ -1,0 +1,2 @@
+enum Color:byte { Red, Green, Blue }
+enum Color:int { A, B, C }

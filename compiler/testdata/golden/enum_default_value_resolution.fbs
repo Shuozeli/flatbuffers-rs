@@ -1,0 +1,6 @@
+enum Color:byte { Red = 0, Green, Blue }
+
+table Monster {
+  color: Color = Blue;
+  secondary: Color = Green;
+}

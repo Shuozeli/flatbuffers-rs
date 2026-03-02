@@ -1,0 +1,63 @@
+{
+  "objects": [
+    {
+      "name": "SpecialDefaults",
+      "fields": [
+        {
+          "name": "nan_val",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "line": 2,
+              "col": 12
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "inf_val",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "line": 3,
+              "col": 12
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "neg_inf_val",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "line": 4,
+              "col": 16
+            }
+          },
+          "default_real": null,
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

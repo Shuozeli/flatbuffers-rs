@@ -1,0 +1,17 @@
+struct Rapunzel {
+  hair_length: int;
+}
+
+table Attacker {
+  sword_attack_damage: int;
+}
+
+union Character {
+  MuLan: Attacker,
+  Rapunzel,
+}
+
+table Movie {
+  main_character_type: Character;
+  main_character: Character;
+}

@@ -1,0 +1,170 @@
+{
+  "objects": [
+    {
+      "name": "SystemAttributesTable",
+      "fields": [
+        {
+          "name": "deprecated_field",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "line": 4,
+              "col": 20
+            }
+          },
+          "deprecated": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "deprecated"
+              }
+            ]
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "required_field",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "line": 5,
+              "col": 18
+            }
+          },
+          "required": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "required"
+              }
+            ]
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "key_field",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 13
+            }
+          },
+          "key": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "key"
+              }
+            ]
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "optional_field",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 18
+            }
+          },
+          "optional": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "optional"
+              }
+            ]
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "id_field",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 12
+            }
+          },
+          "id": 1,
+          "attributes": {
+            "entries": [
+              {
+                "key": "id",
+                "value": "1"
+              }
+            ]
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "multi",
+          "type": {
+            "base_type": "BASE_TYPE_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 9,
+              "col": 9
+            }
+          },
+          "id": 3,
+          "deprecated": true,
+          "required": true,
+          "key": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "required"
+              },
+              {
+                "key": "key"
+              },
+              {
+                "key": "deprecated"
+              },
+              {
+                "key": "id",
+                "value": "3"
+              }
+            ]
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "System.Attributes"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

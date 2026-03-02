@@ -1,0 +1,14 @@
+namespace Game;
+
+struct Vec3 {
+  x:float;
+  y:float;
+  z:float;
+}
+
+enum Color:byte { Red, Green, Blue }
+
+table Monster {
+  pos:Vec3;
+  color:Color;
+}

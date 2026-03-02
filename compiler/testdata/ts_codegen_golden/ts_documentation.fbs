@@ -1,0 +1,25 @@
+/// Color represents the primary colors.
+enum Color: byte {
+  /// Red color.
+  Red = 1,
+  /// Green color.
+  Green = 2,
+  /// Blue color.
+  Blue = 4
+}
+
+/// A simple 2D vector.
+struct Vec2 {
+  /// The x coordinate.
+  x: float;
+  /// The y coordinate.
+  y: float;
+}
+
+/// A shape with position and color.
+table Shape {
+  /// The position of the shape.
+  pos: Vec2;
+  /// The color of the shape.
+  color: Color = Red;
+}

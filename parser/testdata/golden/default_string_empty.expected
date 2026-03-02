@@ -1,0 +1,31 @@
+{
+  "objects": [
+    {
+      "name": "M",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 9
+            }
+          },
+          "default_string": "",
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

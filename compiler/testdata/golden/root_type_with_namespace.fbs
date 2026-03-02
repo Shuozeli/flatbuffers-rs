@@ -1,0 +1,8 @@
+namespace Game.Core;
+
+table Player {
+  name: string;
+  score: int;
+}
+
+root_type Player;

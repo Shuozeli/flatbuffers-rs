@@ -1,0 +1,3 @@
+enum X : byte {
+  Y = 128
+}

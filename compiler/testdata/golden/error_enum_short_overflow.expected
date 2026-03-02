@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_enum_short_overflow.fbs"), line: 2, col: 3 }): enum value 32768 does not fit in short for enum 'X'

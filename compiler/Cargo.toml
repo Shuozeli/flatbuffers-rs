@@ -1,0 +1,27 @@
+[package]
+name = "flatc-rs-compiler"
+version = "0.1.0"
+edition = "2021"
+description = "FlatBuffers schema compiler (Rust implementation)"
+
+[[bin]]
+name = "flatc-rs"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+flatbuffers = { version = "25.12.19" }
+flatc-rs-codegen = { path = "../codegen" }
+flatc-rs-parser = { path = "../parser" }
+flatc-rs-schema = { path = "../schema" }
+serde_json = "1"
+thiserror = "2"
+
+[dev-dependencies]
+flatbuffers = { version = "25.12.19", features = ["serialize"] }
+flatc-rs-test-utils = { path = "../test-utils" }
+quickcheck = "1"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"

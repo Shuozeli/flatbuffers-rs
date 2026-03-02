@@ -1,0 +1,5 @@
+table Monster { hp: int; }
+
+root_type Monster;
+file_identifier "MONS";
+file_extension "bin";

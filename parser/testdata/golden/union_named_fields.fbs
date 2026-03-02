@@ -1,0 +1,7 @@
+table Attacker { damage: int; }
+table Shield { defense: int; }
+
+union Character {
+  MuLan: Attacker,
+  Belle: Shield,
+}

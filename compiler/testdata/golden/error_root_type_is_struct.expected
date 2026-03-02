@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_root_type_is_struct.fbs"), line: 7, col: 1 }): root_type 'Vec3' must be a table, not a struct or enum

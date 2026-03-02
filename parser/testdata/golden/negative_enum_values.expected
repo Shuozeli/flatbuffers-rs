@@ -1,0 +1,47 @@
+{
+  "enums": [
+    {
+      "name": "Race",
+      "values": [
+        {
+          "name": "None",
+          "value": -1,
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "Human",
+          "value": 0,
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "Elf",
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "Dwarf",
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

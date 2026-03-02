@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_default_uint_negative.fbs"), line: 2, col: 3 }): default value -1 does not fit in uint for field 'Y' in table 'X'

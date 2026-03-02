@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_invalid_file_identifier.fbs"), line: 2, col: 1 }): file identifier must be exactly 4 bytes, got 2: "AB"

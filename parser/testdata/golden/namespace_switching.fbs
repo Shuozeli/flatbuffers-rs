@@ -1,0 +1,11 @@
+namespace First;
+
+table A { x: int; }
+
+namespace Second;
+
+table B { y: int; }
+
+namespace First;
+
+table C { z: int; }

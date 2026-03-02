@@ -1,0 +1,13 @@
+struct AllScalars {
+  a: bool;
+  b: byte;
+  c: ubyte;
+  d: short;
+  e: ushort;
+  f: int;
+  g: uint;
+  h: long;
+  i: ulong;
+  j: float;
+  k: double;
+}

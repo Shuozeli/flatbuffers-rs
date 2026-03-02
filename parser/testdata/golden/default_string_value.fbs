@@ -1,0 +1,3 @@
+table M {
+  name: string = "hello";
+}

@@ -1,0 +1,11 @@
+namespace Game;
+
+struct Vec2 { x:float; y:float; }
+enum Color:byte { Red, Green, Blue }
+table Item { name:string; }
+
+table Container {
+  positions: [Vec2];
+  colors: [Color];
+  items: [Item];
+}

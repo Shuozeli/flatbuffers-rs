@@ -1,0 +1,6 @@
+attribute "priority";
+attribute custom_flag;
+
+table Item {
+  name: string;
+}

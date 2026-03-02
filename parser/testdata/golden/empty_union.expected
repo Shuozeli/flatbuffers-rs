@@ -1,0 +1,25 @@
+{
+  "enums": [
+    {
+      "name": "EmptyUnion",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "namespace": {
+        "namespace": "Test"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

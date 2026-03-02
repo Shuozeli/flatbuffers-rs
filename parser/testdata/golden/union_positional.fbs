@@ -1,0 +1,6 @@
+namespace TestUnion;
+
+table Weapon { damage: int; }
+table Shield { defense: int; }
+
+union Equipment { Weapon, Shield }

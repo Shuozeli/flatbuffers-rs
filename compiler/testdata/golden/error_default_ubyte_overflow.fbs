@@ -1,0 +1,3 @@
+table X {
+  Y: ubyte = 256;
+}

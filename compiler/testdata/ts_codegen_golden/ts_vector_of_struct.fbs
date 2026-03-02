@@ -1,0 +1,10 @@
+namespace ts_test;
+
+struct Vec2 {
+  x: float;
+  y: float;
+}
+
+table Monster {
+  pos: [Vec2];
+}

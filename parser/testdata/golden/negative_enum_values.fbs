@@ -1,0 +1,6 @@
+enum Race : byte {
+  None = -1,
+  Human = 0,
+  Elf,
+  Dwarf,
+}

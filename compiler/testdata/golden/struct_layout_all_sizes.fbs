@@ -1,0 +1,9 @@
+struct AllSizes {
+  a: bool;
+  b: byte;
+  c: short;
+  d: int;
+  e: long;
+  f: float;
+  g: double;
+}

@@ -1,0 +1,6 @@
+enum Color:byte { Red, Green, Blue }
+
+table Palette {
+  colors: [Color];
+  primary: Color;
+}

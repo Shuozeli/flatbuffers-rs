@@ -1,0 +1,11 @@
+enum Color:byte { Red = 0, Green, Blue }
+
+struct ColoredPoint {
+  x: float;
+  y: float;
+  color: Color;
+}
+
+table Canvas {
+  origin: ColoredPoint;
+}

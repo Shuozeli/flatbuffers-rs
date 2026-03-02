@@ -1,0 +1,2 @@
+table Msg { x:int; }
+struct Bad { a:[string:3]; }

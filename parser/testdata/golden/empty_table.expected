@@ -1,0 +1,13 @@
+{
+  "objects": [
+    {
+      "name": "EmptyTable",
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

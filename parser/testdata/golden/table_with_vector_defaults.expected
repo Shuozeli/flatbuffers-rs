@@ -1,0 +1,80 @@
+{
+  "objects": [
+    {
+      "name": "WithDefaults",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 9
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 7
+            }
+          },
+          "default_integer": 100,
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "tags",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRING",
+            "span": {
+              "line": 4,
+              "col": 9
+            }
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "scores",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_INT",
+            "span": {
+              "line": 5,
+              "col": 11
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

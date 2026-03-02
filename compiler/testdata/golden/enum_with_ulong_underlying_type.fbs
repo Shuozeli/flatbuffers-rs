@@ -1,0 +1,5 @@
+enum BigEnum : ulong {
+  A = 0,
+  B = 1,
+  C = 0xFF,
+}

@@ -1,0 +1,240 @@
+{
+  "objects": [
+    {
+      "name": "Vec2",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 1,
+              "col": 17
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 1,
+            "col": 15
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 1,
+              "col": 26
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 1,
+            "col": 24
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 8,
+      "span": {
+        "file": "testdata/golden/table_with_all_vector_types.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "AllVectors",
+      "fields": [
+        {
+          "name": "ints",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_INT",
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 5,
+              "col": 9
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "floats",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_FLOAT",
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 6,
+              "col": 11
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "strings",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRING",
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 7,
+              "col": 12
+            }
+          },
+          "id": 2,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "structs",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRUCT",
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 8,
+              "col": 12
+            }
+          },
+          "id": 3,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "tags",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_BYTE",
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 9,
+              "col": 9
+            }
+          },
+          "id": 4,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "bools",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_BOOL",
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 10,
+              "col": 10
+            }
+          },
+          "id": 5,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 10,
+            "col": 3
+          }
+        },
+        {
+          "name": "bytes",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_U_BYTE",
+            "span": {
+              "file": "testdata/golden/table_with_all_vector_types.fbs",
+              "line": 11,
+              "col": 10
+            }
+          },
+          "id": 6,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 11,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/table_with_all_vector_types.fbs",
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Tag",
+      "values": [
+        {
+          "name": "A",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 2,
+            "col": 17
+          }
+        },
+        {
+          "name": "B",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/table_with_all_vector_types.fbs",
+            "line": 2,
+            "col": 20
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "file": "testdata/golden/table_with_all_vector_types.fbs",
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

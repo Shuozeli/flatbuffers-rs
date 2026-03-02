@@ -1,0 +1,123 @@
+{
+  "objects": [
+    {
+      "name": "Vec2",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/nested_namespace_resolution.fbs",
+              "line": 3,
+              "col": 17
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/nested_namespace_resolution.fbs",
+            "line": 3,
+            "col": 15
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/nested_namespace_resolution.fbs",
+              "line": 3,
+              "col": 26
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/nested_namespace_resolution.fbs",
+            "line": 3,
+            "col": 24
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 8,
+      "namespace": {
+        "namespace": "A.B"
+      },
+      "span": {
+        "file": "testdata/golden/nested_namespace_resolution.fbs",
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Inner",
+      "fields": [
+        {
+          "name": "pos",
+          "type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/nested_namespace_resolution.fbs",
+              "line": 5,
+              "col": 20
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/nested_namespace_resolution.fbs",
+            "line": 5,
+            "col": 15
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "A.B"
+      },
+      "span": {
+        "file": "testdata/golden/nested_namespace_resolution.fbs",
+        "line": 5,
+        "col": 1
+      }
+    },
+    {
+      "name": "Outer",
+      "fields": [
+        {
+          "name": "inner",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "index": 1,
+            "span": {
+              "file": "testdata/golden/nested_namespace_resolution.fbs",
+              "line": 9,
+              "col": 22
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/nested_namespace_resolution.fbs",
+            "line": 9,
+            "col": 15
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "A"
+      },
+      "span": {
+        "file": "testdata/golden/nested_namespace_resolution.fbs",
+        "line": 9,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

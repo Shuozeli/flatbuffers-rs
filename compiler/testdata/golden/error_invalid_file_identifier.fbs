@@ -1,0 +1,2 @@
+table Foo { x:int; }
+file_identifier "AB";

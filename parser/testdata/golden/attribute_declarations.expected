@@ -1,0 +1,31 @@
+{
+  "objects": [
+    {
+      "name": "Item",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 5,
+              "col": 9
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}# declared_attribute: priority
+# declared_attribute: custom_flag

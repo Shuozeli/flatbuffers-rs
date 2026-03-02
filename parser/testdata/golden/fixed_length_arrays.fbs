@@ -1,0 +1,7 @@
+struct Matrix {
+  values: [float:16];
+}
+
+struct SmallArray {
+  data: [int:0xF];
+}

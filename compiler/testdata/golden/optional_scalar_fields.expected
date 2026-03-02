@@ -1,0 +1,91 @@
+{
+  "objects": [
+    {
+      "name": "T",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/optional_scalar_fields.fbs",
+              "line": 2,
+              "col": 6
+            }
+          },
+          "id": 0,
+          "optional": true,
+          "span": {
+            "file": "testdata/golden/optional_scalar_fields.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/optional_scalar_fields.fbs",
+              "line": 3,
+              "col": 6
+            }
+          },
+          "id": 1,
+          "optional": true,
+          "span": {
+            "file": "testdata/golden/optional_scalar_fields.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "file": "testdata/golden/optional_scalar_fields.fbs",
+              "line": 4,
+              "col": 6
+            }
+          },
+          "id": 2,
+          "optional": true,
+          "span": {
+            "file": "testdata/golden/optional_scalar_fields.fbs",
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "w",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "file": "testdata/golden/optional_scalar_fields.fbs",
+              "line": 5,
+              "col": 6
+            }
+          },
+          "id": 3,
+          "span": {
+            "file": "testdata/golden/optional_scalar_fields.fbs",
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/optional_scalar_fields.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

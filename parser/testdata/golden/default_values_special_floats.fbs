@@ -1,0 +1,5 @@
+table SpecialDefaults {
+  nan_val: double = nan;
+  inf_val: double = inf;
+  neg_inf_val: double = -inf;
+}

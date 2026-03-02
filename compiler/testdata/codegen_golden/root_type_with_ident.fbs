@@ -1,0 +1,6 @@
+table Monster {
+  hp: int = 100;
+  name: string (required);
+}
+root_type Monster;
+file_identifier "MONS";

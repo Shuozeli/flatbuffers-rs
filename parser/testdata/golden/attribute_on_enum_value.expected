@@ -1,0 +1,55 @@
+{
+  "enums": [
+    {
+      "name": "Status",
+      "values": [
+        {
+          "name": "Active",
+          "value": 0,
+          "attributes": {
+            "entries": [
+              {
+                "key": "display_name",
+                "value": "\"Active Status\""
+              }
+            ]
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "Inactive",
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "Deleted",
+          "attributes": {
+            "entries": [
+              {
+                "key": "display_name",
+                "value": "\"Removed\""
+              }
+            ]
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}# declared_attribute: display_name

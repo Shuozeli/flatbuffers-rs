@@ -1,0 +1,6 @@
+struct Mixed {
+  a:byte;
+  b:int;
+  c:byte;
+  d:short;
+}

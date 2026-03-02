@@ -1,0 +1,13 @@
+struct Matrix2x2 {
+  values: [float:4];
+}
+
+struct Pair {
+  a: int;
+  b: int;
+}
+
+table Container {
+  matrix: Matrix2x2;
+  pairs: [Pair];
+}

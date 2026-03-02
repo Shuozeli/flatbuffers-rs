@@ -1,0 +1,7 @@
+table Defaults {
+  mana: short = 150;
+  hp: int = -1;
+  speed: float = 1.5;
+  active: bool = true;
+  inactive: bool = false;
+}

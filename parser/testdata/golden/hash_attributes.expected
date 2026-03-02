@@ -1,0 +1,101 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "testarrayofstring2",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRING",
+            "span": {
+              "line": 2,
+              "col": 22
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 8
+            }
+          },
+          "key": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "key"
+              }
+            ]
+          },
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "testhashu32_fnv1",
+          "type": {
+            "base_type": "BASE_TYPE_U_INT",
+            "base_size": 4,
+            "span": {
+              "line": 4,
+              "col": 20
+            }
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "hash",
+                "value": "\"fnv1_32\""
+              }
+            ]
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "testhashs64_fnv1a",
+          "type": {
+            "base_type": "BASE_TYPE_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 5,
+              "col": 21
+            }
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "hash",
+                "value": "\"fnv1a_64\""
+              }
+            ]
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

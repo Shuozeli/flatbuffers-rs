@@ -1,0 +1,5 @@
+table Monster {
+  hp: int = 100;
+  friendly: bool = false (deprecated);
+  name: string;
+}

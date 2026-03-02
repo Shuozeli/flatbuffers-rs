@@ -1,0 +1,195 @@
+{
+  "objects": [
+    {
+      "name": "AllTypes",
+      "fields": [
+        {
+          "name": "bool_field",
+          "type": {
+            "base_type": "BASE_TYPE_BOOL",
+            "base_size": 1,
+            "span": {
+              "line": 2,
+              "col": 15
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "byte_field",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "span": {
+              "line": 3,
+              "col": 15
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "ubyte_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_BYTE",
+            "base_size": 1,
+            "span": {
+              "line": 4,
+              "col": 16
+            }
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "short_field",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 5,
+              "col": 16
+            }
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "ushort_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 6,
+              "col": 17
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "int_field",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 14
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "uint_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_INT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 15
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "long_field",
+          "type": {
+            "base_type": "BASE_TYPE_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 9,
+              "col": 15
+            }
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "ulong_field",
+          "type": {
+            "base_type": "BASE_TYPE_U_LONG",
+            "base_size": 8,
+            "span": {
+              "line": 10,
+              "col": 16
+            }
+          },
+          "span": {
+            "line": 10,
+            "col": 3
+          }
+        },
+        {
+          "name": "float_field",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 11,
+              "col": 16
+            }
+          },
+          "span": {
+            "line": 11,
+            "col": 3
+          }
+        },
+        {
+          "name": "double_field",
+          "type": {
+            "base_type": "BASE_TYPE_DOUBLE",
+            "base_size": 8,
+            "span": {
+              "line": 12,
+              "col": 17
+            }
+          },
+          "span": {
+            "line": 12,
+            "col": 3
+          }
+        },
+        {
+          "name": "string_field",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 13,
+              "col": 17
+            }
+          },
+          "span": {
+            "line": 13,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

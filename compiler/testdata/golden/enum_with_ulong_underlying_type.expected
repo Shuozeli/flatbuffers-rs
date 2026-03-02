@@ -1,0 +1,45 @@
+{
+  "enums": [
+    {
+      "name": "BigEnum",
+      "values": [
+        {
+          "name": "A",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/enum_with_ulong_underlying_type.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "B",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/enum_with_ulong_underlying_type.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "C",
+          "value": 255,
+          "span": {
+            "file": "testdata/golden/enum_with_ulong_underlying_type.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_LONG"
+      },
+      "span": {
+        "file": "testdata/golden/enum_with_ulong_underlying_type.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

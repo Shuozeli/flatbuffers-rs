@@ -1,0 +1,11 @@
+struct Vec3 { x:float; y:float; z:float; }
+table Weapon { damage:short; }
+
+union Equipment {
+  weapon: Weapon,
+  position: Vec3,
+}
+
+table Hero {
+  gear: Equipment;
+}

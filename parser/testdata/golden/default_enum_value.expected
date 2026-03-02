@@ -1,0 +1,68 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "color",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Color",
+            "span": {
+              "line": 4,
+              "col": 10
+            }
+          },
+          "default_string": "Green",
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "line": 1,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "span": {
+            "line": 1,
+            "col": 28
+          }
+        },
+        {
+          "name": "Blue",
+          "span": {
+            "line": 1,
+            "col": 35
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

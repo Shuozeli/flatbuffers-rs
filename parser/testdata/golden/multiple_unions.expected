@@ -1,0 +1,197 @@
+{
+  "objects": [
+    {
+      "name": "Sword",
+      "fields": [
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 1,
+              "col": 22
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 15
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Shield",
+      "fields": [
+        {
+          "name": "defense",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "line": 2,
+              "col": 24
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 2,
+        "col": 1
+      }
+    },
+    {
+      "name": "Wand",
+      "fields": [
+        {
+          "name": "magic",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 20
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 14
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Hero",
+      "fields": [
+        {
+          "name": "melee",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "MeleeWeapon",
+            "span": {
+              "line": 9,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        },
+        {
+          "name": "magic",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "MagicWeapon",
+            "span": {
+              "line": 10,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 10,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 8,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "MeleeWeapon",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "Sword",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Sword"
+          },
+          "span": {
+            "line": 5,
+            "col": 21
+          }
+        },
+        {
+          "name": "Shield",
+          "value": 2,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Shield"
+          },
+          "span": {
+            "line": 5,
+            "col": 28
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    },
+    {
+      "name": "MagicWeapon",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "Wand",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Wand"
+          },
+          "span": {
+            "line": 6,
+            "col": 21
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "line": 6,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

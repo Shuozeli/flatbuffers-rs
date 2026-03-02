@@ -1,0 +1,6 @@
+table Request { data:string; }
+table Response { result:int; }
+
+rpc_service TestService {
+  DoSomething(Request):Response;
+}

@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_enum_int_overflow.fbs"), line: 2, col: 3 }): enum value 2147483648 does not fit in int for enum 'X'

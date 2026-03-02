@@ -1,0 +1,11 @@
+table ScalarStuff {
+  just_i8: byte;
+  maybe_i8: byte = null;
+  default_i8: byte = 42;
+  just_f64: double;
+  maybe_f64: double = null;
+  default_f64: double = 3.14;
+  just_bool: bool;
+  maybe_bool: bool = null;
+  default_bool: bool = true;
+}

@@ -1,0 +1,8 @@
+[package]
+name = "flatc-rs-test-utils"
+version = "0.1.0"
+edition = "2021"
+description = "Golden-file testing utilities for the FlatBuffers Rust compiler"
+
+[dev-dependencies]
+tempfile = "3"

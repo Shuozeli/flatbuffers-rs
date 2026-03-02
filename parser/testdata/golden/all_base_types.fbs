@@ -1,0 +1,14 @@
+table AllTypes {
+  bool_field: bool;
+  byte_field: byte;
+  ubyte_field: ubyte;
+  short_field: short;
+  ushort_field: ushort;
+  int_field: int;
+  uint_field: uint;
+  long_field: long;
+  ulong_field: ulong;
+  float_field: float;
+  double_field: double;
+  string_field: string;
+}

@@ -1,0 +1,9 @@
+namespace A;
+table X {
+  a: int;
+}
+
+namespace B;
+table X {
+  b: string;
+}

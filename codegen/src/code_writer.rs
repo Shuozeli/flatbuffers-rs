@@ -1,0 +1,90 @@
+/// Indentation-aware string builder for generating Rust source code.
+pub struct CodeWriter {
+    buf: String,
+    indent: usize,
+}
+
+impl CodeWriter {
+    pub fn new() -> Self {
+        Self {
+            buf: String::with_capacity(8192),
+            indent: 0,
+        }
+    }
+
+    /// Write an indented line (with trailing newline).
+    pub fn line(&mut self, s: &str) {
+        for _ in 0..self.indent {
+            self.buf.push_str("  ");
+        }
+        self.buf.push_str(s);
+        self.buf.push('\n');
+    }
+
+    /// Write a blank line.
+    pub fn blank(&mut self) {
+        self.buf.push('\n');
+    }
+
+    /// Increase indentation by one level.
+    pub fn indent(&mut self) {
+        self.indent += 1;
+    }
+
+    /// Decrease indentation by one level.
+    pub fn dedent(&mut self) {
+        assert!(self.indent > 0, "dedent below zero");
+        self.indent -= 1;
+    }
+
+    /// Write `header {`, execute the closure (indented), then write `}`.
+    pub fn block<F>(&mut self, header: &str, f: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        self.line(&format!("{header} {{"));
+        self.indent();
+        f(self);
+        self.dedent();
+        self.line("}");
+    }
+
+    /// Consume the writer and return the generated source code.
+    /// Trailing blank lines are trimmed so the output ends with exactly one newline.
+    pub fn finish(self) -> String {
+        let trimmed = self.buf.trim_end_matches('\n');
+        format!("{trimmed}\n")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_output() {
+        let mut w = CodeWriter::new();
+        w.line("use foo::bar;");
+        w.blank();
+        w.block("pub struct Foo", |w| {
+            w.line("pub x: i32,");
+        });
+        let out = w.finish();
+        assert_eq!(
+            out,
+            "use foo::bar;\n\npub struct Foo {\n  pub x: i32,\n}\n"
+        );
+    }
+
+    #[test]
+    fn nested_blocks() {
+        let mut w = CodeWriter::new();
+        w.block("impl Foo", |w| {
+            w.block("pub fn bar(&self)", |w| {
+                w.line("42");
+            });
+        });
+        let out = w.finish();
+        assert!(out.contains("    42\n"));
+    }
+}

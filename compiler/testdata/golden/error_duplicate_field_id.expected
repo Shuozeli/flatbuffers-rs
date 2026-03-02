@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_duplicate_field_id.fbs"), line: 4, col: 3 }): duplicate field id 1 in table 'BadTable' (fields 'hp' and 'mana')

@@ -1,0 +1,8 @@
+table Monster {
+  name: string (key);
+  hp: int = 100;
+}
+table Stat {
+  id: string;
+  count: ushort (key);
+}

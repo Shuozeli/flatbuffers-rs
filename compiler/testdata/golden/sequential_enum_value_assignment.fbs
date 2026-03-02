@@ -1,0 +1,2 @@
+enum Color:byte { Red = 0, Green, Blue }
+enum Status:int { Active = 1, Inactive, Deleted = 10, Archived }

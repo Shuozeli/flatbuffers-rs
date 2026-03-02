@@ -1,0 +1,9 @@
+/// Table doc line 1
+/// Table doc line 2
+table Documented {
+  /// Field doc
+  name: string;
+  /// Multi-line 1
+  /// Multi-line 2
+  value: int;
+}

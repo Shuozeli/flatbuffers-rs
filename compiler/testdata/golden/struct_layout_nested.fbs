@@ -1,0 +1,10 @@
+struct Inner {
+  x:float;
+  y:float;
+}
+
+struct Outer {
+  a:byte;
+  inner:Inner;
+  b:byte;
+}

@@ -1,0 +1,64 @@
+{
+  "objects": [
+    {
+      "name": "Wrapper",
+      "fields": [
+        {
+          "name": "val_type",
+          "type": {
+            "base_type": "BASE_TYPE_U_TYPE",
+            "base_size": 1,
+            "index": 0
+          },
+          "id": 0
+        },
+        {
+          "name": "val",
+          "type": {
+            "base_type": "BASE_TYPE_UNION",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/empty_union_analysis.fbs",
+              "line": 4,
+              "col": 8
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/empty_union_analysis.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/empty_union_analysis.fbs",
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "EmptyUnion",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "file": "testdata/golden/empty_union_analysis.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,47 @@
+{
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "line": 1,
+            "col": 31
+          }
+        },
+        {
+          "name": "Green",
+          "span": {
+            "line": 1,
+            "col": 40
+          }
+        },
+        {
+          "name": "Blue",
+          "value": 2,
+          "span": {
+            "line": 1,
+            "col": 47
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "attributes": {
+        "entries": [
+          {
+            "key": "bit_flags"
+          }
+        ]
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

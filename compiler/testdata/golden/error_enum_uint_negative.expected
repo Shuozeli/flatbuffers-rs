@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_enum_uint_negative.fbs"), line: 2, col: 3 }): enum value -1 does not fit in uint for enum 'X'

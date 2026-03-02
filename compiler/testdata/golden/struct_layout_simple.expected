@@ -1,0 +1,54 @@
+{
+  "objects": [
+    {
+      "name": "Vec2",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_layout_simple.fbs",
+              "line": 2,
+              "col": 5
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/struct_layout_simple.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_layout_simple.fbs",
+              "line": 3,
+              "col": 5
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/struct_layout_simple.fbs",
+            "line": 3,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 8,
+      "span": {
+        "file": "testdata/golden/struct_layout_simple.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

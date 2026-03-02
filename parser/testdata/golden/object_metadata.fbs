@@ -1,0 +1,9 @@
+table Monster (original_order) {
+  hp: int;
+}
+
+struct Vec3 (force_align: 16) {
+  x: float;
+  y: float;
+  z: float;
+}

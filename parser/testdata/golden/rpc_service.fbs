@@ -1,0 +1,11 @@
+namespace example;
+
+table HelloRequest {}
+table HelloResponse {}
+
+/// Hello service
+rpc_service HelloService {
+  /// Say hello
+  Hello(HelloRequest): HelloResponse;
+  StreamServer(HelloRequest): HelloResponse (streaming: "server");
+}

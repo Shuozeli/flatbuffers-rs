@@ -1,0 +1,195 @@
+{
+  "objects": [
+    {
+      "name": "Entity",
+      "fields": [
+        {
+          "name": "color",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/multiple_enums_same_file.fbs",
+              "line": 6,
+              "col": 10
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "status",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "index": 1,
+            "span": {
+              "file": "testdata/golden/multiple_enums_same_file.fbs",
+              "line": 7,
+              "col": 11
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "facing",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "index": 2,
+            "span": {
+              "file": "testdata/golden/multiple_enums_same_file.fbs",
+              "line": 8,
+              "col": 11
+            }
+          },
+          "id": 2,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/multiple_enums_same_file.fbs",
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 1,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 1,
+            "col": 24
+          }
+        },
+        {
+          "name": "Blue",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 1,
+            "col": 31
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_enums_same_file.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Status",
+      "values": [
+        {
+          "name": "Active",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 2,
+            "col": 19
+          }
+        },
+        {
+          "name": "Inactive",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 2,
+            "col": 31
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_INT"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_enums_same_file.fbs",
+        "line": 2,
+        "col": 1
+      }
+    },
+    {
+      "name": "Direction",
+      "values": [
+        {
+          "name": "North",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 3,
+            "col": 24
+          }
+        },
+        {
+          "name": "South",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 3,
+            "col": 35
+          }
+        },
+        {
+          "name": "East",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 3,
+            "col": 42
+          }
+        },
+        {
+          "name": "West",
+          "value": 3,
+          "span": {
+            "file": "testdata/golden/multiple_enums_same_file.fbs",
+            "line": 3,
+            "col": 48
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_SHORT"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_enums_same_file.fbs",
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

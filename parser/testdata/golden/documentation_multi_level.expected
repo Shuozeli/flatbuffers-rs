@@ -1,0 +1,62 @@
+{
+  "objects": [
+    {
+      "name": "Documented",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 5,
+              "col": 9
+            }
+          },
+          "documentation": {
+            "lines": [
+              " Field doc"
+            ]
+          },
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "value",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 10
+            }
+          },
+          "documentation": {
+            "lines": [
+              " Multi-line 1",
+              " Multi-line 2"
+            ]
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "documentation": {
+        "lines": [
+          " Table doc line 1",
+          " Table doc line 2"
+        ]
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

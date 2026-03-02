@@ -1,0 +1,124 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/vector_of_user_defined_type.fbs",
+              "line": 2,
+              "col": 5
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/vector_of_user_defined_type.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/vector_of_user_defined_type.fbs",
+              "line": 3,
+              "col": 5
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/vector_of_user_defined_type.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/vector_of_user_defined_type.fbs",
+              "line": 4,
+              "col": 5
+            }
+          },
+          "offset": 8,
+          "span": {
+            "file": "testdata/golden/vector_of_user_defined_type.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 12,
+      "span": {
+        "file": "testdata/golden/vector_of_user_defined_type.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Inventory",
+      "fields": [
+        {
+          "name": "positions",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRUCT",
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/vector_of_user_defined_type.fbs",
+              "line": 8,
+              "col": 13
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/vector_of_user_defined_type.fbs",
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "names",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRING",
+            "span": {
+              "file": "testdata/golden/vector_of_user_defined_type.fbs",
+              "line": 9,
+              "col": 9
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/vector_of_user_defined_type.fbs",
+            "line": 9,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/vector_of_user_defined_type.fbs",
+        "line": 7,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_enum_byte_underflow.fbs"), line: 2, col: 3 }): enum value -129 does not fit in byte for enum 'X'

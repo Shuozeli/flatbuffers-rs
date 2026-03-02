@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_noncontiguous_field_id.fbs"), line: 1, col: 1 }): non-contiguous field ids in table 'BadTable': expected ids 0..2, got gaps

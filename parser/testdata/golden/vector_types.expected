@@ -1,0 +1,49 @@
+{
+  "objects": [
+    {
+      "name": "Inventory",
+      "fields": [
+        {
+          "name": "items",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_U_BYTE",
+            "span": {
+              "line": 2,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "names",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 4,
+            "element": "BASE_TYPE_STRING",
+            "span": {
+              "line": 3,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

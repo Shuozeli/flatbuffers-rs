@@ -1,0 +1,8 @@
+table Sword { damage:short; }
+table Shield { defense:short; }
+
+union Equipment { Sword, Shield }
+
+table Hero {
+  weapon:Equipment;
+}

@@ -1,0 +1,14 @@
+[package]
+name = "flatc-rs-grammar"
+version = "0.1.0"
+edition = "2021"
+description = "Tree-sitter grammar for FlatBuffers schema files"
+
+[dependencies]
+tree-sitter-language = "0.1"
+
+[build-dependencies]
+cc = "1.1"
+
+[dev-dependencies]
+tree-sitter = "0.24"

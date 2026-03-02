@@ -1,0 +1,6 @@
+enum TestKW : byte { None, where, match }
+table KWTable {
+  type: int;
+  is: string;
+  where: TestKW = None;
+}

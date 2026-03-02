@@ -1,0 +1,9 @@
+enum Color:byte { Red, Green, Blue }
+enum Status:int { Active = 1, Inactive }
+enum Direction:short { North = 0, South, East, West }
+
+table Entity {
+  color: Color;
+  status: Status;
+  facing: Direction;
+}

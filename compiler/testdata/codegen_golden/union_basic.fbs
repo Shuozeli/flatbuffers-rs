@@ -1,0 +1,7 @@
+table Sword { damage: int; }
+table Shield { armor: int; }
+union Equipment { Sword, Shield }
+table Hero {
+  name: string;
+  weapon: Equipment;
+}

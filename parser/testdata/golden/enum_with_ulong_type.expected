@@ -1,0 +1,40 @@
+{
+  "enums": [
+    {
+      "name": "LongEnum",
+      "values": [
+        {
+          "name": "A",
+          "value": 0,
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "B",
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "C",
+          "value": 100,
+          "span": {
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_LONG"
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

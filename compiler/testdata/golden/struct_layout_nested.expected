@@ -1,0 +1,124 @@
+{
+  "objects": [
+    {
+      "name": "Inner",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_layout_nested.fbs",
+              "line": 2,
+              "col": 5
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/struct_layout_nested.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_layout_nested.fbs",
+              "line": 3,
+              "col": 5
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/struct_layout_nested.fbs",
+            "line": 3,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 8,
+      "span": {
+        "file": "testdata/golden/struct_layout_nested.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Outer",
+      "fields": [
+        {
+          "name": "a",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "span": {
+              "file": "testdata/golden/struct_layout_nested.fbs",
+              "line": 7,
+              "col": 5
+            }
+          },
+          "offset": 0,
+          "padding": 3,
+          "span": {
+            "file": "testdata/golden/struct_layout_nested.fbs",
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "inner",
+          "type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/struct_layout_nested.fbs",
+              "line": 8,
+              "col": 9
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/struct_layout_nested.fbs",
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "b",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "span": {
+              "file": "testdata/golden/struct_layout_nested.fbs",
+              "line": 9,
+              "col": 5
+            }
+          },
+          "offset": 12,
+          "padding": 3,
+          "span": {
+            "file": "testdata/golden/struct_layout_nested.fbs",
+            "line": 9,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 16,
+      "span": {
+        "file": "testdata/golden/struct_layout_nested.fbs",
+        "line": 6,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

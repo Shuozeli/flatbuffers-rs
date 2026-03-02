@@ -1,0 +1,11 @@
+struct InnerStruct {
+  x: int;
+  y: int;
+}
+
+struct ArrayStruct {
+  a: float;
+  b: [int:3];
+  c: [InnerStruct:2];
+  d: byte;
+}

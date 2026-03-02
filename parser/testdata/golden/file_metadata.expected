@@ -1,0 +1,33 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 1,
+              "col": 21
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 17
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "file_ident": "MONS",
+  "file_ext": "bin",
+  "advanced_features": 0
+}
+# root_type: Monster

@@ -1,0 +1,162 @@
+{
+  "objects": [
+    {
+      "name": "Req",
+      "fields": [
+        {
+          "name": "id",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 1,
+              "col": 17
+            }
+          },
+          "span": {
+            "line": 1,
+            "col": 13
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Resp",
+      "fields": [
+        {
+          "name": "data",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 2,
+              "col": 20
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 14
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "services": [
+    {
+      "name": "Service",
+      "calls": [
+        {
+          "name": "Unary",
+          "request": {
+            "name": "Req"
+          },
+          "response": {
+            "name": "Resp"
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "ServerStream",
+          "request": {
+            "name": "Req"
+          },
+          "response": {
+            "name": "Resp"
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "streaming",
+                "value": "\"server\""
+              }
+            ]
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "ClientStream",
+          "request": {
+            "name": "Req"
+          },
+          "response": {
+            "name": "Resp"
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "streaming",
+                "value": "\"client\""
+              }
+            ]
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "BidiStream",
+          "request": {
+            "name": "Req"
+          },
+          "response": {
+            "name": "Resp"
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "streaming",
+                "value": "\"bidi\""
+              }
+            ]
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "Idempotent",
+          "request": {
+            "name": "Req"
+          },
+          "response": {
+            "name": "Resp"
+          },
+          "attributes": {
+            "entries": [
+              {
+                "key": "idempotent"
+              }
+            ]
+          },
+          "span": {
+            "line": 9,
+            "col": 3
+          }
+        }
+      ],
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

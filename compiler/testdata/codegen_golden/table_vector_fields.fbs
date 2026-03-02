@@ -1,0 +1,5 @@
+table Inventory {
+  slots: [ubyte];
+  names: [string];
+  scores: [int];
+}

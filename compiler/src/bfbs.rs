@@ -1,0 +1,559 @@
+//! Serialize a compiled Schema into the binary FlatBuffers schema format (.bfbs).
+//!
+//! The .bfbs format is defined by `reflection.fbs` and uses the file identifier "BFBS".
+//! This module builds the binary using `flatbuffers::FlatBufferBuilder` with manual
+//! vtable field offsets matching the official reflection schema layout.
+
+use flatbuffers::{FlatBufferBuilder, WIPOffset, TableFinishedWIPOffset};
+use flatc_rs_schema as schema;
+
+// ---------------------------------------------------------------------------
+// Vtable field offset constants (slot = 4 + 2 * field_index)
+// ---------------------------------------------------------------------------
+
+// Type table fields
+const TYPE_BASE_TYPE: flatbuffers::VOffsetT = 4;
+const TYPE_ELEMENT: flatbuffers::VOffsetT = 6;
+const TYPE_INDEX: flatbuffers::VOffsetT = 8;
+const TYPE_FIXED_LENGTH: flatbuffers::VOffsetT = 10;
+const TYPE_BASE_SIZE: flatbuffers::VOffsetT = 12;
+const TYPE_ELEMENT_SIZE: flatbuffers::VOffsetT = 14;
+
+// KeyValue table fields
+const KV_KEY: flatbuffers::VOffsetT = 4;
+const KV_VALUE: flatbuffers::VOffsetT = 6;
+
+// EnumVal table fields
+const ENUMVAL_NAME: flatbuffers::VOffsetT = 4;
+const ENUMVAL_VALUE: flatbuffers::VOffsetT = 6;
+const ENUMVAL_UNION_TYPE: flatbuffers::VOffsetT = 10;
+const ENUMVAL_DOCUMENTATION: flatbuffers::VOffsetT = 12;
+const ENUMVAL_ATTRIBUTES: flatbuffers::VOffsetT = 14;
+
+// Enum table fields
+const ENUM_NAME: flatbuffers::VOffsetT = 4;
+const ENUM_VALUES: flatbuffers::VOffsetT = 6;
+const ENUM_IS_UNION: flatbuffers::VOffsetT = 8;
+const ENUM_UNDERLYING_TYPE: flatbuffers::VOffsetT = 10;
+const ENUM_ATTRIBUTES: flatbuffers::VOffsetT = 12;
+const ENUM_DOCUMENTATION: flatbuffers::VOffsetT = 14;
+const ENUM_DECLARATION_FILE: flatbuffers::VOffsetT = 16;
+
+// Field table fields
+const FIELD_NAME: flatbuffers::VOffsetT = 4;
+const FIELD_TYPE: flatbuffers::VOffsetT = 6;
+const FIELD_ID: flatbuffers::VOffsetT = 8;
+const FIELD_OFFSET: flatbuffers::VOffsetT = 10;
+const FIELD_DEFAULT_INTEGER: flatbuffers::VOffsetT = 12;
+const FIELD_DEFAULT_REAL: flatbuffers::VOffsetT = 14;
+const FIELD_DEPRECATED: flatbuffers::VOffsetT = 16;
+const FIELD_REQUIRED: flatbuffers::VOffsetT = 18;
+const FIELD_KEY: flatbuffers::VOffsetT = 20;
+const FIELD_ATTRIBUTES: flatbuffers::VOffsetT = 22;
+const FIELD_DOCUMENTATION: flatbuffers::VOffsetT = 24;
+const FIELD_OPTIONAL: flatbuffers::VOffsetT = 26;
+const FIELD_PADDING: flatbuffers::VOffsetT = 28;
+const FIELD_OFFSET64: flatbuffers::VOffsetT = 30;
+
+// Object table fields
+const OBJECT_NAME: flatbuffers::VOffsetT = 4;
+const OBJECT_FIELDS: flatbuffers::VOffsetT = 6;
+const OBJECT_IS_STRUCT: flatbuffers::VOffsetT = 8;
+const OBJECT_MINALIGN: flatbuffers::VOffsetT = 10;
+const OBJECT_BYTESIZE: flatbuffers::VOffsetT = 12;
+const OBJECT_ATTRIBUTES: flatbuffers::VOffsetT = 14;
+const OBJECT_DOCUMENTATION: flatbuffers::VOffsetT = 16;
+const OBJECT_DECLARATION_FILE: flatbuffers::VOffsetT = 18;
+
+// RPCCall table fields
+const RPCCALL_NAME: flatbuffers::VOffsetT = 4;
+const RPCCALL_REQUEST: flatbuffers::VOffsetT = 6;
+const RPCCALL_RESPONSE: flatbuffers::VOffsetT = 8;
+const RPCCALL_ATTRIBUTES: flatbuffers::VOffsetT = 10;
+const RPCCALL_DOCUMENTATION: flatbuffers::VOffsetT = 12;
+
+// Service table fields
+const SERVICE_NAME: flatbuffers::VOffsetT = 4;
+const SERVICE_CALLS: flatbuffers::VOffsetT = 6;
+const SERVICE_ATTRIBUTES: flatbuffers::VOffsetT = 8;
+const SERVICE_DOCUMENTATION: flatbuffers::VOffsetT = 10;
+const SERVICE_DECLARATION_FILE: flatbuffers::VOffsetT = 12;
+
+// SchemaFile table fields
+const SCHEMAFILE_FILENAME: flatbuffers::VOffsetT = 4;
+const SCHEMAFILE_INCLUDED_FILENAMES: flatbuffers::VOffsetT = 6;
+
+// Schema table fields
+const SCHEMA_OBJECTS: flatbuffers::VOffsetT = 4;
+const SCHEMA_ENUMS: flatbuffers::VOffsetT = 6;
+const SCHEMA_FILE_IDENT: flatbuffers::VOffsetT = 8;
+const SCHEMA_FILE_EXT: flatbuffers::VOffsetT = 10;
+const SCHEMA_ROOT_TABLE: flatbuffers::VOffsetT = 12;
+const SCHEMA_SERVICES: flatbuffers::VOffsetT = 14;
+const SCHEMA_ADVANCED_FEATURES: flatbuffers::VOffsetT = 16;
+const SCHEMA_FBS_FILES: flatbuffers::VOffsetT = 18;
+
+/// Finished table offset alias.
+type TOff = WIPOffset<TableFinishedWIPOffset>;
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/// Serialize a compiled Schema into the .bfbs binary format.
+///
+/// The output is a valid FlatBuffer with file identifier "BFBS" conforming to
+/// the official `reflection.fbs` schema.
+pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
+    let mut b = FlatBufferBuilder::with_capacity(4096);
+
+    // Sort objects and enums by name (reflection.fbs requires sorted vectors).
+    let mut sorted_objects: Vec<(usize, &schema::Object)> =
+        schema.objects.iter().enumerate().collect();
+    sorted_objects.sort_by(|a, b| obj_name(a.1).cmp(obj_name(b.1)));
+
+    let mut sorted_enums: Vec<(usize, &schema::Enum)> =
+        schema.enums.iter().enumerate().collect();
+    sorted_enums.sort_by(|a, b| enum_name(a.1).cmp(enum_name(b.1)));
+
+    // Mapping from original object index -> sorted position (for root_table lookup).
+    let mut obj_index_to_sorted: Vec<usize> = vec![0; schema.objects.len()];
+    for (sorted_pos, &(orig_idx, _)) in sorted_objects.iter().enumerate() {
+        obj_index_to_sorted[orig_idx] = sorted_pos;
+    }
+
+    // --- Serialize objects ---
+    let obj_offs: Vec<TOff> = sorted_objects
+        .iter()
+        .map(|(_, obj)| write_object(&mut b, obj))
+        .collect();
+    let objects_vec = b.create_vector(&obj_offs);
+
+    // --- Serialize enums ---
+    let enum_offs: Vec<TOff> = sorted_enums
+        .iter()
+        .map(|(_, e)| write_enum(&mut b, e))
+        .collect();
+    let enums_vec = b.create_vector(&enum_offs);
+
+    // --- Serialize services ---
+    let svc_offs: Vec<TOff> = schema
+        .services
+        .iter()
+        .map(|svc| write_service(&mut b, svc))
+        .collect();
+    let services_vec = if svc_offs.is_empty() {
+        None
+    } else {
+        Some(b.create_vector(&svc_offs))
+    };
+
+    // --- Serialize fbs_files ---
+    let fbs_offs: Vec<TOff> = schema
+        .fbs_files
+        .iter()
+        .map(|f| write_schema_file(&mut b, f))
+        .collect();
+    let fbs_vec = if fbs_offs.is_empty() {
+        None
+    } else {
+        Some(b.create_vector(&fbs_offs))
+    };
+
+    // --- Serialize string fields ---
+    let file_ident = schema.file_ident.as_deref().map(|s| b.create_string(s));
+    let file_ext = schema.file_ext.as_deref().map(|s| b.create_string(s));
+
+    // --- Find root_table offset ---
+    let root_table_off: Option<TOff> = schema.root_table.as_ref().and_then(|rt| {
+        let rt_name = rt.name.as_deref().unwrap_or("");
+        schema
+            .objects
+            .iter()
+            .enumerate()
+            .find(|(_, obj)| obj.name.as_deref() == Some(rt_name))
+            .map(|(orig_idx, _)| obj_offs[obj_index_to_sorted[orig_idx]])
+    });
+
+    // --- Build Schema table ---
+    let start = b.start_table();
+    b.push_slot_always(SCHEMA_OBJECTS, objects_vec);
+    b.push_slot_always(SCHEMA_ENUMS, enums_vec);
+    if let Some(fi) = file_ident {
+        b.push_slot_always(SCHEMA_FILE_IDENT, fi);
+    }
+    if let Some(fe) = file_ext {
+        b.push_slot_always(SCHEMA_FILE_EXT, fe);
+    }
+    if let Some(rt) = root_table_off {
+        b.push_slot_always(SCHEMA_ROOT_TABLE, rt);
+    }
+    if let Some(svcs) = services_vec {
+        b.push_slot_always(SCHEMA_SERVICES, svcs);
+    }
+    if schema.advanced_features.0 != 0 {
+        b.push_slot::<u64>(SCHEMA_ADVANCED_FEATURES, schema.advanced_features.0, 0);
+    }
+    if let Some(fbs) = fbs_vec {
+        b.push_slot_always(SCHEMA_FBS_FILES, fbs);
+    }
+    let schema_offset = b.end_table(start);
+
+    b.finish(schema_offset, Some("BFBS"));
+    b.finished_data().to_vec()
+}
+
+// ---------------------------------------------------------------------------
+// Table writers -- each returns a finished table offset (TOff)
+// ---------------------------------------------------------------------------
+
+fn write_type(b: &mut FlatBufferBuilder<'_>, ty: &schema::Type) -> TOff {
+    let bt = ty.base_type.unwrap_or(schema::BaseType::BASE_TYPE_NONE);
+    let et = ty.element_type.unwrap_or(schema::BaseType::BASE_TYPE_NONE);
+
+    let start = b.start_table();
+    b.push_slot::<u8>(TYPE_BASE_TYPE, bt.to_reflection_byte(), 0);
+    b.push_slot::<u8>(TYPE_ELEMENT, et.to_reflection_byte(), 0);
+    b.push_slot::<i32>(TYPE_INDEX, ty.index.unwrap_or(-1), -1);
+    b.push_slot::<u16>(TYPE_FIXED_LENGTH, ty.fixed_length.unwrap_or(0) as u16, 0);
+    b.push_slot::<u32>(TYPE_BASE_SIZE, ty.base_size.unwrap_or(4), 4);
+    b.push_slot::<u32>(TYPE_ELEMENT_SIZE, ty.element_size.unwrap_or(0), 0);
+    b.end_table(start)
+}
+
+fn write_key_value(b: &mut FlatBufferBuilder<'_>, kv: &schema::KeyValue) -> TOff {
+    let key = kv.key.as_deref().map(|s| b.create_string(s));
+    let value = kv.value.as_deref().map(|s| b.create_string(s));
+
+    let start = b.start_table();
+    if let Some(k) = key {
+        b.push_slot_always(KV_KEY, k);
+    }
+    if let Some(v) = value {
+        b.push_slot_always(KV_VALUE, v);
+    }
+    b.end_table(start)
+}
+
+fn write_enum_val(b: &mut FlatBufferBuilder<'_>, ev: &schema::EnumVal) -> TOff {
+    let name = ev.name.as_deref().map(|s| b.create_string(s));
+    let union_type = ev.union_type.as_ref().map(|t| write_type(b, t));
+    let doc = ev.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+    let attrs = ev.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
+
+    let start = b.start_table();
+    if let Some(n) = name {
+        b.push_slot_always(ENUMVAL_NAME, n);
+    }
+    b.push_slot::<i64>(ENUMVAL_VALUE, ev.value.unwrap_or(0), 0);
+    if let Some(ut) = union_type {
+        b.push_slot_always(ENUMVAL_UNION_TYPE, ut);
+    }
+    if let Some(d) = doc {
+        b.push_slot_always(ENUMVAL_DOCUMENTATION, d);
+    }
+    if let Some(a) = attrs {
+        b.push_slot_always(ENUMVAL_ATTRIBUTES, a);
+    }
+    b.end_table(start)
+}
+
+fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum) -> TOff {
+    let fq_name = fully_qualified_enum_name(e);
+    let name = b.create_string(&fq_name);
+
+    let mut sorted_vals: Vec<&schema::EnumVal> = e.values.iter().collect();
+    sorted_vals.sort_by_key(|v| v.value.unwrap_or(0));
+    let val_offs: Vec<TOff> = sorted_vals
+        .iter()
+        .map(|v| write_enum_val(b, v))
+        .collect();
+    let values_vec = b.create_vector(&val_offs);
+
+    let underlying = e.underlying_type.as_ref().map(|t| write_type(b, t));
+    let attrs = e.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
+    let doc = e.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+    let decl_file = e.declaration_file.as_deref().map(|s| b.create_string(s));
+
+    let start = b.start_table();
+    b.push_slot_always(ENUM_NAME, name);
+    b.push_slot_always(ENUM_VALUES, values_vec);
+    b.push_slot::<bool>(ENUM_IS_UNION, e.is_union.unwrap_or(false), false);
+    if let Some(ut) = underlying {
+        b.push_slot_always(ENUM_UNDERLYING_TYPE, ut);
+    }
+    if let Some(a) = attrs {
+        b.push_slot_always(ENUM_ATTRIBUTES, a);
+    }
+    if let Some(d) = doc {
+        b.push_slot_always(ENUM_DOCUMENTATION, d);
+    }
+    if let Some(df) = decl_file {
+        b.push_slot_always(ENUM_DECLARATION_FILE, df);
+    }
+    b.end_table(start)
+}
+
+fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field) -> TOff {
+    let name = field.name.as_deref().map(|s| b.create_string(s));
+    let field_type = field.type_.as_ref().map(|t| write_type(b, t));
+    let attrs = field.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
+    let doc = field.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+
+    let start = b.start_table();
+    if let Some(n) = name {
+        b.push_slot_always(FIELD_NAME, n);
+    }
+    if let Some(t) = field_type {
+        b.push_slot_always(FIELD_TYPE, t);
+    }
+    b.push_slot::<u16>(FIELD_ID, field.id.unwrap_or(0) as u16, 0);
+    b.push_slot::<u16>(FIELD_OFFSET, field.offset.unwrap_or(0) as u16, 0);
+    b.push_slot::<i64>(FIELD_DEFAULT_INTEGER, field.default_integer.unwrap_or(0), 0);
+    b.push_slot::<f64>(FIELD_DEFAULT_REAL, field.default_real.unwrap_or(0.0), 0.0);
+    b.push_slot::<bool>(FIELD_DEPRECATED, field.is_deprecated.unwrap_or(false), false);
+    b.push_slot::<bool>(FIELD_REQUIRED, field.is_required.unwrap_or(false), false);
+    b.push_slot::<bool>(FIELD_KEY, field.is_key.unwrap_or(false), false);
+    if let Some(a) = attrs {
+        b.push_slot_always(FIELD_ATTRIBUTES, a);
+    }
+    if let Some(d) = doc {
+        b.push_slot_always(FIELD_DOCUMENTATION, d);
+    }
+    b.push_slot::<bool>(FIELD_OPTIONAL, field.is_optional.unwrap_or(false), false);
+    b.push_slot::<u16>(FIELD_PADDING, field.padding.unwrap_or(0) as u16, 0);
+    b.push_slot::<bool>(FIELD_OFFSET64, field.is_offset_64.unwrap_or(false), false);
+    b.end_table(start)
+}
+
+fn write_object(b: &mut FlatBufferBuilder<'_>, obj: &schema::Object) -> TOff {
+    let fq_name = fully_qualified_obj_name(obj);
+    let name = b.create_string(&fq_name);
+
+    // Fields sorted by name (reflection.fbs requires sorted fields)
+    let mut sorted_fields: Vec<&schema::Field> = obj.fields.iter().collect();
+    sorted_fields.sort_by(|a, b| {
+        a.name.as_deref().unwrap_or("").cmp(b.name.as_deref().unwrap_or(""))
+    });
+    let field_offs: Vec<TOff> = sorted_fields
+        .iter()
+        .map(|f| write_field(b, f))
+        .collect();
+    let fields_vec = b.create_vector(&field_offs);
+
+    let attrs = obj.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
+    let doc = obj.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+    let decl_file = obj.declaration_file.as_deref().map(|s| b.create_string(s));
+
+    let start = b.start_table();
+    b.push_slot_always(OBJECT_NAME, name);
+    b.push_slot_always(OBJECT_FIELDS, fields_vec);
+    b.push_slot::<bool>(OBJECT_IS_STRUCT, obj.is_struct.unwrap_or(false), false);
+    b.push_slot::<i32>(OBJECT_MINALIGN, obj.min_align.unwrap_or(0), 0);
+    b.push_slot::<i32>(OBJECT_BYTESIZE, obj.byte_size.unwrap_or(0), 0);
+    if let Some(a) = attrs {
+        b.push_slot_always(OBJECT_ATTRIBUTES, a);
+    }
+    if let Some(d) = doc {
+        b.push_slot_always(OBJECT_DOCUMENTATION, d);
+    }
+    if let Some(df) = decl_file {
+        b.push_slot_always(OBJECT_DECLARATION_FILE, df);
+    }
+    b.end_table(start)
+}
+
+fn write_rpc_call(b: &mut FlatBufferBuilder<'_>, call: &schema::RpcCall) -> TOff {
+    let name = call.name.as_deref().map(|s| b.create_string(s));
+    let request = call.request.as_ref().map(|obj| write_object(b, obj));
+    let response = call.response.as_ref().map(|obj| write_object(b, obj));
+    let attrs = call.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
+    let doc = call.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+
+    let start = b.start_table();
+    if let Some(n) = name {
+        b.push_slot_always(RPCCALL_NAME, n);
+    }
+    if let Some(r) = request {
+        b.push_slot_always(RPCCALL_REQUEST, r);
+    }
+    if let Some(r) = response {
+        b.push_slot_always(RPCCALL_RESPONSE, r);
+    }
+    if let Some(a) = attrs {
+        b.push_slot_always(RPCCALL_ATTRIBUTES, a);
+    }
+    if let Some(d) = doc {
+        b.push_slot_always(RPCCALL_DOCUMENTATION, d);
+    }
+    b.end_table(start)
+}
+
+fn write_service(b: &mut FlatBufferBuilder<'_>, svc: &schema::Service) -> TOff {
+    let fq_name = fully_qualified_svc_name(svc);
+    let name = b.create_string(&fq_name);
+
+    let call_offs: Vec<TOff> = svc.calls.iter().map(|c| write_rpc_call(b, c)).collect();
+    let calls_vec = if call_offs.is_empty() {
+        None
+    } else {
+        Some(b.create_vector(&call_offs))
+    };
+    let attrs = svc.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
+    let doc = svc.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+    let decl_file = svc.declaration_file.as_deref().map(|s| b.create_string(s));
+
+    let start = b.start_table();
+    b.push_slot_always(SERVICE_NAME, name);
+    if let Some(c) = calls_vec {
+        b.push_slot_always(SERVICE_CALLS, c);
+    }
+    if let Some(a) = attrs {
+        b.push_slot_always(SERVICE_ATTRIBUTES, a);
+    }
+    if let Some(d) = doc {
+        b.push_slot_always(SERVICE_DOCUMENTATION, d);
+    }
+    if let Some(df) = decl_file {
+        b.push_slot_always(SERVICE_DECLARATION_FILE, df);
+    }
+    b.end_table(start)
+}
+
+fn write_schema_file(b: &mut FlatBufferBuilder<'_>, sf: &schema::SchemaFile) -> TOff {
+    let filename = sf.filename.as_deref().map(|s| b.create_string(s));
+    let included = if sf.included_filenames.is_empty() {
+        None
+    } else {
+        let strs: Vec<_> = sf.included_filenames.iter().map(|s| b.create_string(s)).collect();
+        Some(b.create_vector(&strs))
+    };
+
+    let start = b.start_table();
+    if let Some(f) = filename {
+        b.push_slot_always(SCHEMAFILE_FILENAME, f);
+    }
+    if let Some(inc) = included {
+        b.push_slot_always(SCHEMAFILE_INCLUDED_FILENAMES, inc);
+    }
+    b.end_table(start)
+}
+
+// ---------------------------------------------------------------------------
+// Vector helpers for attributes and documentation
+// ---------------------------------------------------------------------------
+
+/// Serialize an Attributes list into a vector of KeyValue tables.
+/// Returns None if there are no entries.
+fn write_attrs_vec<'a>(
+    b: &mut FlatBufferBuilder<'a>,
+    attrs: &schema::Attributes,
+) -> Option<WIPOffset<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<TableFinishedWIPOffset>>>> {
+    if attrs.entries.is_empty() {
+        return None;
+    }
+    let offs: Vec<TOff> = attrs.entries.iter().map(|kv| write_key_value(b, kv)).collect();
+    Some(b.create_vector(&offs))
+}
+
+/// Serialize a Documentation list into a vector of strings.
+/// Returns None if there are no lines.
+fn write_doc_vec<'a>(
+    b: &mut FlatBufferBuilder<'a>,
+    doc: &schema::Documentation,
+) -> Option<WIPOffset<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>> {
+    if doc.lines.is_empty() {
+        return None;
+    }
+    let offs: Vec<_> = doc.lines.iter().map(|s| b.create_string(s)).collect();
+    Some(b.create_vector(&offs))
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn obj_name(obj: &schema::Object) -> &str {
+    obj.name.as_deref().unwrap_or("")
+}
+
+fn enum_name(e: &schema::Enum) -> &str {
+    e.name.as_deref().unwrap_or("")
+}
+
+fn fully_qualified_obj_name(obj: &schema::Object) -> String {
+    let name = obj.name.as_deref().unwrap_or("");
+    match &obj.namespace {
+        Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
+            format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
+        }
+        _ => name.to_string(),
+    }
+}
+
+fn fully_qualified_enum_name(e: &schema::Enum) -> String {
+    let name = e.name.as_deref().unwrap_or("");
+    match &e.namespace {
+        Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
+            format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
+        }
+        _ => name.to_string(),
+    }
+}
+
+fn fully_qualified_svc_name(svc: &schema::Service) -> String {
+    let name = svc.name.as_deref().unwrap_or("");
+    match &svc.namespace {
+        Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
+            format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
+        }
+        _ => name.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_empty_schema() {
+        let schema = schema::Schema::new();
+        let buf = serialize_schema(&schema);
+        assert!(buf.len() >= 8, "buffer too small: {} bytes", buf.len());
+        assert_eq!(&buf[4..8], b"BFBS", "missing BFBS file identifier");
+    }
+
+    #[test]
+    fn test_serialize_minimal_schema_with_table() {
+        let mut schema = schema::Schema::new();
+        let mut obj = schema::Object::new();
+        obj.name = Some("Monster".to_string());
+
+        let mut field = schema::Field::new();
+        field.name = Some("hp".to_string());
+        field.id = Some(0);
+        field.type_ = Some(schema::Type {
+            base_type: Some(schema::BaseType::BASE_TYPE_SHORT),
+            base_size: Some(2),
+            ..Default::default()
+        });
+        obj.fields.push(field);
+
+        schema.objects.push(obj.clone());
+        schema.root_table = Some(obj);
+
+        let buf = serialize_schema(&schema);
+        assert_eq!(&buf[4..8], b"BFBS");
+        assert!(buf.len() > 20, "buffer suspiciously small");
+    }
+
+    #[test]
+    fn test_base_type_reflection_byte() {
+        assert_eq!(schema::BaseType::BASE_TYPE_NONE.to_reflection_byte(), 0);
+        assert_eq!(schema::BaseType::BASE_TYPE_BOOL.to_reflection_byte(), 2);
+        assert_eq!(schema::BaseType::BASE_TYPE_TABLE.to_reflection_byte(), 15);
+        assert_eq!(schema::BaseType::BASE_TYPE_STRUCT.to_reflection_byte(), 15);
+        assert_eq!(schema::BaseType::BASE_TYPE_UNION.to_reflection_byte(), 16);
+        assert_eq!(schema::BaseType::BASE_TYPE_VECTOR64.to_reflection_byte(), 18);
+    }
+}

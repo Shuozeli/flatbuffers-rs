@@ -1,0 +1,109 @@
+{
+  "objects": [
+    {
+      "name": "Weapon",
+      "fields": [
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 3,
+              "col": 24
+            }
+          },
+          "span": {
+            "line": 3,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "TestUnion"
+      },
+      "span": {
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Shield",
+      "fields": [
+        {
+          "name": "defense",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "line": 4,
+              "col": 25
+            }
+          },
+          "span": {
+            "line": 4,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "TestUnion"
+      },
+      "span": {
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Equipment",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "Weapon",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Weapon"
+          },
+          "span": {
+            "line": 6,
+            "col": 19
+          }
+        },
+        {
+          "name": "Shield",
+          "value": 2,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Shield"
+          },
+          "span": {
+            "line": 6,
+            "col": 27
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "namespace": {
+        "namespace": "TestUnion"
+      },
+      "span": {
+        "line": 6,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

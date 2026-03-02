@@ -1,0 +1,56 @@
+{
+  "objects": [
+    {
+      "name": "Parent",
+      "fields": [
+        {
+          "name": "child",
+          "type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "unresolved_name": "Child",
+            "span": {
+              "line": 2,
+              "col": 10
+            }
+          },
+          "span": {
+            "line": 2,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Child",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 9
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

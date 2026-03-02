@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_default_int_overflow.fbs"), line: 2, col: 3 }): default value 2147483648 does not fit in int for field 'Y' in table 'X'

@@ -1,0 +1,98 @@
+{
+  "objects": [
+    {
+      "name": "Palette",
+      "fields": [
+        {
+          "name": "colors",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_BYTE",
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/vector_of_enums.fbs",
+              "line": 4,
+              "col": 11
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/vector_of_enums.fbs",
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "primary",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/vector_of_enums.fbs",
+              "line": 5,
+              "col": 12
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/vector_of_enums.fbs",
+            "line": 5,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/vector_of_enums.fbs",
+        "line": 3,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/vector_of_enums.fbs",
+            "line": 1,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/vector_of_enums.fbs",
+            "line": 1,
+            "col": 24
+          }
+        },
+        {
+          "name": "Blue",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/vector_of_enums.fbs",
+            "line": 1,
+            "col": 31
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "span": {
+        "file": "testdata/golden/vector_of_enums.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

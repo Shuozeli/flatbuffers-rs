@@ -1,0 +1,3 @@
+table X {
+  Y: short = 32768;
+}

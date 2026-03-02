@@ -1,0 +1,6 @@
+table WithDefaults {
+  name: string;
+  hp: int = 100;
+  tags: [string];
+  scores: [int];
+}

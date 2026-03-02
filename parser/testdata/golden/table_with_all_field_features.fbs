@@ -1,0 +1,15 @@
+namespace Game;
+
+/// A well-documented table
+table FullFeatured {
+  /// This field is required
+  name: string (required);
+  /// This field is deprecated
+  old_field: int (deprecated);
+  /// This field has an explicit ID
+  hp: short (id: 2);
+  /// This field is the key
+  id: uint (key, id: 0);
+  /// Optional field
+  nickname: string (id: 1);
+}

@@ -1,0 +1,9 @@
+namespace A.B.C.D;
+
+struct Inner { x: int; }
+
+table Outer {
+  inner: Inner;
+  vec: [Inner];
+  arr: [Inner:4];
+}

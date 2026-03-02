@@ -1,0 +1,4 @@
+table BadTable {
+  name:string (id: 0);
+  hp:short;
+}

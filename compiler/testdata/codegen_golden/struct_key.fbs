@@ -1,0 +1,4 @@
+struct Ability {
+  id: uint (key);
+  distance: uint;
+}

@@ -1,0 +1,172 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/cross_namespace_resolution.fbs",
+              "line": 4,
+              "col": 5
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/cross_namespace_resolution.fbs",
+              "line": 5,
+              "col": 5
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/cross_namespace_resolution.fbs",
+              "line": 6,
+              "col": 5
+            }
+          },
+          "offset": 8,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 4,
+      "bytesize": 12,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "file": "testdata/golden/cross_namespace_resolution.fbs",
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "pos",
+          "type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/cross_namespace_resolution.fbs",
+              "line": 12,
+              "col": 7
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 12,
+            "col": 3
+          }
+        },
+        {
+          "name": "color",
+          "type": {
+            "base_type": "BASE_TYPE_BYTE",
+            "base_size": 1,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/cross_namespace_resolution.fbs",
+              "line": 13,
+              "col": 9
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 13,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "file": "testdata/golden/cross_namespace_resolution.fbs",
+        "line": 11,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 9,
+            "col": 19
+          }
+        },
+        {
+          "name": "Green",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 9,
+            "col": 24
+          }
+        },
+        {
+          "name": "Blue",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/cross_namespace_resolution.fbs",
+            "line": 9,
+            "col": 31
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "file": "testdata/golden/cross_namespace_resolution.fbs",
+        "line": 9,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

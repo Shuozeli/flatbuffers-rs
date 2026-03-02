@@ -1,0 +1,9 @@
+[package]
+name = "flatc-rs-codegen"
+version = "0.1.0"
+edition = "2021"
+description = "Code generators for FlatBuffers schemas (Rust, TypeScript)"
+
+[dependencies]
+flatc-rs-schema = { path = "../schema" }
+thiserror = "2"

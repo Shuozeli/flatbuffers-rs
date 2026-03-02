@@ -1,0 +1,59 @@
+{
+  "enums": [
+    {
+      "name": "Color",
+      "values": [
+        {
+          "name": "Red",
+          "value": 0,
+          "documentation": {
+            "lines": [
+              " Red color"
+            ]
+          },
+          "span": {
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "Green",
+          "documentation": {
+            "lines": [
+              " Green color"
+            ]
+          },
+          "span": {
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "Blue",
+          "documentation": {
+            "lines": [
+              " Blue color"
+            ]
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "documentation": {
+        "lines": [
+          " The Color enum"
+        ]
+      },
+      "span": {
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,94 @@
+{
+  "objects": [
+    {
+      "name": "Reordered",
+      "fields": [
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+              "line": 2,
+              "col": 6
+            }
+          },
+          "id": 2,
+          "attributes": {
+            "entries": [
+              {
+                "key": "id",
+                "value": "2"
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+              "line": 3,
+              "col": 6
+            }
+          },
+          "id": 0,
+          "attributes": {
+            "entries": [
+              {
+                "key": "id",
+                "value": "0"
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+              "line": 4,
+              "col": 6
+            }
+          },
+          "id": 1,
+          "attributes": {
+            "entries": [
+              {
+                "key": "id",
+                "value": "1"
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

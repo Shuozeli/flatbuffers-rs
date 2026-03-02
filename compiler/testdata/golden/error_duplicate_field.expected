@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_duplicate_field.fbs"), line: 3, col: 3 }): duplicate field name 'Y' in 'X'

@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_struct_default_value.fbs"), line: 2, col: 3 }): default values are not allowed on struct field 'a' in struct 'X'

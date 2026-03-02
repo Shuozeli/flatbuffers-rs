@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "grammar",
+    "schema",
+    "parser",
+    "codegen",
+    "compiler",
+    "test-utils",
+]

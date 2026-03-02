@@ -1,0 +1,69 @@
+{
+  "objects": [
+    {
+      "name": "X",
+      "fields": [
+        {
+          "name": "a",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/valid_same_name_different_ns.fbs",
+              "line": 3,
+              "col": 6
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/valid_same_name_different_ns.fbs",
+            "line": 3,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "A"
+      },
+      "span": {
+        "file": "testdata/golden/valid_same_name_different_ns.fbs",
+        "line": 2,
+        "col": 1
+      }
+    },
+    {
+      "name": "X",
+      "fields": [
+        {
+          "name": "b",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/valid_same_name_different_ns.fbs",
+              "line": 8,
+              "col": 6
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/valid_same_name_different_ns.fbs",
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "B"
+      },
+      "span": {
+        "file": "testdata/golden/valid_same_name_different_ns.fbs",
+        "line": 7,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

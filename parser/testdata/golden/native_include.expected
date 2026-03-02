@@ -1,0 +1,63 @@
+{
+  "objects": [
+    {
+      "name": "Vec3D",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 6,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 7,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 7,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "line": 8,
+              "col": 6
+            }
+          },
+          "span": {
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "namespace": {
+        "namespace": "Geometry"
+      },
+      "span": {
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

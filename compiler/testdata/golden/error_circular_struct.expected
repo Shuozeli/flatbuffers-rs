@@ -1,0 +1,1 @@
+ANALYZE ERROR: circular struct dependency: A -> B -> A

@@ -1,0 +1,9 @@
+native_include "native_impl.h";
+
+namespace Geometry;
+
+struct Vec3D {
+  x: float;
+  y: float;
+  z: float;
+}

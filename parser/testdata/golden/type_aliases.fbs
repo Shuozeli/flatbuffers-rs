@@ -1,0 +1,12 @@
+table TypeAliases {
+  i8_field: int8;
+  u8_field: uint8;
+  i16_field: int16;
+  u16_field: uint16;
+  i32_field: int32;
+  u32_field: uint32;
+  i64_field: int64;
+  u64_field: uint64;
+  f32_field: float32;
+  f64_field: float64;
+}

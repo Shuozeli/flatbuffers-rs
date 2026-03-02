@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_default_byte_overflow.fbs"), line: 2, col: 3 }): default value 128 does not fit in byte for field 'Y' in table 'X'

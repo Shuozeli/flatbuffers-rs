@@ -1,0 +1,12 @@
+namespace MyGame.Example;
+enum Color : byte { Red = 1, Green = 2 }
+
+namespace MyGame.Example2;
+table Helper {
+  count: int;
+}
+
+namespace MyGame;
+table Root {
+  name: string;
+}
