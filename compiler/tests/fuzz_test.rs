@@ -25,19 +25,35 @@ mod fuzz_table_vector {
     include!("../testdata/codegen_golden/table_vector_fields.expected");
 }
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod fuzz_table_enum {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/table_enum_field.expected");
 }
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod fuzz_struct_key {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/struct_key.expected");
 }
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod fuzz_struct_array {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/struct_array.expected");

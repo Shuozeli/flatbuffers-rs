@@ -3,7 +3,12 @@
 use flatc_rs_compiler::{bfbs::serialize_schema, schema::BaseType};
 
 fn read_u32_le(buf: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes([buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]])
+    u32::from_le_bytes([
+        buf[offset],
+        buf[offset + 1],
+        buf[offset + 2],
+        buf[offset + 3],
+    ])
 }
 
 fn read_u16_le(buf: &[u8], offset: usize) -> u16 {
@@ -11,7 +16,12 @@ fn read_u16_le(buf: &[u8], offset: usize) -> u16 {
 }
 
 fn read_i32_le(buf: &[u8], offset: usize) -> i32 {
-    i32::from_le_bytes([buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]])
+    i32::from_le_bytes([
+        buf[offset],
+        buf[offset + 1],
+        buf[offset + 2],
+        buf[offset + 3],
+    ])
 }
 
 /// Read the number of elements in a vector field of the root Schema table.

@@ -6,5 +6,7 @@ members = [
     "parser",
     "codegen",
     "compiler",
+    "fbs-gen",
+    "data-gen",
     "test-utils",
 ]

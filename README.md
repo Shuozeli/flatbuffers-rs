@@ -3,6 +3,8 @@
 A pure Rust implementation of the [FlatBuffers](https://flatbuffers.dev/) compiler (`flatc`).
 Drop-in replacement: same `.fbs` input, same generated code output, same binary wire format.
 
+[![Live Visualizer](https://img.shields.io/badge/Visualizer-fbsviewer.shuozeli.com-blue?style=flat-square)](https://fbsviewer.shuozeli.com/)
+
 ## Features
 
 - Full `.fbs` schema parsing via tree-sitter (incremental, error-tolerant)
@@ -11,7 +13,7 @@ Drop-in replacement: same `.fbs` input, same generated code output, same binary 
 - TypeScript code generation (readers, builders, Object API)
 - Serde Serialize/Deserialize support (`--rust-serialize`)
 - Binary-compatible output verified against C++ `flatc`
-- 445+ tests passing, including cross-compatibility with the C++ implementation
+- 550+ tests passing, including cross-compatibility with the C++ implementation
 
 ## Quick Start
 
@@ -60,12 +62,20 @@ cargo run -- --rust --ts -o out/ schema.fbs
 grammar/       Tree-sitter grammar for .fbs IDL
 schema/        Protobuf-based schema types (mirrors reflection.fbs)
 parser/        .fbs -> unresolved Schema (tree-sitter based)
-compiler/      Analyzer + codegen + CLI
+codegen/       Code generation logic (Rust, TypeScript)
+compiler/      Analyzer + codegen CLI
 test-utils/    Shared golden test framework
 testdata/      Test schemas and expected outputs
 ```
 
 Dependency chain: `grammar -> parser -> compiler`, with `schema` shared by `parser` and `compiler`.
+
+## Visualizer
+
+An interactive binary visualizer built on this compiler is available at
+[Shuozeli/fbsviewer-lib](https://github.com/Shuozeli/fbsviewer-lib).
+
+**Try it now: [fbsviewer.shuozeli.com](https://fbsviewer.shuozeli.com/)**
 
 ## Testing
 

@@ -37,10 +37,7 @@ fn required_child<'a>(node: &Node<'a>, field: FieldName) -> Result<Node<'a>> {
 }
 
 /// Iterator over all children matching a field name.
-fn children_by_field<'a>(
-    node: &Node<'a>,
-    field: FieldName,
-) -> impl Iterator<Item = Node<'a>> + 'a {
+fn children_by_field<'a>(node: &Node<'a>, field: FieldName) -> impl Iterator<Item = Node<'a>> + 'a {
     let mut cursor = node.walk();
     let field_str = field.as_str();
     node.children_by_field_name(field_str, &mut cursor)
@@ -111,7 +108,11 @@ impl<'src> FbsParser<'src> {
 
     fn get_span(&self, node: &Node) -> schema::Span {
         let start = node.start_position();
-        schema::Span::new(self.file_name.clone(), start.row as u32 + 1, start.column as u32 + 1)
+        schema::Span::new(
+            self.file_name.clone(),
+            start.row as u32 + 1,
+            start.column as u32 + 1,
+        )
     }
 
     fn text(&self, node: &Node) -> Result<&'src str> {
@@ -124,10 +125,10 @@ impl<'src> FbsParser<'src> {
         let raw = self.text(node)?;
         if raw.len() >= 2 {
             if raw.starts_with('"') && raw.ends_with('"') {
-                return Ok(unescape_string(&raw[1..raw.len() - 1])?);
+                return unescape_string(&raw[1..raw.len() - 1]);
             }
             if raw.starts_with('\'') && raw.ends_with('\'') {
-                return Ok(unescape_string(&raw[1..raw.len() - 1])?);
+                return unescape_string(&raw[1..raw.len() - 1]);
             }
         }
         Ok(raw.to_string())
@@ -326,13 +327,14 @@ impl<'src> FbsParser<'src> {
                 "deprecated" => field.is_deprecated = Some(true),
                 "key" => field.is_key = Some(true),
                 "id" => {
-                    let val_str = entry
-                        .value
-                        .as_deref()
-                        .ok_or_else(|| ParseError::UnexpectedContent {
-                            found: "id without value".into(),
-                            context: "id attribute requires a numeric value".into(),
-                        })?;
+                    let val_str =
+                        entry
+                            .value
+                            .as_deref()
+                            .ok_or_else(|| ParseError::UnexpectedContent {
+                                found: "id without value".into(),
+                                context: "id attribute requires a numeric value".into(),
+                            })?;
                     let id: u32 = val_str.parse().map_err(|e: std::num::ParseIntError| {
                         ParseError::InvalidInteger {
                             value: val_str.into(),
@@ -396,7 +398,8 @@ impl<'src> FbsParser<'src> {
 
         // Scalar / built-in type
         let type_text = self.text(type_node)?;
-        let bt = lookup_base_type(type_text).ok_or_else(|| ParseError::UnknownBaseType(type_text.into()))?;
+        let bt = lookup_base_type(type_text)
+            .ok_or_else(|| ParseError::UnknownBaseType(type_text.into()))?;
         fb_type.base_type = Some(bt);
         if let Some(size) = base_type_size(bt) {
             fb_type.base_size = Some(size);
@@ -582,8 +585,7 @@ impl<'src> FbsParser<'src> {
         // Union fields: `union U { Name: Type, Name2, ... }`
         // Each field has a key (full_ident) and optional value (: type).
         // When value is omitted, the key name IS the type name.
-        let fields: Vec<Node> =
-            children_by_field(node, FieldName::UnionFieldDecl).collect();
+        let fields: Vec<Node> = children_by_field(node, FieldName::UnionFieldDecl).collect();
 
         for (i, field_node) in fields.iter().enumerate() {
             let mut eval = schema::EnumVal::new();
@@ -629,10 +631,8 @@ impl<'src> FbsParser<'src> {
         let ident_node = required_child(node, FieldName::RootTypeIdent)?;
         self.state.root_type_name = Some(self.text(&ident_node)?.to_string());
         self.state.root_type_span = Some(self.get_span(node));
-        self.state.root_type_namespace = self
-            .namespace
-            .as_ref()
-            .and_then(|ns| ns.namespace.clone());
+        self.state.root_type_namespace =
+            self.namespace.as_ref().and_then(|ns| ns.namespace.clone());
         Ok(())
     }
 

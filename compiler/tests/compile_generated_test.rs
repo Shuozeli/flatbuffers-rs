@@ -9,7 +9,12 @@
 // Enum: build + read + debug
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod enum_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/enum_basic.expected");
@@ -296,7 +301,13 @@ fn struct_debug() {
 // Table with enum field: build + read + default enum value
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod table_enum_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/table_enum_field.expected");
@@ -528,7 +539,12 @@ fn root_type_identifier_constant() {
 // Bitflags enum: bitwise ops + build + read
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod bitflags_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/enum_bitflags.expected");
@@ -588,7 +604,13 @@ fn bitflags_debug() {
 // Union: build + read with type-safe accessors
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod union_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/union_basic.expected");
@@ -671,7 +693,12 @@ fn union_enum_size() {
 // Struct with fixed-size arrays: new + read + set
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod struct_array_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/struct_array.expected");
@@ -1027,7 +1054,13 @@ fn verifier_nested_table_one_byte_flip_no_crash() {
 // Keyword escaping: Rust keywords as field/variant names
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod keyword_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/keyword_escape.expected");
@@ -1086,7 +1119,13 @@ fn keyword_table_defaults() {
 // Namespace: single namespace build + read
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod namespace_simple_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/namespace_simple.expected");
@@ -1096,7 +1135,10 @@ mod namespace_simple_runtime {
 fn namespace_simple_build_and_read() {
     use namespace_simple_runtime::my_game::example::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
-    let args = MonsterArgs { hp: 200, color: Color::Green };
+    let args = MonsterArgs {
+        hp: 200,
+        color: Color::Green,
+    };
     let offset = createMonster(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
@@ -1122,7 +1164,13 @@ fn namespace_simple_defaults() {
 // Namespace: multi-namespace types
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod namespace_multi_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/namespace_multi.expected");
@@ -1165,7 +1213,13 @@ fn namespace_multi_enum_from_sibling() {
 // Namespace: cross-namespace table references
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod namespace_cross_ref_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/namespace_cross_ref.expected");
@@ -1200,15 +1254,27 @@ fn namespace_cross_ref_inventory_roundtrip() {
     // Build two items
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name1 = fbb.create_string("Shield");
-    let item1_args = ItemArgs { name: Some(name1), rarity: Rarity::Rare, stats: None };
+    let item1_args = ItemArgs {
+        name: Some(name1),
+        rarity: Rarity::Rare,
+        stats: None,
+    };
     let item1 = createItem(&mut fbb, &item1_args);
     let name2 = fbb.create_string("Potion");
-    let item2_args = ItemArgs { name: Some(name2), rarity: Rarity::Common, stats: None };
+    let item2_args = ItemArgs {
+        name: Some(name2),
+        rarity: Rarity::Common,
+        stats: None,
+    };
     let item2 = createItem(&mut fbb, &item2_args);
     // Build inventory with vector of items and a favorite
     let items_vec = fbb.create_vector(&[item1, item2]);
     let name3 = fbb.create_string("Staff");
-    let fav_args = ItemArgs { name: Some(name3), rarity: Rarity::Epic, stats: None };
+    let fav_args = ItemArgs {
+        name: Some(name3),
+        rarity: Rarity::Epic,
+        stats: None,
+    };
     let fav = createItem(&mut fbb, &fav_args);
     let owner = fbb.create_string("Alice");
     let inv_args = InventoryArgs {
@@ -1252,7 +1318,13 @@ fn namespace_cross_ref_inventory_defaults() {
 // Nested flatbuffer: build + typed read
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod nested_flatbuffer_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/nested_flatbuffer.expected");
@@ -1264,7 +1336,10 @@ fn nested_flatbuffer_roundtrip() {
     // First, build the inner table as a separate flatbuffer
     let mut inner_fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name = inner_fbb.create_string("hero");
-    let inner_args = InnerArgs { hp: 250, name: Some(name) };
+    let inner_args = InnerArgs {
+        hp: 250,
+        name: Some(name),
+    };
     let inner_offset = createInner(&mut inner_fbb, &inner_args);
     inner_fbb.finish_minimal(inner_offset);
     let inner_bytes = inner_fbb.finished_data().to_vec();
@@ -1273,7 +1348,10 @@ fn nested_flatbuffer_roundtrip() {
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let label = fbb.create_string("container");
     let data = fbb.create_vector(&inner_bytes);
-    let outer_args = OuterArgs { label: Some(label), data: Some(data) };
+    let outer_args = OuterArgs {
+        label: Some(label),
+        data: Some(data),
+    };
     let outer_offset = createOuter(&mut fbb, &outer_args);
     fbb.finish_minimal(outer_offset);
     let buf = fbb.finished_data();
@@ -1318,7 +1396,10 @@ fn nested_flatbuffer_inner_defaults() {
     // Wrap in outer
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let data = fbb.create_vector(&inner_bytes);
-    let outer_args = OuterArgs { label: None, data: Some(data) };
+    let outer_args = OuterArgs {
+        label: None,
+        data: Some(data),
+    };
     let outer_offset = createOuter(&mut fbb, &outer_args);
     fbb.finish_minimal(outer_offset);
     let buf = fbb.finished_data();
@@ -1333,7 +1414,13 @@ fn nested_flatbuffer_inner_defaults() {
 // Key comparison methods
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod key_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/table_key.expected");
@@ -1344,13 +1431,25 @@ fn key_string_compare_less_than() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name_a = fbb.create_string("Alice");
-    let a = createMonster(&mut fbb, &MonsterArgs { name: Some(name_a), hp: 100 });
+    let a = createMonster(
+        &mut fbb,
+        &MonsterArgs {
+            name: Some(name_a),
+            hp: 100,
+        },
+    );
     fbb.finish_minimal(a);
     let buf_a = fbb.finished_data().to_vec();
 
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name_b = fbb.create_string("Bob");
-    let b = createMonster(&mut fbb, &MonsterArgs { name: Some(name_b), hp: 50 });
+    let b = createMonster(
+        &mut fbb,
+        &MonsterArgs {
+            name: Some(name_b),
+            hp: 50,
+        },
+    );
     fbb.finish_minimal(b);
     let buf_b = fbb.finished_data().to_vec();
 
@@ -1366,13 +1465,28 @@ fn key_string_compare_with_value() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("Monster");
-    let offset = createMonster(&mut fbb, &MonsterArgs { name: Some(name), hp: 100 });
+    let offset = createMonster(
+        &mut fbb,
+        &MonsterArgs {
+            name: Some(name),
+            hp: 100,
+        },
+    );
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let m = ::flatbuffers::root::<Monster>(buf).unwrap();
-    assert_eq!(m.key_compare_with_value("Monster"), ::core::cmp::Ordering::Equal);
-    assert_eq!(m.key_compare_with_value("Alpha"), ::core::cmp::Ordering::Greater);
-    assert_eq!(m.key_compare_with_value("Zombie"), ::core::cmp::Ordering::Less);
+    assert_eq!(
+        m.key_compare_with_value("Monster"),
+        ::core::cmp::Ordering::Equal
+    );
+    assert_eq!(
+        m.key_compare_with_value("Alpha"),
+        ::core::cmp::Ordering::Greater
+    );
+    assert_eq!(
+        m.key_compare_with_value("Zombie"),
+        ::core::cmp::Ordering::Less
+    );
 }
 
 #[test]
@@ -1380,13 +1494,25 @@ fn key_scalar_compare_less_than() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let id = fbb.create_string("a");
-    let a = createStat(&mut fbb, &StatArgs { id: Some(id), count: 10 });
+    let a = createStat(
+        &mut fbb,
+        &StatArgs {
+            id: Some(id),
+            count: 10,
+        },
+    );
     fbb.finish_minimal(a);
     let buf_a = fbb.finished_data().to_vec();
 
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let id = fbb.create_string("b");
-    let b = createStat(&mut fbb, &StatArgs { id: Some(id), count: 20 });
+    let b = createStat(
+        &mut fbb,
+        &StatArgs {
+            id: Some(id),
+            count: 20,
+        },
+    );
     fbb.finish_minimal(b);
     let buf_b = fbb.finished_data().to_vec();
 
@@ -1401,7 +1527,13 @@ fn key_scalar_compare_with_value() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let id = fbb.create_string("test");
-    let offset = createStat(&mut fbb, &StatArgs { id: Some(id), count: 42 });
+    let offset = createStat(
+        &mut fbb,
+        &StatArgs {
+            id: Some(id),
+            count: 42,
+        },
+    );
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let s = ::flatbuffers::root::<Stat>(buf).unwrap();
@@ -1414,7 +1546,12 @@ fn key_scalar_compare_with_value() {
 // Struct key comparison methods
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod struct_key_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/struct_key.expected");
@@ -1461,7 +1598,11 @@ fn object_api_struct_default() {
 #[test]
 fn object_api_struct_pack_unpack_roundtrip() {
     use object_api_struct_runtime::*;
-    let orig = Vec3T { x: 1.0, y: 2.0, z: 3.0 };
+    let orig = Vec3T {
+        x: 1.0,
+        y: 2.0,
+        z: 3.0,
+    };
     let packed = orig.pack();
     let unpacked = packed.unpack();
     assert_eq!(orig, unpacked);
@@ -1577,7 +1718,13 @@ fn object_api_table_pack_defaults() {
 // Object API: union T pack/unpack
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types, non_snake_case)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
 mod object_api_union_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/object_api_union.expected");
@@ -1649,7 +1796,12 @@ fn object_api_union_pack_none() {
 // Optional scalars: build + read + object API
 // ==========================================================================
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod optional_scalars_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/optional_scalars.expected");
@@ -1754,7 +1906,12 @@ fn optional_scalars_object_api_none_roundtrip() {
 // more_defaults: string and vector defaults
 // ---------------------------------------------------------------------------
 
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_camel_case_types)]
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
 mod more_defaults_runtime {
     extern crate flatbuffers;
     include!("../testdata/codegen_golden/more_defaults.expected");
@@ -1805,7 +1962,10 @@ fn more_defaults_object_api_pack_unpack() {
     assert_eq!(m.empty_string(), "hello");
     assert_eq!(m.some_string(), "world");
     assert_eq!(m.abcs().iter().collect::<Vec<_>>(), vec![ABC::B, ABC::C]);
-    assert_eq!(m.bools().iter().collect::<Vec<_>>(), vec![true, false, true]);
+    assert_eq!(
+        m.bools().iter().collect::<Vec<_>>(),
+        vec![true, false, true]
+    );
     let unpacked = m.unpack();
     assert_eq!(orig, unpacked);
 }

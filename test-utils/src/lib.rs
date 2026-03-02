@@ -137,8 +137,12 @@ mod tests {
             expected_path: dir.path().join("test.expected"),
         };
 
-        run_golden_test(&case, &|s: &str| s.to_uppercase(), &GoldenTestOptions::check_only())
-            .unwrap();
+        run_golden_test(
+            &case,
+            &|s: &str| s.to_uppercase(),
+            &GoldenTestOptions::check_only(),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -154,8 +158,12 @@ mod tests {
             expected_path: dir.path().join("test.expected"),
         };
 
-        run_golden_test(&case, &|s: &str| s.to_uppercase(), &GoldenTestOptions::check_only())
-            .unwrap();
+        run_golden_test(
+            &case,
+            &|s: &str| s.to_uppercase(),
+            &GoldenTestOptions::check_only(),
+        )
+        .unwrap();
     }
 
     #[test]

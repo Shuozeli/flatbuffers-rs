@@ -87,11 +87,7 @@ fn get_force_align(obj: &schema::Object) -> Option<u32> {
 }
 
 /// Validate and convert a type index to `usize`, returning an error if out of range.
-fn checked_obj_index(
-    idx: i32,
-    objects: &[schema::Object],
-    struct_name: &str,
-) -> Result<usize> {
+fn checked_obj_index(idx: i32, objects: &[schema::Object], struct_name: &str) -> Result<usize> {
     if idx < 0 || (idx as usize) >= objects.len() {
         return Err(AnalyzeError::InvalidTypeIndex {
             struct_name: struct_name.to_string(),
@@ -108,14 +104,16 @@ fn type_size_align(
     objects: &[schema::Object],
     struct_name: &str,
 ) -> Result<(u32, u32)> {
-    let bt = ty
-        .base_type
-        .unwrap_or(BaseType::BASE_TYPE_NONE);
+    let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
 
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => Ok((1, 1)),
+        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => {
+            Ok((1, 1))
+        }
         BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => Ok((2, 2)),
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => Ok((4, 4)),
+        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => {
+            Ok((4, 4))
+        }
         BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => {
             Ok((8, 8))
         }
@@ -162,9 +160,7 @@ fn type_size_align(
 
 /// Get alignment for an array element type.
 fn element_alignment(ty: &schema::Type) -> u32 {
-    let et = ty
-        .element_type
-        .unwrap_or(BaseType::BASE_TYPE_NONE);
+    let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
 
     match et {
         BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => 1,
@@ -227,9 +223,7 @@ fn visit_struct(
     // Visit struct dependencies (both direct struct fields and array-of-struct fields)
     for field in &obj.fields {
         if let Some(ty) = field.type_.as_ref() {
-            let bt = ty
-                .base_type
-                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
 
             if bt == BaseType::BASE_TYPE_STRUCT {
                 if let Some(dep_idx) = ty.index {

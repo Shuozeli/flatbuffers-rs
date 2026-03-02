@@ -1,6 +1,6 @@
-use flatc_rs_schema::{self as schema, BaseType};
-use super::type_map::{get_base_type, get_element_type, get_index};
 use super::field_type_index;
+use super::type_map::{get_base_type, get_element_type, get_index};
+use flatc_rs_schema::{self as schema, BaseType};
 
 use super::code_writer::CodeWriter;
 use super::type_map;
@@ -59,9 +59,7 @@ fn gen_follow_impl(w: &mut CodeWriter, name: &str) {
             w.block(
                 "unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner",
                 |w| {
-                    w.line(&format!(
-                        "Self {{ _tab: unsafe {{ ::flatbuffers::Table::new(buf, loc) }} }}"
-                    ));
+                    w.line("Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }");
                 },
             );
         },
@@ -69,7 +67,13 @@ fn gen_follow_impl(w: &mut CodeWriter, name: &str) {
 }
 
 /// Main impl block with VT constants and accessors.
-fn gen_impl_block(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Object, name: &str, current_ns: &str) {
+fn gen_impl_block(
+    w: &mut CodeWriter,
+    schema: &schema::Schema,
+    obj: &schema::Object,
+    name: &str,
+    current_ns: &str,
+) {
     w.block(&format!("impl<'a> {name}<'a>"), |w| {
         // VTable offset constants
         for (i, field) in obj.fields.iter().enumerate() {
@@ -86,7 +90,7 @@ fn gen_impl_block(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Obj
         // init_from_table (used by union accessors)
         w.line("#[inline]");
         w.block(
-            &format!("pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self"),
+            "pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self",
             |w| {
                 w.line(&format!("{name} {{ _tab: table }}"));
             },
@@ -135,22 +139,64 @@ fn gen_field_accessor(
 
     match bt {
         bt if type_map::is_scalar(bt) => {
-            gen_scalar_accessor(w, schema, field, &accessor_name, &upper, bt, is_optional_scalar, table_name, current_ns);
+            gen_scalar_accessor(
+                w,
+                schema,
+                field,
+                &accessor_name,
+                &upper,
+                bt,
+                is_optional_scalar,
+                table_name,
+                current_ns,
+            );
         }
         BaseType::BASE_TYPE_STRING => {
             gen_string_accessor(w, field, &accessor_name, &upper, table_name, is_required);
         }
         BaseType::BASE_TYPE_STRUCT => {
-            gen_struct_field_accessor(w, schema, field, &accessor_name, &upper, table_name, current_ns);
+            gen_struct_field_accessor(
+                w,
+                schema,
+                field,
+                &accessor_name,
+                &upper,
+                table_name,
+                current_ns,
+            );
         }
         BaseType::BASE_TYPE_TABLE => {
-            gen_table_field_accessor(w, schema, field, &accessor_name, &upper, table_name, current_ns);
+            gen_table_field_accessor(
+                w,
+                schema,
+                field,
+                &accessor_name,
+                &upper,
+                table_name,
+                current_ns,
+            );
         }
         BaseType::BASE_TYPE_VECTOR => {
-            gen_vector_accessor(w, schema, field, &accessor_name, &upper, table_name, current_ns);
+            gen_vector_accessor(
+                w,
+                schema,
+                field,
+                &accessor_name,
+                &upper,
+                table_name,
+                current_ns,
+            );
         }
         BaseType::BASE_TYPE_UNION => {
-            gen_union_accessor(w, schema, field, &accessor_name, &upper, table_name, current_ns);
+            gen_union_accessor(
+                w,
+                schema,
+                field,
+                &accessor_name,
+                &upper,
+                table_name,
+                current_ns,
+            );
         }
         _ => {
             // Fallback for unhandled types
@@ -161,6 +207,7 @@ fn gen_field_accessor(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn gen_scalar_accessor(
     w: &mut CodeWriter,
     schema: &schema::Schema,
@@ -206,9 +253,7 @@ fn gen_scalar_accessor(
                 "unsafe {{ self._tab.get::<{enum_name}>({table_name}::VT_{upper_name}, None) }}"
             ));
         } else {
-            w.line(&format!(
-                "pub fn {accessor_name}(&self) -> {enum_name} {{"
-            ));
+            w.line(&format!("pub fn {accessor_name}(&self) -> {enum_name} {{"));
             w.indent();
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
@@ -235,9 +280,7 @@ fn gen_scalar_accessor(
                 "unsafe {{ self._tab.get::<{rust_type}>({table_name}::VT_{upper_name}, None) }}"
             ));
         } else {
-            w.line(&format!(
-                "pub fn {accessor_name}(&self) -> {rust_type} {{"
-            ));
+            w.line(&format!("pub fn {accessor_name}(&self) -> {rust_type} {{"));
             w.indent();
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
@@ -305,11 +348,7 @@ fn gen_struct_field_accessor(
     table_name: &str,
     current_ns: &str,
 ) {
-    let struct_idx = field
-        .type_
-        .as_ref()
-        .and_then(|t| t.index)
-        .unwrap_or(0) as usize;
+    let struct_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
     let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
 
     w.line(&format!(
@@ -335,11 +374,7 @@ fn gen_table_field_accessor(
     table_name: &str,
     current_ns: &str,
 ) {
-    let table_idx = field
-        .type_
-        .as_ref()
-        .and_then(|t| t.index)
-        .unwrap_or(0) as usize;
+    let table_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
     let field_table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
 
     w.line(&format!(
@@ -369,9 +404,8 @@ fn gen_vector_accessor(
     let has_default = field.default_string.is_some();
 
     let vector_inner = vector_element_type(schema, field, element_bt, "'a", current_ns);
-    let full_type = format!(
-        "::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {vector_inner}>>"
-    );
+    let full_type =
+        format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {vector_inner}>>");
 
     if has_default {
         w.line(&format!(
@@ -445,11 +479,7 @@ fn gen_union_accessor(
     w.line("}");
 
     // Generate typed accessors for each union variant
-    let enum_idx = field
-        .type_
-        .as_ref()
-        .and_then(|t| t.index)
-        .unwrap_or(0) as usize;
+    let enum_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
     if enum_idx < schema.enums.len() {
         let union_enum = &schema.enums[enum_idx];
         let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
@@ -465,11 +495,7 @@ fn gen_union_accessor(
             let variant_bt = get_base_type(val.union_type.as_ref());
 
             if variant_bt == BaseType::BASE_TYPE_TABLE {
-                let table_idx = val
-                    .union_type
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
+                let table_idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
                 let table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
 
                 w.blank();
@@ -494,11 +520,8 @@ fn gen_union_accessor(
                 w.dedent();
                 w.line("}");
             } else if variant_bt == BaseType::BASE_TYPE_STRUCT {
-                let struct_idx = val
-                    .union_type
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
+                let struct_idx =
+                    val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
                 let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
 
                 w.blank();
@@ -579,27 +602,24 @@ fn gen_debug_impl(
     name: &str,
     opts: &CodeGenOptions,
 ) {
-    w.block(
-        &format!("impl ::core::fmt::Debug for {name}<'_>"),
-        |w| {
-            w.block(
-                "fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result",
-                |w| {
-                    w.line(&format!("let mut ds = f.debug_struct(\"{name}\");"));
-                    for field in &obj.fields {
-                        if is_union_field(field) {
-                            continue;
-                        }
-                        let fname = field.name.as_deref().unwrap_or("");
-                        let escaped = type_map::escape_keyword(fname);
-                        let accessor = type_map::to_snake_case(&escaped);
-                        w.line(&format!("ds.field(\"{fname}\", &self.{accessor}());"));
+    w.block(&format!("impl ::core::fmt::Debug for {name}<'_>"), |w| {
+        w.block(
+            "fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result",
+            |w| {
+                w.line(&format!("let mut ds = f.debug_struct(\"{name}\");"));
+                for field in &obj.fields {
+                    if is_union_field(field) {
+                        continue;
                     }
-                    w.line("ds.finish()");
-                },
-            );
-        },
-    );
+                    let fname = field.name.as_deref().unwrap_or("");
+                    let escaped = type_map::escape_keyword(fname);
+                    let accessor = type_map::to_snake_case(&escaped);
+                    w.line(&format!("ds.field(\"{fname}\", &self.{accessor}());"));
+                }
+                w.line("ds.finish()");
+            },
+        );
+    });
 
     if opts.rust_serialize {
         w.blank();
@@ -608,7 +628,7 @@ fn gen_debug_impl(
                 "fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\nwhere S: ::serde::Serializer",
                 |w| {
                     let n = obj.fields.iter().filter(|f| !is_union_field(f)).count();
-                    w.line(&format!("use ::serde::ser::SerializeStruct;"));
+                    w.line("use ::serde::ser::SerializeStruct;");
                     w.line(&format!("let mut s = serializer.serialize_struct(\"{name}\", {n})?;"));
                     for field in &obj.fields {
                         if is_union_field(field) {
@@ -715,13 +735,17 @@ fn gen_builder_add_method(
             let (param_type, use_default) = scalar_builder_type(schema, field, bt, current_ns);
             if use_default {
                 let default = scalar_builder_default(schema, field, bt, current_ns);
-                w.line(&format!("pub fn add_{accessor}(&mut self, {accessor}: {param_type}) {{"));
+                w.line(&format!(
+                    "pub fn add_{accessor}(&mut self, {accessor}: {param_type}) {{"
+                ));
                 w.indent();
                 w.line(&format!(
                     "self.fbb_.push_slot::<{param_type}>({table_name}::VT_{upper}, {accessor}, {default});"
                 ));
             } else {
-                w.line(&format!("pub fn add_{accessor}(&mut self, {accessor}: {param_type}) {{"));
+                w.line(&format!(
+                    "pub fn add_{accessor}(&mut self, {accessor}: {param_type}) {{"
+                ));
                 w.indent();
                 w.line(&format!(
                     "self.fbb_.push_slot_always::<{param_type}>({table_name}::VT_{upper}, {accessor});"
@@ -742,11 +766,7 @@ fn gen_builder_add_method(
             w.line("}");
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let struct_idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let struct_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
             w.line(&format!(
                 "pub fn add_{accessor}(&mut self, {accessor}: &{struct_name}) {{"
@@ -759,11 +779,7 @@ fn gen_builder_add_method(
             w.line("}");
         }
         BaseType::BASE_TYPE_TABLE => {
-            let table_idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let table_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let table_name_ref = type_map::resolve_object_name(schema, current_ns, table_idx);
             w.line(&format!(
                 "pub fn add_{accessor}(&mut self, {accessor}: ::flatbuffers::WIPOffset<{table_name_ref}<'b >>) {{"
@@ -832,30 +848,27 @@ fn gen_args_struct(
     w.line("}");
 
     // Default impl - C++ always uses <'a> lifetime on the impl, even for non-lifetime structs
-    w.block(
-        &format!("impl<'a> Default for {name}Args{lifetime}"),
-        |w| {
-            w.line("#[inline]");
-            w.block("fn default() -> Self", |w| {
-                w.line(&format!("{name}Args {{"));
-                w.indent();
-                for field in &obj.fields {
-                    let fname = field.name.as_deref().unwrap_or("");
-                    let escaped = type_map::escape_keyword(fname);
-                    let accessor = type_map::to_snake_case(&escaped);
-                    let default = args_field_default(schema, field, current_ns);
-                    let is_required = field.is_required == Some(true) || has_key_attribute(field);
-                    if is_required {
-                        w.line(&format!("{accessor}: {default}, // required field"));
-                    } else {
-                        w.line(&format!("{accessor}: {default},"));
-                    }
+    w.block(&format!("impl<'a> Default for {name}Args{lifetime}"), |w| {
+        w.line("#[inline]");
+        w.block("fn default() -> Self", |w| {
+            w.line(&format!("{name}Args {{"));
+            w.indent();
+            for field in &obj.fields {
+                let fname = field.name.as_deref().unwrap_or("");
+                let escaped = type_map::escape_keyword(fname);
+                let accessor = type_map::to_snake_case(&escaped);
+                let default = args_field_default(schema, field, current_ns);
+                let is_required = field.is_required == Some(true) || has_key_attribute(field);
+                if is_required {
+                    w.line(&format!("{accessor}: {default}, // required field"));
+                } else {
+                    w.line(&format!("{accessor}: {default},"));
                 }
-                w.dedent();
-                w.line("}");
-            });
-        },
-    );
+            }
+            w.dedent();
+            w.line("}");
+        });
+    });
 }
 
 /// Generate the convenience `create()` function.
@@ -875,9 +888,7 @@ fn gen_create_method(
     let args_lifetime = if needs_lifetime { "<'args>" } else { "" };
 
     w.line("#[allow(unused_mut)]");
-    w.line(&format!(
-        "pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>("
-    ));
+    w.line("pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(");
     w.indent();
     w.line("_fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,");
     w.line(&format!("args: &'args {name}Args{args_lifetime}"));
@@ -957,9 +968,7 @@ fn gen_create_fn(
     w.line("fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,");
     w.line(&format!("args: &'args {name}Args{args_lifetime},"));
     w.dedent();
-    w.line(&format!(
-        ") -> ::flatbuffers::WIPOffset<{name}<'bldr>> {{"
-    ));
+    w.line(&format!(") -> ::flatbuffers::WIPOffset<{name}<'bldr>> {{"));
     w.indent();
     w.line(&format!("let mut builder = {name}Builder::new(fbb);"));
 
@@ -1018,7 +1027,10 @@ fn gen_create_fn(
 /// Used to sort fields for optimal vtable packing (matching C++ flatc ordering).
 fn scalar_alignment_size(bt: BaseType) -> u32 {
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => 1,
+        BaseType::BASE_TYPE_BOOL
+        | BaseType::BASE_TYPE_BYTE
+        | BaseType::BASE_TYPE_U_BYTE
+        | BaseType::BASE_TYPE_U_TYPE => 1,
         BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => 2,
         BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => 4,
         BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => 8,
@@ -1057,20 +1069,12 @@ fn vector_element_type(
             format!("::flatbuffers::ForwardsUOffset<&{lifetime}{space}str>")
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("::flatbuffers::ForwardsUOffset<{tname}<{lifetime}>>")
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             type_map::resolve_object_name(schema, current_ns, idx)
         }
         _ => format!("u8 /* TODO: element type {element_bt:?} */"),
@@ -1096,23 +1100,13 @@ fn verifier_type_str(schema: &schema::Schema, field: &schema::Field, current_ns:
                 type_map::scalar_rust_type(bt).to_string()
             }
         }
-        BaseType::BASE_TYPE_STRING => {
-            "::flatbuffers::ForwardsUOffset<&str>".to_string()
-        }
+        BaseType::BASE_TYPE_STRING => "::flatbuffers::ForwardsUOffset<&str>".to_string(),
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             type_map::resolve_object_name(schema, current_ns, idx)
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("::flatbuffers::ForwardsUOffset<{tname}>")
         }
@@ -1225,24 +1219,14 @@ fn args_field_type(schema: &schema::Schema, field: &schema::Field, current_ns: &
                 base
             }
         }
-        BaseType::BASE_TYPE_STRING => {
-            "Option<::flatbuffers::WIPOffset<&'a str>>".to_string()
-        }
+        BaseType::BASE_TYPE_STRING => "Option<::flatbuffers::WIPOffset<&'a str>>".to_string(),
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("Option<&'a {sname}>")
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("Option<::flatbuffers::WIPOffset<{tname}<'a>>>")
         }
@@ -1293,24 +1277,20 @@ fn get_nested_flatbuffer_attr(field: &schema::Field) -> Option<String> {
 
 /// Find a table in the schema by its short name (not FQN).
 fn find_table_by_name(schema: &schema::Schema, name: &str) -> Option<usize> {
-    schema.objects.iter().position(|obj| {
-        obj.is_struct != Some(true) && obj.name.as_deref() == Some(name)
-    })
+    schema
+        .objects
+        .iter()
+        .position(|obj| obj.is_struct != Some(true) && obj.name.as_deref() == Some(name))
 }
 
 /// Check if a field has the `key` attribute.
 fn has_key_attribute(field: &schema::Field) -> bool {
-    field
-        .attributes
-        .as_ref()
-        .map_or(false, |attrs| {
-            attrs.entries.iter().any(|e| e.key.as_deref() == Some("key"))
-        })
-}
-
-/// Find the key field in a table (the one with the `key` attribute).
-fn find_key_field(obj: &schema::Object) -> Option<&schema::Field> {
-    obj.fields.iter().find(|f| has_key_attribute(f))
+    field.attributes.as_ref().is_some_and(|attrs| {
+        attrs
+            .entries
+            .iter()
+            .any(|e| e.key.as_deref() == Some("key"))
+    })
 }
 
 /// Generate key_compare_less_than and key_compare_with_value methods.
@@ -1356,9 +1336,7 @@ fn gen_key_methods(
     // key_compare_with_value
     w.line("#[inline]");
     w.block(
-        &format!(
-            "pub fn key_compare_with_value(&self, val: {key_type}) -> ::core::cmp::Ordering"
-        ),
+        &format!("pub fn key_compare_with_value(&self, val: {key_type}) -> ::core::cmp::Ordering"),
         |w| {
             w.line(&format!("let key = self.{accessor}();"));
             if is_string {
@@ -1398,9 +1376,9 @@ fn gen_object_api(
             if is_union_type_field(schema, field) {
                 continue;
             }
-            let fname = type_map::to_snake_case(
-                &type_map::escape_keyword(field.name.as_deref().unwrap_or("")),
-            );
+            let fname = type_map::to_snake_case(&type_map::escape_keyword(
+                field.name.as_deref().unwrap_or(""),
+            ));
             let owned_type = table_owned_field_type(schema, field, bt, current_ns);
             w.line(&format!("pub {fname}: {owned_type},"));
         }
@@ -1417,9 +1395,9 @@ fn gen_object_api(
                 if is_union_type_field(schema, field) {
                     continue;
                 }
-                let fname = type_map::to_snake_case(
-                    &type_map::escape_keyword(field.name.as_deref().unwrap_or("")),
-                );
+                let fname = type_map::to_snake_case(&type_map::escape_keyword(
+                    field.name.as_deref().unwrap_or(""),
+                ));
                 let default = table_owned_field_default(schema, field, bt, current_ns);
                 w.line(&format!("{fname}: {default},"));
             }
@@ -1520,20 +1498,12 @@ fn table_owned_field_type(
             }
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("Option<{sname}T>")
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("Option<alloc::boxed::Box<{tname}T>>")
         }
@@ -1547,11 +1517,7 @@ fn table_owned_field_type(
             }
         }
         BaseType::BASE_TYPE_UNION => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let ename = type_map::resolve_enum_name(schema, current_ns, idx);
             format!("{ename}T")
         }
@@ -1584,20 +1550,12 @@ fn vector_owned_element_type(
         }
         BaseType::BASE_TYPE_STRING => "alloc::string::String".to_string(),
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("{tname}T")
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
             format!("{sname}T")
         }
@@ -1624,10 +1582,7 @@ fn table_owned_field_default(
             if is_field_required(field) {
                 "alloc::string::String::new()".to_string()
             } else if let Some(default_val) = &field.default_string {
-                format!(
-                    "alloc::string::ToString::to_string(\"{}\")",
-                    default_val
-                )
+                format!("alloc::string::ToString::to_string(\"{}\")", default_val)
             } else {
                 "None".to_string()
             }
@@ -1640,11 +1595,7 @@ fn table_owned_field_default(
             }
         }
         BaseType::BASE_TYPE_UNION => {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let ename = type_map::resolve_enum_name(schema, current_ns, idx);
             format!("{ename}T::NONE")
         }
@@ -1666,9 +1617,9 @@ fn gen_pack_body(
         if is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_snake_case(
-            &type_map::escape_keyword(field.name.as_deref().unwrap_or("")),
-        );
+        let fname = type_map::to_snake_case(&type_map::escape_keyword(
+            field.name.as_deref().unwrap_or(""),
+        ));
 
         match bt {
             bt if type_map::is_scalar(bt) => {
@@ -1700,11 +1651,7 @@ fn gen_pack_body(
                 gen_pack_vector_field(w, schema, field, &fname, current_ns);
             }
             BaseType::BASE_TYPE_UNION => {
-                let idx = field
-                    .type_
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
+                let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
                 let ename = type_map::resolve_enum_name(schema, current_ns, idx);
                 let snake = type_map::to_snake_case(ename.split("::").last().unwrap_or(&ename));
                 w.line(&format!("let {fname}_type = self.{fname}.{snake}_type();"));
@@ -1719,9 +1666,9 @@ fn gen_pack_body(
     w.indent();
     for field in &obj.fields {
         let bt = get_base_type(field.type_.as_ref());
-        let fname = type_map::to_snake_case(
-            &type_map::escape_keyword(field.name.as_deref().unwrap_or("")),
-        );
+        let fname = type_map::to_snake_case(&type_map::escape_keyword(
+            field.name.as_deref().unwrap_or(""),
+        ));
         if bt == BaseType::BASE_TYPE_UNION || is_union_type_field(schema, field) {
             // Union generates two Args fields: {name}_type and {name}
             // The discriminator field has the _type suffix in args
@@ -1839,9 +1786,9 @@ fn gen_unpack_body(
         if is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_snake_case(
-            &type_map::escape_keyword(field.name.as_deref().unwrap_or("")),
-        );
+        let fname = type_map::to_snake_case(&type_map::escape_keyword(
+            field.name.as_deref().unwrap_or(""),
+        ));
 
         match bt {
             bt if type_map::is_scalar(bt) => {
@@ -1849,9 +1796,7 @@ fn gen_unpack_body(
             }
             BaseType::BASE_TYPE_STRING => {
                 if is_field_required(field) {
-                    w.line(&format!(
-                        "let {fname} = self.{fname}().to_string();"
-                    ));
+                    w.line(&format!("let {fname} = self.{fname}().to_string();"));
                 } else if field.default_string.is_some() {
                     w.line(&format!("let {fname} = {{"));
                     w.indent();
@@ -1892,9 +1837,9 @@ fn gen_unpack_body(
         if is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_snake_case(
-            &type_map::escape_keyword(field.name.as_deref().unwrap_or("")),
-        );
+        let fname = type_map::to_snake_case(&type_map::escape_keyword(
+            field.name.as_deref().unwrap_or(""),
+        ));
         w.line(&format!("{fname},"));
     }
     w.dedent();
@@ -1989,11 +1934,7 @@ fn gen_unpack_union_field(
     fname: &str,
     current_ns: &str,
 ) {
-    let enum_idx = field
-        .type_
-        .as_ref()
-        .and_then(|t| t.index)
-        .unwrap_or(0) as usize;
+    let enum_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
     if enum_idx >= schema.enums.len() {
         w.line(&format!("let {fname} = Default::default();"));
         return;

@@ -96,8 +96,7 @@ impl<'a> TsGenerator<'a> {
     /// Recursively emit a namespace node as `export namespace` blocks.
     fn gen_namespace_node(&mut self, name: &str, node: &NamespaceNode) {
         self.w.blank();
-        self.w
-            .line(&format!("export namespace {name} {{"));
+        self.w.line(&format!("export namespace {name} {{"));
         self.w.indent();
 
         // Types at this namespace level

@@ -1,13 +1,11 @@
 //! Property tests: randomly generated FBS schemas must compile and codegen
 //! without errors. Uses deterministic seeds for reproducibility.
 
-mod fbs_gen;
-
-use fbs_gen::{GenConfig, SchemaBuilder};
 use flatc_rs_compiler::{
-    compile_single,
     codegen::{generate_rust, generate_typescript, CodeGenOptions, TsCodeGenOptions},
+    compile_single,
 };
+use flatc_rs_fbs_gen::{GenConfig, SchemaBuilder};
 
 const NUM_SEEDS: u64 = 500;
 

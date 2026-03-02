@@ -1,17 +1,12 @@
 use flatc_rs_schema::{self as schema, BaseType};
 
 use super::code_writer::CodeWriter;
-use super::{field_type, field_type_index};
 use super::ts_type_map;
 use super::type_map;
+use super::{field_type, field_type_index};
 
 /// Generate TypeScript code for the struct at `schema.objects[index]`.
-pub fn generate(
-    w: &mut CodeWriter,
-    schema: &schema::Schema,
-    index: usize,
-    gen_object_api: bool,
-) {
+pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, gen_object_api: bool) {
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
     let byte_size = obj.byte_size.unwrap_or(0) as usize;
@@ -45,12 +40,9 @@ pub fn generate(
         w.blank();
 
         // getFullyQualifiedName
-        w.block(
-            &format!("static getFullyQualifiedName(): \"{fqn}\""),
-            |w| {
-                w.line(&format!("return '{fqn}';"));
-            },
-        );
+        w.block(&format!("static getFullyQualifiedName(): \"{fqn}\""), |w| {
+            w.line(&format!("return '{fqn}';"));
+        });
         w.blank();
 
         // Field accessors
@@ -97,7 +89,9 @@ pub fn generate(
 
 /// Generate a field accessor for a struct.
 fn gen_field_accessor(w: &mut CodeWriter, schema: &schema::Schema, field: &schema::Field) {
-    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(field.name.as_deref().unwrap_or("")));
+    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
+        field.name.as_deref().unwrap_or(""),
+    ));
     let offset = field.offset.unwrap_or(0) as usize;
     let bt = type_map::get_base_type(field.type_.as_ref());
 
@@ -107,11 +101,7 @@ fn gen_field_accessor(w: &mut CodeWriter, schema: &schema::Schema, field: &schem
     }
 
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field
-            .type_
-            .as_ref()
-            .and_then(|t| t.index)
-            .unwrap_or(0) as usize;
+        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         w.block(
             &format!("{fname}(obj?:{struct_name}):{struct_name}|null"),
@@ -153,11 +143,7 @@ fn gen_array_accessor(
     let (et, _fixed_len, elem_size) = array_element_info(schema, field);
 
     if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = field
-            .type_
-            .as_ref()
-            .and_then(|t| t.index)
-            .unwrap_or(0) as usize;
+        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         let struct_size = schema.objects[idx].byte_size.unwrap_or(0) as usize;
 
@@ -201,7 +187,9 @@ fn gen_field_mutator(w: &mut CodeWriter, schema: &schema::Schema, field: &schema
 
     let ts_type = field_ts_type(schema, field, bt);
     let write_method = ts_type_map::bb_write_method(bt);
-    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(field.name.as_deref().unwrap_or("")));
+    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(
+        field.name.as_deref().unwrap_or(""),
+    ));
 
     if bt == BaseType::BASE_TYPE_BOOL {
         w.block(&format!("mutate{pascal}(value:{ts_type}):boolean"), |w| {
@@ -211,15 +199,12 @@ fn gen_field_mutator(w: &mut CodeWriter, schema: &schema::Schema, field: &schema
             w.line("return true;");
         });
     } else {
-        w.block(
-            &format!("mutate{pascal}(value:{ts_type}):boolean"),
-            |w| {
-                w.line(&format!(
-                    "this.bb!.{write_method}(this.bb_pos + {offset}, value);"
-                ));
-                w.line("return true;");
-            },
-        );
+        w.block(&format!("mutate{pascal}(value:{ts_type}):boolean"), |w| {
+            w.line(&format!(
+                "this.bb!.{write_method}(this.bb_pos + {offset}, value);"
+            ));
+            w.line("return true;");
+        });
     }
 }
 
@@ -238,7 +223,9 @@ fn gen_static_create(
         .fields
         .iter()
         .map(|f| {
-            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(f.name.as_deref().unwrap_or("")));
+            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
+                f.name.as_deref().unwrap_or(""),
+            ));
             let bt = type_map::get_base_type(f.type_.as_ref());
             if bt == BaseType::BASE_TYPE_ARRAY {
                 let ts_type = create_param_array_type(schema, f);
@@ -278,7 +265,9 @@ fn gen_struct_field_write(
     field: &schema::Field,
     _obj: &schema::Object,
 ) {
-    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(field.name.as_deref().unwrap_or("")));
+    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
+        field.name.as_deref().unwrap_or(""),
+    ));
     let bt = type_map::get_base_type(field.type_.as_ref());
 
     let padding = field.padding.unwrap_or(0) as usize;
@@ -326,57 +315,38 @@ fn gen_array_field_write(
     let max_idx = fixed_len - 1;
 
     if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = field
-            .type_
-            .as_ref()
-            .and_then(|t| t.index)
-            .unwrap_or(0) as usize;
+        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         let t_name = format!("{struct_name}T");
 
-        w.block(
-            &format!("for (let i = {max_idx}; i >= 0; --i)"),
-            |w| {
-                w.line(&format!("const item = {fname}?.[i];"));
-                w.block(&format!("if (item instanceof {t_name})"), |w| {
-                    w.line("item.pack(builder);");
-                    w.line("continue;");
-                });
-                // Fallback: create default struct
-                w.line(&format!(
-                    "new {t_name}().pack(builder);"
-                ));
-            },
-        );
+        w.block(&format!("for (let i = {max_idx}; i >= 0; --i)"), |w| {
+            w.line(&format!("const item = {fname}?.[i];"));
+            w.block(&format!("if (item instanceof {t_name})"), |w| {
+                w.line("item.pack(builder);");
+                w.line("continue;");
+            });
+            // Fallback: create default struct
+            w.line(&format!("new {t_name}().pack(builder);"));
+        });
     } else {
         // Scalar/enum array
         let write_method = ts_type_map::builder_write_method(et);
         let default_val = if et == BaseType::BASE_TYPE_LONG || et == BaseType::BASE_TYPE_U_LONG {
             "BigInt(0)"
-        } else if et == BaseType::BASE_TYPE_BOOL {
-            "0"
         } else {
             "0"
         };
 
-        w.block(
-            &format!("for (let i = {max_idx}; i >= 0; --i)"),
-            |w| {
-                w.line(&format!(
-                    "builder.{write_method}({fname}?.[i] ?? {default_val});"
-                ));
-            },
-        );
+        w.block(&format!("for (let i = {max_idx}; i >= 0; --i)"), |w| {
+            w.line(&format!(
+                "builder.{write_method}({fname}?.[i] ?? {default_val});"
+            ));
+        });
     }
 }
 
 /// Generate unpack() method.
-fn gen_unpack(
-    w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
-    name: &str,
-) {
+fn gen_unpack(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Object, name: &str) {
     w.block(&format!("unpack():{name}T"), |w| {
         let args: Vec<String> = obj
             .fields
@@ -396,15 +366,12 @@ fn gen_unpack(
 }
 
 /// Generate unpackTo() method.
-fn gen_unpack_to(
-    w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
-    name: &str,
-) {
+fn gen_unpack_to(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Object, name: &str) {
     w.block(&format!("unpackTo(_o:{name}T):void"), |w| {
         for field in &obj.fields {
-            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(field.name.as_deref().unwrap_or("")));
+            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
+                field.name.as_deref().unwrap_or(""),
+            ));
             let expr = unpack_struct_field_expr(schema, field);
             w.line(&format!("_o.{fname} = {expr};"));
         }
@@ -428,7 +395,9 @@ fn gen_object_api_class(
                 .fields
                 .iter()
                 .map(|f| {
-                    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(f.name.as_deref().unwrap_or("")));
+                    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
+                        f.name.as_deref().unwrap_or(""),
+                    ));
                     let bt = type_map::get_base_type(f.type_.as_ref());
                     let (ts_type, default) = object_api_field_type_and_default(schema, f, bt);
                     format!("public {fname}:{ts_type} = {default}")
@@ -457,13 +426,12 @@ fn gen_object_api_class(
                         .fields
                         .iter()
                         .map(|f| {
-                            let fname =
-                                ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(f.name.as_deref().unwrap_or("")));
+                            let fname = ts_type_map::escape_ts_keyword(
+                                &ts_type_map::to_camel_case(f.name.as_deref().unwrap_or("")),
+                            );
                             let bt = type_map::get_base_type(f.type_.as_ref());
                             if bt == BaseType::BASE_TYPE_STRUCT {
-                                format!(
-                                    "(this.{fname} !== null ? this.{fname}!.pack(builder) : 0)"
-                                )
+                                format!("(this.{fname} !== null ? this.{fname}!.pack(builder) : 0)")
                             } else {
                                 format!("this.{fname}")
                             }
@@ -489,11 +457,7 @@ fn object_api_field_type_and_default(
     if bt == BaseType::BASE_TYPE_ARRAY {
         let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
         if et == BaseType::BASE_TYPE_STRUCT {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
             (format!("({struct_name}T)[]"), "[]".to_string())
         } else {
@@ -501,11 +465,7 @@ fn object_api_field_type_and_default(
             (format!("({ts_type})[]"), "[]".to_string())
         }
     } else if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field
-            .type_
-            .as_ref()
-            .and_then(|t| t.index)
-            .unwrap_or(0) as usize;
+        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         (format!("{struct_name}T|null"), "null".to_string())
     } else {
@@ -518,11 +478,7 @@ fn object_api_field_type_and_default(
 /// Get the TypeScript type for a struct field.
 fn field_ts_type(schema: &schema::Schema, field: &schema::Field, bt: BaseType) -> String {
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field
-            .type_
-            .as_ref()
-            .and_then(|t| t.index)
-            .unwrap_or(0) as usize;
+        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
         return schema.objects[idx]
             .name
             .as_deref()
@@ -583,10 +539,7 @@ fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&schema::Documentation>) {
 }
 
 /// Extract array element info: (element_base_type, fixed_length, element_size_in_bytes).
-fn array_element_info(
-    schema: &schema::Schema,
-    field: &schema::Field,
-) -> (BaseType, usize, usize) {
+fn array_element_info(schema: &schema::Schema, field: &schema::Field) -> (BaseType, usize, usize) {
     let ty = field_type(field);
     let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
     let fixed_len = ty.fixed_length.unwrap_or(0) as usize;
@@ -626,11 +579,7 @@ fn array_elem_ts_type(schema: &schema::Schema, field: &schema::Field, et: BaseTy
 fn create_param_array_type(schema: &schema::Schema, field: &schema::Field) -> String {
     let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
     if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = field
-            .type_
-            .as_ref()
-            .and_then(|t| t.index)
-            .unwrap_or(0) as usize;
+        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         let t_name = format!("{struct_name}T");
         format!("(any|{t_name})[]|null")
@@ -642,17 +591,15 @@ fn create_param_array_type(schema: &schema::Schema, field: &schema::Field) -> St
 
 /// Generate the unpack expression for a struct field.
 fn unpack_struct_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
-    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(field.name.as_deref().unwrap_or("")));
+    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
+        field.name.as_deref().unwrap_or(""),
+    ));
     let bt = type_map::get_base_type(field.type_.as_ref());
 
     if bt == BaseType::BASE_TYPE_ARRAY {
         let (et, fixed_len, _elem_size) = array_element_info(schema, field);
         if et == BaseType::BASE_TYPE_STRUCT {
-            let idx = field
-                .type_
-                .as_ref()
-                .and_then(|t| t.index)
-                .unwrap_or(0) as usize;
+            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
             let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
             let t_name = format!("{struct_name}T");
             format!(
@@ -660,14 +607,10 @@ fn unpack_struct_field_expr(schema: &schema::Schema, field: &schema::Field) -> S
             )
         } else {
             let ts_type = array_elem_ts_type(schema, field, et);
-            format!(
-                "this.bb!.createScalarList<{ts_type}>(this.{fname}.bind(this), {fixed_len})"
-            )
+            format!("this.bb!.createScalarList<{ts_type}>(this.{fname}.bind(this), {fixed_len})")
         }
     } else if bt == BaseType::BASE_TYPE_STRUCT {
-        format!(
-            "(this.{fname}() !== null ? this.{fname}()!.unpack() : null)"
-        )
+        format!("(this.{fname}() !== null ? this.{fname}()!.unpack() : null)")
     } else {
         format!("this.{fname}()")
     }

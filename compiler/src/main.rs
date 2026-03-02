@@ -124,8 +124,7 @@ fn write_output(path: &Path, content: &str) -> Result<(), String> {
         fs::create_dir_all(parent)
             .map_err(|e| format!("failed to create directory {}: {e}", parent.display()))?;
     }
-    fs::write(path, content)
-        .map_err(|e| format!("failed to write {}: {e}", path.display()))
+    fs::write(path, content).map_err(|e| format!("failed to write {}: {e}", path.display()))
 }
 
 fn warn(msg: &str, no_warnings: bool) {
@@ -151,18 +150,30 @@ fn main() {
 
     // Warn about unimplemented features.
     if cli.rust_module_root_file {
-        warn("--rust-module-root-file is not yet implemented, using single-file output", cli.no_warnings);
+        warn(
+            "--rust-module-root-file is not yet implemented, using single-file output",
+            cli.no_warnings,
+        );
     }
     if cli.require_explicit_ids {
-        warn("--require-explicit-ids is not yet implemented, ignoring", cli.no_warnings);
+        warn(
+            "--require-explicit-ids is not yet implemented, ignoring",
+            cli.no_warnings,
+        );
     }
 
     // Warn about language-specific flags without the language.
     if cli.rust_serialize && !cli.rust {
-        warn("--rust-serialize has no effect without --rust", cli.no_warnings);
+        warn(
+            "--rust-serialize has no effect without --rust",
+            cli.no_warnings,
+        );
     }
     if cli.rust_module_root_file && !cli.rust {
-        warn("--rust-module-root-file has no effect without --rust", cli.no_warnings);
+        warn(
+            "--rust-module-root-file has no effect without --rust",
+            cli.no_warnings,
+        );
     }
 
     // -- Compile --
@@ -204,7 +215,10 @@ fn main() {
             } else {
                 if let Some(parent) = out_path.parent() {
                     if let Err(e) = fs::create_dir_all(parent) {
-                        eprintln!("error: failed to create directory {}: {e}", parent.display());
+                        eprintln!(
+                            "error: failed to create directory {}: {e}",
+                            parent.display()
+                        );
                         process::exit(1);
                     }
                 }
@@ -253,7 +267,8 @@ fn main() {
                     process::exit(1);
                 }
             };
-            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir) {
+            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir)
+            {
                 Ok(p) => p,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -263,11 +278,9 @@ fn main() {
 
             if cli.file_names_only {
                 println!("{}", out_path.display());
-            } else {
-                if let Err(e) = write_output(&out_path, &code) {
-                    eprintln!("error: {e}");
-                    process::exit(1);
-                }
+            } else if let Err(e) = write_output(&out_path, &code) {
+                eprintln!("error: {e}");
+                process::exit(1);
             }
         }
 
@@ -284,7 +297,8 @@ fn main() {
                     process::exit(1);
                 }
             };
-            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir) {
+            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir)
+            {
                 Ok(p) => p,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -294,11 +308,9 @@ fn main() {
 
             if cli.file_names_only {
                 println!("{}", out_path.display());
-            } else {
-                if let Err(e) = write_output(&out_path, &code) {
-                    eprintln!("error: {e}");
-                    process::exit(1);
-                }
+            } else if let Err(e) = write_output(&out_path, &code) {
+                eprintln!("error: {e}");
+                process::exit(1);
             }
         }
     }

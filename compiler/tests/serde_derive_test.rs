@@ -45,9 +45,13 @@ fn test_struct_serialization() {
 
 #[test]
 fn test_object_api_serialization() {
-    use serde_test_generated::serde_test::{MonsterT, Vec3T, Color, Flags};
+    use serde_test_generated::serde_test::{Color, Flags, MonsterT, Vec3T};
     let m = MonsterT {
-        pos: Some(Vec3T { x: 1.0, y: 2.0, z: 3.0 }),
+        pos: Some(Vec3T {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+        }),
         hp: 42,
         name: Some("SerdeMonster".to_string()),
         color: Color::Blue,

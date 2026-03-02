@@ -104,11 +104,7 @@ fn union_variant_types(schema: &schema::Schema, enum_def: &schema::Enum) -> Vec<
         let variant_bt = type_map::get_base_type(val.union_type.as_ref());
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = val
-                    .union_type
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
+                let idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
                 let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
                 if !types.contains(&obj_name.to_string()) {
                     types.push(obj_name.to_string());
@@ -123,51 +119,6 @@ fn union_variant_types(schema: &schema::Schema, enum_def: &schema::Enum) -> Vec<
         }
     }
     types
-}
-
-/// Check if any union variant is a string type.
-fn union_has_string_variant(enum_def: &schema::Enum) -> bool {
-    enum_def.values.iter().any(|val| {
-        let vname = val.name.as_deref().unwrap_or("");
-        if vname == "NONE" {
-            return false;
-        }
-        type_map::get_base_type(val.union_type.as_ref()) == BaseType::BASE_TYPE_STRING
-    })
-}
-
-/// Get the TypeScript union type string for the Object API.
-pub fn get_union_t_type(schema: &schema::Schema, enum_idx: usize) -> String {
-    let enum_def = &schema.enums[enum_idx];
-    let mut variant_t_types: Vec<String> = Vec::new();
-    for val in &enum_def.values {
-        let vname = val.name.as_deref().unwrap_or("");
-        if vname == "NONE" {
-            continue;
-        }
-        let variant_bt = type_map::get_base_type(val.union_type.as_ref());
-        let t_type = match variant_bt {
-            BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = val
-                    .union_type
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
-                let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
-                format!("{obj_name}T")
-            }
-            BaseType::BASE_TYPE_STRING => "string".to_string(),
-            _ => continue,
-        };
-        if !variant_t_types.contains(&t_type) {
-            variant_t_types.push(t_type);
-        }
-    }
-    if variant_t_types.is_empty() {
-        "null".to_string()
-    } else {
-        format!("{}|null", variant_t_types.join("|"))
-    }
 }
 
 /// Generate `unionToXxx(type, accessor)` helper function.
@@ -292,11 +243,7 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &schema::Schema, index: usiz
         let variant_bt = type_map::get_base_type(val.union_type.as_ref());
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = val
-                    .union_type
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
+                let idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
                 let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
                 variants.push((vname, obj_name.to_string(), variant_bt));
             }

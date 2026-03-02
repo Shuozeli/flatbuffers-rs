@@ -116,11 +116,11 @@ fn cross_more_defaults_off_build_our_read() {
     assert_eq!(m.floats().iter().collect::<Vec<_>>(), vec![1.5, 2.5]);
     assert_eq!(m.empty_string(), "hello");
     assert_eq!(m.some_string(), "world");
+    assert_eq!(m.abcs().iter().map(|a| a.0).collect::<Vec<_>>(), vec![1, 2]);
     assert_eq!(
-        m.abcs().iter().map(|a| a.0).collect::<Vec<_>>(),
-        vec![1, 2]
+        m.bools().iter().collect::<Vec<_>>(),
+        vec![true, false, true]
     );
-    assert_eq!(m.bools().iter().collect::<Vec<_>>(), vec![true, false, true]);
 }
 
 #[test]
@@ -151,10 +151,7 @@ fn cross_more_defaults_our_build_off_read() {
     assert_eq!(m.floats().iter().collect::<Vec<_>>(), vec![3.14]);
     assert_eq!(m.empty_string(), "test");
     assert_eq!(m.some_string(), "data");
-    assert_eq!(
-        m.abcs().iter().map(|a| a.0).collect::<Vec<_>>(),
-        vec![0]
-    );
+    assert_eq!(m.abcs().iter().map(|a| a.0).collect::<Vec<_>>(), vec![0]);
     assert_eq!(m.bools().iter().collect::<Vec<_>>(), vec![false]);
 }
 
@@ -210,10 +207,7 @@ fn cross_more_defaults_object_api_cross_pack() {
     assert_eq!(off_t.floats, vec![1.5, 2.5]);
     assert_eq!(off_t.empty_string, "hello");
     assert_eq!(off_t.some_string, "world");
-    assert_eq!(
-        off_t.abcs.iter().map(|a| a.0).collect::<Vec<_>>(),
-        vec![1]
-    );
+    assert_eq!(off_t.abcs.iter().map(|a| a.0).collect::<Vec<_>>(), vec![1]);
     assert_eq!(off_t.bools, vec![true, false]);
 }
 
@@ -372,10 +366,7 @@ fn cross_optional_scalars_object_api_defaults() {
     assert_eq!(off_t.maybe_bool, our_t.maybe_bool);
     assert_eq!(off_t.default_bool, our_t.default_bool);
     assert_eq!(off_t.just_enum.0, our_t.just_enum.0);
-    assert_eq!(
-        off_t.maybe_enum.map(|e| e.0),
-        our_t.maybe_enum.map(|e| e.0)
-    );
+    assert_eq!(off_t.maybe_enum.map(|e| e.0), our_t.maybe_enum.map(|e| e.0));
     assert_eq!(off_t.default_enum.0, our_t.default_enum.0);
 }
 
@@ -384,15 +375,42 @@ fn cross_optional_scalars_vtable_offsets() {
     use off_optional_scalars::optional_scalars as off_ns;
     use our_optional_scalars::optional_scalars as our_ns;
 
-    assert_eq!(off_ns::ScalarStuff::VT_JUST_I8, our_ns::ScalarStuff::VT_JUST_I8);
-    assert_eq!(off_ns::ScalarStuff::VT_MAYBE_I8, our_ns::ScalarStuff::VT_MAYBE_I8);
-    assert_eq!(off_ns::ScalarStuff::VT_DEFAULT_I8, our_ns::ScalarStuff::VT_DEFAULT_I8);
-    assert_eq!(off_ns::ScalarStuff::VT_JUST_BOOL, our_ns::ScalarStuff::VT_JUST_BOOL);
-    assert_eq!(off_ns::ScalarStuff::VT_MAYBE_BOOL, our_ns::ScalarStuff::VT_MAYBE_BOOL);
-    assert_eq!(off_ns::ScalarStuff::VT_DEFAULT_BOOL, our_ns::ScalarStuff::VT_DEFAULT_BOOL);
-    assert_eq!(off_ns::ScalarStuff::VT_JUST_ENUM, our_ns::ScalarStuff::VT_JUST_ENUM);
-    assert_eq!(off_ns::ScalarStuff::VT_MAYBE_ENUM, our_ns::ScalarStuff::VT_MAYBE_ENUM);
-    assert_eq!(off_ns::ScalarStuff::VT_DEFAULT_ENUM, our_ns::ScalarStuff::VT_DEFAULT_ENUM);
+    assert_eq!(
+        off_ns::ScalarStuff::VT_JUST_I8,
+        our_ns::ScalarStuff::VT_JUST_I8
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_MAYBE_I8,
+        our_ns::ScalarStuff::VT_MAYBE_I8
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_DEFAULT_I8,
+        our_ns::ScalarStuff::VT_DEFAULT_I8
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_JUST_BOOL,
+        our_ns::ScalarStuff::VT_JUST_BOOL
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_MAYBE_BOOL,
+        our_ns::ScalarStuff::VT_MAYBE_BOOL
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_DEFAULT_BOOL,
+        our_ns::ScalarStuff::VT_DEFAULT_BOOL
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_JUST_ENUM,
+        our_ns::ScalarStuff::VT_JUST_ENUM
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_MAYBE_ENUM,
+        our_ns::ScalarStuff::VT_MAYBE_ENUM
+    );
+    assert_eq!(
+        off_ns::ScalarStuff::VT_DEFAULT_ENUM,
+        our_ns::ScalarStuff::VT_DEFAULT_ENUM
+    );
 }
 
 // ==========================================================================
@@ -413,7 +431,14 @@ fn cross_monster_off_build_our_read() {
             hp: 300,
             mana: 150,
             name: Some(name),
-            pos: Some(&off_ns::Vec3::new(1.0, 2.0, 3.0, 4.0, off_ns::Color::Green, &off_ns::Test::new(10, 20))),
+            pos: Some(&off_ns::Vec3::new(
+                1.0,
+                2.0,
+                3.0,
+                4.0,
+                off_ns::Color::Green,
+                &off_ns::Test::new(10, 20),
+            )),
             color: off_ns::Color::Blue,
             inventory: Some(inventory),
             ..Default::default()
@@ -455,7 +480,14 @@ fn cross_monster_our_build_off_read() {
             hp: 100,
             mana: 50,
             name: Some(name),
-            pos: Some(&our_monster_test::Vec3::new(10.0, 20.0, 30.0, 0.0, our_monster_test::Color::Red, &our_monster_test::Test::new(5, 15))),
+            pos: Some(&our_monster_test::Vec3::new(
+                10.0,
+                20.0,
+                30.0,
+                0.0,
+                our_monster_test::Color::Red,
+                &our_monster_test::Test::new(5, 15),
+            )),
             testarrayofstring: Some(testarrayofstring),
             ..Default::default()
         },
@@ -484,9 +516,18 @@ fn cross_monster_enum_values() {
     use off_monster_test::my_game::example as off_ns;
 
     // Color bitflags: Red=1, Green=2, Blue=8
-    assert_eq!(off_ns::Color::Red.bits(), our_monster_test::Color::Red.bits());
-    assert_eq!(off_ns::Color::Green.bits(), our_monster_test::Color::Green.bits());
-    assert_eq!(off_ns::Color::Blue.bits(), our_monster_test::Color::Blue.bits());
+    assert_eq!(
+        off_ns::Color::Red.bits(),
+        our_monster_test::Color::Red.bits()
+    );
+    assert_eq!(
+        off_ns::Color::Green.bits(),
+        our_monster_test::Color::Green.bits()
+    );
+    assert_eq!(
+        off_ns::Color::Blue.bits(),
+        our_monster_test::Color::Blue.bits()
+    );
 
     // Race enum values
     assert_eq!(off_ns::Race::None.0, our_monster_test::Race::None.0);
@@ -534,7 +575,10 @@ fn cross_monster_struct_layout() {
 fn cross_monster_file_identifier() {
     use off_monster_test::my_game::example as off_ns;
 
-    assert_eq!(off_ns::MONSTER_IDENTIFIER, our_monster_test::MONSTER_IDENTIFIER);
+    assert_eq!(
+        off_ns::MONSTER_IDENTIFIER,
+        our_monster_test::MONSTER_IDENTIFIER
+    );
 
     // Build with official, verify identifier with ours
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
@@ -561,10 +605,25 @@ fn cross_monster_vtable_offsets() {
     assert_eq!(off_ns::Monster::VT_MANA, our_monster_test::Monster::VT_MANA);
     assert_eq!(off_ns::Monster::VT_HP, our_monster_test::Monster::VT_HP);
     assert_eq!(off_ns::Monster::VT_NAME, our_monster_test::Monster::VT_NAME);
-    assert_eq!(off_ns::Monster::VT_INVENTORY, our_monster_test::Monster::VT_INVENTORY);
-    assert_eq!(off_ns::Monster::VT_COLOR, our_monster_test::Monster::VT_COLOR);
-    assert_eq!(off_ns::Monster::VT_TEST_TYPE, our_monster_test::Monster::VT_TEST_TYPE);
+    assert_eq!(
+        off_ns::Monster::VT_INVENTORY,
+        our_monster_test::Monster::VT_INVENTORY
+    );
+    assert_eq!(
+        off_ns::Monster::VT_COLOR,
+        our_monster_test::Monster::VT_COLOR
+    );
+    assert_eq!(
+        off_ns::Monster::VT_TEST_TYPE,
+        our_monster_test::Monster::VT_TEST_TYPE
+    );
     assert_eq!(off_ns::Monster::VT_TEST, our_monster_test::Monster::VT_TEST);
-    assert_eq!(off_ns::Monster::VT_ENEMY, our_monster_test::Monster::VT_ENEMY);
-    assert_eq!(off_ns::Monster::VT_TESTNESTEDFLATBUFFER, our_monster_test::Monster::VT_TESTNESTEDFLATBUFFER);
+    assert_eq!(
+        off_ns::Monster::VT_ENEMY,
+        our_monster_test::Monster::VT_ENEMY
+    );
+    assert_eq!(
+        off_ns::Monster::VT_TESTNESTEDFLATBUFFER,
+        our_monster_test::Monster::VT_TESTNESTEDFLATBUFFER
+    );
 }

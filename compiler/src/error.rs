@@ -3,13 +3,21 @@ use flatc_rs_schema::Span;
 #[derive(Debug, thiserror::Error)]
 pub enum AnalyzeError {
     #[error("{span:?}: unresolved type '{name}' in {context}")]
-    UnresolvedType { name: String, context: String, span: Option<Span> },
+    UnresolvedType {
+        name: String,
+        context: String,
+        span: Option<Span>,
+    },
 
     #[error("{span:?}: duplicate type name: {name}")]
     DuplicateName { name: String, span: Option<Span> },
 
     #[error("{span:?}: duplicate enum value {value} in enum '{enum_name}'")]
-    DuplicateEnumValue { enum_name: String, value: i64, span: Option<Span> },
+    DuplicateEnumValue {
+        enum_name: String,
+        value: i64,
+        span: Option<Span>,
+    },
 
     #[error("{span:?}: invalid struct field '{field_name}' in struct '{struct_name}': {reason}")]
     InvalidStructField {
@@ -26,10 +34,17 @@ pub enum AnalyzeError {
     RootTypeMustBeTable { name: String, span: Option<Span> },
 
     #[error("{span:?}: file identifier must be exactly 4 bytes, got {len}: \"{ident}\"")]
-    InvalidFileIdentifier { ident: String, len: usize, span: Option<Span> },
+    InvalidFileIdentifier {
+        ident: String,
+        len: usize,
+        span: Option<Span>,
+    },
 
     #[error("{span:?}: mixed id assignment in table '{table_name}': either all fields must have id or none")]
-    MixedIdAssignment { table_name: String, span: Option<Span> },
+    MixedIdAssignment {
+        table_name: String,
+        span: Option<Span>,
+    },
 
     #[error("{span:?}: duplicate field id {id} in table '{table_name}' (fields '{field_a}' and '{field_b}')")]
     DuplicateFieldId {
@@ -93,7 +108,10 @@ pub enum AnalyzeError {
     },
 
     #[error("{span:?}: invalid underlying type for enum '{enum_name}': must be an integer type")]
-    InvalidEnumUnderlyingType { enum_name: String, span: Option<Span> },
+    InvalidEnumUnderlyingType {
+        enum_name: String,
+        span: Option<Span>,
+    },
 
     #[error("{span:?}: duplicate enum value name '{value_name}' in enum '{enum_name}'")]
     DuplicateEnumValueName {
@@ -106,7 +124,11 @@ pub enum AnalyzeError {
     ForceAlignOnNonStruct { name: String, span: Option<Span> },
 
     #[error("{span:?}: force_align must be a power of 2, got {value} on '{name}'")]
-    ForceAlignNotPowerOf2 { name: String, value: i64, span: Option<Span> },
+    ForceAlignNotPowerOf2 {
+        name: String,
+        value: i64,
+        span: Option<Span>,
+    },
 
     #[error("{span:?}: struct '{name}' has no fields")]
     EmptyStruct { name: String, span: Option<Span> },
@@ -131,7 +153,9 @@ pub enum AnalyzeError {
     #[error("enum value overflow in enum '{enum_name}': auto-assigned value after {last_value} exceeds i64 range")]
     EnumValueOverflow { enum_name: String, last_value: i64 },
 
-    #[error("invalid type index {index} in struct '{struct_name}': out of range (max {max_index})")]
+    #[error(
+        "invalid type index {index} in struct '{struct_name}': out of range (max {max_index})"
+    )]
     InvalidTypeIndex {
         struct_name: String,
         index: i32,

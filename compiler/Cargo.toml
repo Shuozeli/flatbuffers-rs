@@ -19,6 +19,7 @@ thiserror = "2"
 
 [dev-dependencies]
 flatbuffers = { version = "25.12.19", features = ["serialize"] }
+flatc-rs-fbs-gen = { path = "../fbs-gen" }
 flatc-rs-test-utils = { path = "../test-utils" }
 quickcheck = "1"
 rand = "0.8"

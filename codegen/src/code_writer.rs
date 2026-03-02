@@ -70,10 +70,7 @@ mod tests {
             w.line("pub x: i32,");
         });
         let out = w.finish();
-        assert_eq!(
-            out,
-            "use foo::bar;\n\npub struct Foo {\n  pub x: i32,\n}\n"
-        );
+        assert_eq!(out, "use foo::bar;\n\npub struct Foo {\n  pub x: i32,\n}\n");
     }
 
     #[test]

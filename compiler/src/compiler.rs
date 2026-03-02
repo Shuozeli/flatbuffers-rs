@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use flatc_rs_parser::{FbsParser, ParseOutput, ParserState};
-use flatc_rs_schema as schema;
 use crate::analyzer;
 use crate::error::AnalyzeError;
+use flatc_rs_parser::{FbsParser, ParseOutput, ParserState};
+use flatc_rs_schema as schema;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -41,18 +41,10 @@ pub enum CompilerError {
     AnalyzeError(#[from] AnalyzeError),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CompilerOptions {
     /// Search paths for include directives (like flatc -I).
     pub include_paths: Vec<PathBuf>,
-}
-
-impl Default for CompilerOptions {
-    fn default() -> Self {
-        Self {
-            include_paths: Vec::new(),
-        }
-    }
 }
 
 /// Result of compiling one or more .fbs files.
@@ -127,12 +119,10 @@ pub fn compile(
 /// Useful for testing and programmatic use when includes are not needed.
 pub fn compile_single(source: &str) -> Result<CompilationResult, CompilerError> {
     let parser = FbsParser::new(source).with_file_name("<input>".to_string());
-    let output = parser
-        .parse()
-        .map_err(|e| CompilerError::ParseError {
-            file: PathBuf::from("<input>"),
-            message: e.to_string(),
-        })?;
+    let output = parser.parse().map_err(|e| CompilerError::ParseError {
+        file: PathBuf::from("<input>"),
+        message: e.to_string(),
+    })?;
 
     let schema = analyzer::analyze(output)?;
     Ok(CompilationResult { schema })
@@ -154,9 +144,8 @@ struct IncludeResolver {
 
 impl IncludeResolver {
     fn resolve_file(&mut self, file_path: &Path) -> Result<(), CompilerError> {
-        let canonical = std::fs::canonicalize(file_path).map_err(|_| {
-            CompilerError::FileNotFound(file_path.to_path_buf())
-        })?;
+        let canonical = std::fs::canonicalize(file_path)
+            .map_err(|_| CompilerError::FileNotFound(file_path.to_path_buf()))?;
 
         // Already parsed -- skip.
         if self.seen.contains(&canonical) {
@@ -171,25 +160,22 @@ impl IncludeResolver {
         self.visiting.insert(canonical.clone());
 
         // Read and parse.
-        let source =
-            std::fs::read_to_string(&canonical).map_err(|e| CompilerError::IoError {
-                path: canonical.clone(),
-                source: e,
-            })?;
+        let source = std::fs::read_to_string(&canonical).map_err(|e| CompilerError::IoError {
+            path: canonical.clone(),
+            source: e,
+        })?;
 
-        let parser = FbsParser::new(&source).with_file_name(canonical.to_string_lossy().to_string());
-        let output = parser
-            .parse()
-            .map_err(|e| CompilerError::ParseError {
-                file: canonical.clone(),
-                message: e.to_string(),
-            })?;
+        let parser =
+            FbsParser::new(&source).with_file_name(canonical.to_string_lossy().to_string());
+        let output = parser.parse().map_err(|e| CompilerError::ParseError {
+            file: canonical.clone(),
+            message: e.to_string(),
+        })?;
 
         // Recursively resolve includes.
         for fbs_file in &output.schema.fbs_files {
             if let Some(include_name) = &fbs_file.filename {
-                let include_path =
-                    self.find_include(include_name, &canonical)?;
+                let include_path = self.find_include(include_name, &canonical)?;
                 self.resolve_file(&include_path)?;
             }
         }
@@ -205,11 +191,7 @@ impl IncludeResolver {
         Ok(())
     }
 
-    fn find_include(
-        &self,
-        name: &str,
-        from_file: &Path,
-    ) -> Result<PathBuf, CompilerError> {
+    fn find_include(&self, name: &str, from_file: &Path) -> Result<PathBuf, CompilerError> {
         // Reject absolute include paths -- includes must be relative.
         if Path::new(name).is_absolute() {
             return Err(CompilerError::AbsoluteIncludePath {
@@ -375,7 +357,11 @@ mod tests {
         fs::write(&escape_path, "table Escaped { x:int; }").unwrap();
 
         let fbs_path = sub.join("main.fbs");
-        fs::write(&fbs_path, "include \"../../escape.fbs\";\ntable T { x:int; }").unwrap();
+        fs::write(
+            &fbs_path,
+            "include \"../../escape.fbs\";\ntable T { x:int; }",
+        )
+        .unwrap();
 
         let options = CompilerOptions::default();
         let result = compile(&[fbs_path], &options);
@@ -404,14 +390,14 @@ mod tests {
 
         fs::write(sub.join("inner.fbs"), "table Inner { x:int; }").unwrap();
         let fbs_path = dir.path().join("main.fbs");
-        fs::write(
-            &fbs_path,
-            "include \"sub/inner.fbs\";\ntable T { y:int; }",
-        )
-        .unwrap();
+        fs::write(&fbs_path, "include \"sub/inner.fbs\";\ntable T { y:int; }").unwrap();
 
         let options = CompilerOptions::default();
         let result = compile(&[fbs_path], &options);
-        assert!(result.is_ok(), "relative include should work: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "relative include should work: {:?}",
+            result.err()
+        );
     }
 }

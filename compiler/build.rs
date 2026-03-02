@@ -44,8 +44,11 @@ fn main() {
     // TypeScript codegen golden tests
     let ts_codegen_dir = Path::new("testdata/ts_codegen_golden");
     println!("cargo:rerun-if-changed=testdata/ts_codegen_golden");
-    let code =
-        generate_tests_for_dir(ts_codegen_dir, "ts_codegen_", "run_single_ts_codegen_golden");
+    let code = generate_tests_for_dir(
+        ts_codegen_dir,
+        "ts_codegen_",
+        "run_single_ts_codegen_golden",
+    );
     fs::write(
         Path::new(&out_dir).join("ts_codegen_tests_generated.rs"),
         code,
@@ -55,8 +58,11 @@ fn main() {
     // Serde codegen golden tests
     let serde_codegen_dir = Path::new("testdata/serde_codegen_golden");
     println!("cargo:rerun-if-changed=testdata/serde_codegen_golden");
-    let code =
-        generate_tests_for_dir(serde_codegen_dir, "serde_codegen_", "run_single_serde_codegen_golden");
+    let code = generate_tests_for_dir(
+        serde_codegen_dir,
+        "serde_codegen_",
+        "run_single_serde_codegen_golden",
+    );
     fs::write(
         Path::new(&out_dir).join("serde_codegen_tests_generated.rs"),
         code,

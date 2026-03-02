@@ -1,8 +1,8 @@
-use flatc_rs_parser::{ParseOutput, ParserState};
-use flatc_rs_schema::{self as schema, BaseType};
 use crate::error::{AnalyzeError, Result};
 use crate::struct_layout;
 use crate::type_index::{TypeIndex, TypeRef};
+use flatc_rs_parser::{ParseOutput, ParserState};
+use flatc_rs_schema::{self as schema, BaseType};
 
 /// Analyze a parsed schema, resolving type references, assigning enum values,
 /// computing struct layouts, and validating correctness.
@@ -67,11 +67,7 @@ impl TypeMetadata {
             enum_underlying: schema
                 .enums
                 .iter()
-                .map(|e| {
-                    e.underlying_type
-                        .as_ref()
-                        .and_then(|t| t.base_type)
-                })
+                .map(|e| e.underlying_type.as_ref().and_then(|t| t.base_type))
                 .collect(),
         }
     }
@@ -156,10 +152,7 @@ fn insert_union_type_fields(schema: &mut schema::Schema) {
                 let union_field = &schema.objects[obj_idx].fields[field_idx];
                 let union_name = union_field.name.as_deref().unwrap_or("");
                 let union_field_id = union_field.id;
-                let enum_index = union_field
-                    .type_
-                    .as_ref()
-                    .and_then(|t| t.index);
+                let enum_index = union_field.type_.as_ref().and_then(|t| t.index);
 
                 // Determine underlying type of the union enum
                 let underlying_bt = enum_index
@@ -227,38 +220,34 @@ fn resolve_type(
     obj_name: &str,
     field_name: &str,
 ) -> Result<()> {
-    let bt = ty
-        .base_type
-        .unwrap_or(BaseType::BASE_TYPE_NONE);
+    let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
 
     // Vector/array with user-defined element type
     if bt == BaseType::BASE_TYPE_VECTOR || bt == BaseType::BASE_TYPE_ARRAY {
         if let Some(name) = ty.unresolved_name.take() {
-            let type_ref = index
-                .resolve(&name, current_ns)
-                .ok_or_else(|| AnalyzeError::UnresolvedType {
-                    name: name.clone(),
-                    context: format!("{obj_name}.{field_name} (element type)"),
-                    span: ty.span.clone(),
-                })?;
+            let type_ref =
+                index
+                    .resolve(&name, current_ns)
+                    .ok_or_else(|| AnalyzeError::UnresolvedType {
+                        name: name.clone(),
+                        context: format!("{obj_name}.{field_name} (element type)"),
+                        span: ty.span.clone(),
+                    })?;
 
             match type_ref {
                 TypeRef::Object(idx) => {
                     ty.index = Some(idx as i32);
                     if meta.obj_is_struct[idx] {
-                        ty.element_type =
-                            Some(BaseType::BASE_TYPE_STRUCT);
+                        ty.element_type = Some(BaseType::BASE_TYPE_STRUCT);
                     } else {
-                        ty.element_type =
-                            Some(BaseType::BASE_TYPE_TABLE);
+                        ty.element_type = Some(BaseType::BASE_TYPE_TABLE);
                     }
                     ty.element_size = Some(4);
                 }
                 TypeRef::Enum(idx) => {
                     ty.index = Some(idx as i32);
                     if meta.enum_is_union[idx] {
-                        ty.element_type =
-                            Some(BaseType::BASE_TYPE_UNION);
+                        ty.element_type = Some(BaseType::BASE_TYPE_UNION);
                     } else if let Some(ubt) = meta.enum_underlying[idx] {
                         ty.element_type = Some(ubt);
                         if let Some(size) = scalar_size(ubt) {
@@ -273,13 +262,14 @@ fn resolve_type(
 
     // Direct user-defined type reference
     if let Some(name) = ty.unresolved_name.take() {
-        let type_ref = index
-            .resolve(&name, current_ns)
-            .ok_or_else(|| AnalyzeError::UnresolvedType {
-                name: name.clone(),
-                context: format!("{obj_name}.{field_name}"),
-                span: ty.span.clone(),
-            })?;
+        let type_ref =
+            index
+                .resolve(&name, current_ns)
+                .ok_or_else(|| AnalyzeError::UnresolvedType {
+                    name: name.clone(),
+                    context: format!("{obj_name}.{field_name}"),
+                    span: ty.span.clone(),
+                })?;
 
         match type_ref {
             TypeRef::Object(idx) => {
@@ -309,13 +299,9 @@ fn resolve_type(
 
 fn scalar_size(bt: BaseType) -> Option<u32> {
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => {
-            Some(1)
-        }
+        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => Some(1),
         BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => Some(2),
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => {
-            Some(4)
-        }
+        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => Some(4),
         BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => {
             Some(8)
         }
@@ -347,12 +333,13 @@ fn assign_enum_values(schema: &mut schema::Schema) -> Result<()> {
                         span: eval.span.clone(),
                     });
                 }
-                next_value = explicit.checked_add(1).ok_or_else(|| {
-                    AnalyzeError::EnumValueOverflow {
-                        enum_name: enum_name.clone(),
-                        last_value: explicit,
-                    }
-                })?;
+                next_value =
+                    explicit
+                        .checked_add(1)
+                        .ok_or_else(|| AnalyzeError::EnumValueOverflow {
+                            enum_name: enum_name.clone(),
+                            last_value: explicit,
+                        })?;
             } else {
                 eval.value = Some(next_value);
                 if !seen_values.insert(next_value) {
@@ -362,12 +349,13 @@ fn assign_enum_values(schema: &mut schema::Schema) -> Result<()> {
                         span: eval.span.clone(),
                     });
                 }
-                next_value = next_value.checked_add(1).ok_or_else(|| {
-                    AnalyzeError::EnumValueOverflow {
-                        enum_name: enum_name.clone(),
-                        last_value: next_value,
-                    }
-                })?;
+                next_value =
+                    next_value
+                        .checked_add(1)
+                        .ok_or_else(|| AnalyzeError::EnumValueOverflow {
+                            enum_name: enum_name.clone(),
+                            last_value: next_value,
+                        })?;
             }
         }
     }
@@ -398,11 +386,7 @@ fn resolve_union_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result
             .to_string();
 
         for val_idx in 0..schema.enums[enum_idx].values.len() {
-            if schema.enums[enum_idx].values[val_idx]
-                .name
-                .as_deref()
-                == Some("NONE")
-            {
+            if schema.enums[enum_idx].values[val_idx].name.as_deref() == Some("NONE") {
                 continue;
             }
 
@@ -412,28 +396,24 @@ fn resolve_union_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result
                 .unwrap_or("")
                 .to_string();
 
-            if let Some(union_type) = schema.enums[enum_idx].values[val_idx]
-                .union_type
-                .as_mut()
-            {
+            if let Some(union_type) = schema.enums[enum_idx].values[val_idx].union_type.as_mut() {
                 if let Some(name) = union_type.unresolved_name.take() {
-                    let type_ref = index.resolve(&name, current_ns.as_deref()).ok_or_else(
-                        || AnalyzeError::UnresolvedType {
-                            name: name.clone(),
-                            context: format!("union {union_name} variant {variant_name}"),
-                            span: union_type.span.clone(),
-                        },
-                    )?;
+                    let type_ref =
+                        index.resolve(&name, current_ns.as_deref()).ok_or_else(|| {
+                            AnalyzeError::UnresolvedType {
+                                name: name.clone(),
+                                context: format!("union {union_name} variant {variant_name}"),
+                                span: union_type.span.clone(),
+                            }
+                        })?;
 
                     match type_ref {
                         TypeRef::Object(idx) => {
                             union_type.index = Some(idx as i32);
                             if meta.obj_is_struct[idx] {
-                                union_type.base_type =
-                                    Some(BaseType::BASE_TYPE_STRUCT);
+                                union_type.base_type = Some(BaseType::BASE_TYPE_STRUCT);
                             } else {
-                                union_type.base_type =
-                                    Some(BaseType::BASE_TYPE_TABLE);
+                                union_type.base_type = Some(BaseType::BASE_TYPE_TABLE);
                             }
                         }
                         TypeRef::Enum(_) => {
@@ -551,8 +531,7 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
                                 span,
                             });
                         }
-                        schema.services[svc_idx].calls[call_idx].request =
-                            Some(obj.clone());
+                        schema.services[svc_idx].calls[call_idx].request = Some(obj.clone());
                     }
                     TypeRef::Enum(_) => {
                         return Err(AnalyzeError::InvalidRpcType {
@@ -575,14 +554,13 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
             if let Some(resp_name) = resp_name {
                 let call = &schema.services[svc_idx].calls[call_idx];
                 let span = call.span.clone();
-                let type_ref =
-                    index
-                        .resolve(&resp_name, current_ns.as_deref())
-                        .ok_or_else(|| AnalyzeError::UnresolvedType {
-                            name: resp_name.clone(),
-                            context: format!("{svc_name}.{method_name} response"),
-                            span: span.clone(),
-                        })?;
+                let type_ref = index
+                    .resolve(&resp_name, current_ns.as_deref())
+                    .ok_or_else(|| AnalyzeError::UnresolvedType {
+                        name: resp_name.clone(),
+                        context: format!("{svc_name}.{method_name} response"),
+                        span: span.clone(),
+                    })?;
 
                 match type_ref {
                     TypeRef::Object(idx) => {
@@ -595,8 +573,7 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
                                 span,
                             });
                         }
-                        schema.services[svc_idx].calls[call_idx].response =
-                            Some(obj.clone());
+                        schema.services[svc_idx].calls[call_idx].response = Some(obj.clone());
                     }
                     TypeRef::Enum(_) => {
                         return Err(AnalyzeError::InvalidRpcType {
@@ -651,7 +628,11 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
             let is_bitflags = enum_def
                 .attributes
                 .as_ref()
-                .map(|a| a.entries.iter().any(|e| e.key.as_deref() == Some("bit_flags")))
+                .map(|a| {
+                    a.entries
+                        .iter()
+                        .any(|e| e.key.as_deref() == Some("bit_flags"))
+                })
                 .unwrap_or(false);
             if is_bitflags {
                 validate_bitflags_values(enum_def)?;
@@ -660,7 +641,11 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
 
         // force_align is not valid on enums
         if let Some(attrs) = enum_def.attributes.as_ref() {
-            if attrs.entries.iter().any(|e| e.key.as_deref() == Some("force_align")) {
+            if attrs
+                .entries
+                .iter()
+                .any(|e| e.key.as_deref() == Some("force_align"))
+            {
                 return Err(AnalyzeError::ForceAlignOnNonStruct {
                     name: enum_name.to_string(),
                     span: enum_def.span.clone(),
@@ -688,7 +673,8 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
         // When all fields have explicit IDs, validate them
         if ids_present == obj.fields.len() && !obj.fields.is_empty() {
             // Check for out-of-range and duplicate IDs
-            let mut id_to_field: std::collections::HashMap<u32, &str> = std::collections::HashMap::new();
+            let mut id_to_field: std::collections::HashMap<u32, &str> =
+                std::collections::HashMap::new();
             for field in &obj.fields {
                 let raw_id = field.id.unwrap();
                 let fname = field.name.as_deref().unwrap_or("");
@@ -763,7 +749,11 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
         } else {
             // Tables: force_align is not valid
             if let Some(attrs) = obj.attributes.as_ref() {
-                if attrs.entries.iter().any(|e| e.key.as_deref() == Some("force_align")) {
+                if attrs
+                    .entries
+                    .iter()
+                    .any(|e| e.key.as_deref() == Some("force_align"))
+                {
                     return Err(AnalyzeError::ForceAlignOnNonStruct {
                         name: obj_name.to_string(),
                         span: obj.span.clone(),
@@ -779,14 +769,10 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
     Ok(())
 }
 
-
-
 fn validate_enum_underlying_type(enum_def: &schema::Enum) -> Result<()> {
     let enum_name = enum_def.name.as_deref().unwrap_or("");
-    if let Some(ref ty) = enum_def.underlying_type.as_ref() {
-        let bt = ty
-            .base_type
-            .unwrap_or(BaseType::BASE_TYPE_NONE);
+    if let Some(ty) = enum_def.underlying_type.as_ref() {
+        let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
         match bt {
             BaseType::BASE_TYPE_BYTE
             | BaseType::BASE_TYPE_U_BYTE
@@ -997,9 +983,7 @@ fn validate_struct_field_type(
     field: &schema::Field,
     ty: &schema::Type,
 ) -> Result<()> {
-    let bt = ty
-        .base_type
-        .unwrap_or(BaseType::BASE_TYPE_NONE);
+    let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
 
     match bt {
         // Allowed in structs: scalars, other structs
@@ -1035,10 +1019,7 @@ fn validate_struct_field_type(
                 _ => Err(AnalyzeError::InvalidStructField {
                     struct_name: struct_name.to_string(),
                     field_name: field.name.as_deref().unwrap_or("").to_string(),
-                    reason: format!(
-                        "array element type {:?} is not allowed in structs",
-                        et
-                    ),
+                    reason: format!("array element type {:?} is not allowed in structs", et),
                     span: field.span.clone(),
                 }),
             }

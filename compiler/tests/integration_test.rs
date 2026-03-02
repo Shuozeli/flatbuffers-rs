@@ -6,16 +6,11 @@ use flatc_rs_schema::BaseType;
 
 #[test]
 fn compile_single_schema() {
-    let result = compile_single(
-        "table Monster { name:string; hp:short; }\nroot_type Monster;",
-    )
-    .unwrap();
+    let result =
+        compile_single("table Monster { name:string; hp:short; }\nroot_type Monster;").unwrap();
 
     assert_eq!(result.schema.objects.len(), 1);
-    assert_eq!(
-        result.schema.objects[0].name.as_deref(),
-        Some("Monster")
-    );
+    assert_eq!(result.schema.objects[0].name.as_deref(), Some("Monster"));
     assert!(result.schema.root_table.is_some());
     assert_eq!(
         result.schema.root_table.as_ref().unwrap().name.as_deref(),
@@ -59,10 +54,7 @@ fn compile_with_include() {
     let monster = &result.schema.objects[1];
     let pos_field = &monster.fields[0];
     let pos_type = pos_field.type_.as_ref().unwrap();
-    assert_eq!(
-        pos_type.base_type,
-        Some(BaseType::BASE_TYPE_STRUCT)
-    );
+    assert_eq!(pos_type.base_type, Some(BaseType::BASE_TYPE_STRUCT));
     assert_eq!(pos_type.index, Some(0));
 
     // Root table should be set
@@ -91,10 +83,7 @@ fn compile_with_include_search_path() {
     .unwrap();
 
     // Without include path, should fail
-    let err = compile(
-        &[dir.path().join("main.fbs")],
-        &CompilerOptions::default(),
-    );
+    let err = compile(&[dir.path().join("main.fbs")], &CompilerOptions::default());
     assert!(err.is_err());
 
     // With include path pointing to sub/, should succeed
@@ -104,19 +93,13 @@ fn compile_with_include_search_path() {
     let result = compile(&[dir.path().join("main.fbs")], &options).unwrap();
 
     assert_eq!(result.schema.enums.len(), 1);
-    assert_eq!(
-        result.schema.enums[0].name.as_deref(),
-        Some("Color")
-    );
+    assert_eq!(result.schema.enums[0].name.as_deref(), Some("Color"));
 
     // Color field should be resolved to enum's underlying type
     let widget = &result.schema.objects[0];
     let color_field = &widget.fields[0];
     let color_type = color_field.type_.as_ref().unwrap();
-    assert_eq!(
-        color_type.base_type,
-        Some(BaseType::BASE_TYPE_BYTE)
-    );
+    assert_eq!(color_type.base_type, Some(BaseType::BASE_TYPE_BYTE));
     assert_eq!(color_type.index, Some(0));
 }
 
@@ -138,11 +121,7 @@ fn compile_circular_include() {
     .unwrap();
 
     // Should handle circular includes gracefully (not error)
-    let result = compile(
-        &[dir.path().join("a.fbs")],
-        &CompilerOptions::default(),
-    )
-    .unwrap();
+    let result = compile(&[dir.path().join("a.fbs")], &CompilerOptions::default()).unwrap();
 
     // Both tables should be in the merged schema
     assert_eq!(result.schema.objects.len(), 2);
@@ -173,11 +152,7 @@ fn compile_duplicate_include_deduplication() {
     )
     .unwrap();
 
-    let result = compile(
-        &[dir.path().join("main.fbs")],
-        &CompilerOptions::default(),
-    )
-    .unwrap();
+    let result = compile(&[dir.path().join("main.fbs")], &CompilerOptions::default()).unwrap();
 
     // Vec2 should appear only once (deduplication)
     let vec2_count = result
@@ -199,10 +174,7 @@ fn compile_missing_include_error() {
     )
     .unwrap();
 
-    let err = compile(
-        &[dir.path().join("main.fbs")],
-        &CompilerOptions::default(),
-    );
+    let err = compile(&[dir.path().join("main.fbs")], &CompilerOptions::default());
 
     assert!(err.is_err());
     let msg = err.unwrap_err().to_string();
@@ -265,17 +237,11 @@ root_type Monster;
 
     // pos should be resolved to STRUCT
     let pos_type = monster.fields[0].type_.as_ref().unwrap();
-    assert_eq!(
-        pos_type.base_type,
-        Some(BaseType::BASE_TYPE_STRUCT)
-    );
+    assert_eq!(pos_type.base_type, Some(BaseType::BASE_TYPE_STRUCT));
 
     // color should be resolved to BYTE (enum underlying type)
     let color_type = monster.fields[1].type_.as_ref().unwrap();
-    assert_eq!(
-        color_type.base_type,
-        Some(BaseType::BASE_TYPE_BYTE)
-    );
+    assert_eq!(color_type.base_type, Some(BaseType::BASE_TYPE_BYTE));
 
     // equipped_type companion field should be U_TYPE (auto-inserted for unions)
     let equipped_type_field = monster.fields[2].type_.as_ref().unwrap();
@@ -283,15 +249,9 @@ root_type Monster;
         equipped_type_field.base_type,
         Some(BaseType::BASE_TYPE_U_TYPE)
     );
-    assert_eq!(
-        monster.fields[2].name.as_deref(),
-        Some("equipped_type")
-    );
+    assert_eq!(monster.fields[2].name.as_deref(), Some("equipped_type"));
 
     // equipped should be resolved to UNION
     let equipped_union = monster.fields[3].type_.as_ref().unwrap();
-    assert_eq!(
-        equipped_union.base_type,
-        Some(BaseType::BASE_TYPE_UNION)
-    );
+    assert_eq!(equipped_union.base_type, Some(BaseType::BASE_TYPE_UNION));
 }

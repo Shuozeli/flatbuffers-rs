@@ -74,4 +74,7 @@ fn run_single_serde_codegen_golden(name: &str) {
 }
 
 include!(concat!(env!("OUT_DIR"), "/codegen_tests_generated.rs"));
-include!(concat!(env!("OUT_DIR"), "/serde_codegen_tests_generated.rs"));
+include!(concat!(
+    env!("OUT_DIR"),
+    "/serde_codegen_tests_generated.rs"
+));

@@ -9,9 +9,7 @@ fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
     enum_def
         .attributes
         .as_ref()
-        .map_or(false, |attrs| {
-            attrs.entries.iter().any(|e| e.key.as_deref() == Some(key))
-        })
+        .is_some_and(|attrs| attrs.entries.iter().any(|e| e.key.as_deref() == Some(key)))
 }
 
 /// Generate Rust code for the enum at `schema.enums[index]`.
@@ -132,12 +130,9 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
         |w| {
             w.line(&format!("type Scalar = {rust_type};"));
             w.line("#[inline]");
-            w.block(
-                &format!("fn to_little_endian(self) -> {rust_type}"),
-                |w| {
-                    w.line("self.bits().to_le()");
-                },
-            );
+            w.block(&format!("fn to_little_endian(self) -> {rust_type}"), |w| {
+                w.line("self.bits().to_le()");
+            });
             w.line("#[inline]");
             w.line("#[allow(clippy::wrong_self_convention)]");
             w.block(
@@ -178,18 +173,34 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
 
     // Deprecated global constants (non-union enums only, matching C++ flatc)
     if !is_union && !enum_def.values.is_empty() {
-        let min_val = enum_def.values.iter().map(|v| v.value.unwrap_or(0)).min().unwrap_or(0);
-        let max_val = enum_def.values.iter().map(|v| v.value.unwrap_or(0)).max().unwrap_or(0);
+        let min_val = enum_def
+            .values
+            .iter()
+            .map(|v| v.value.unwrap_or(0))
+            .min()
+            .unwrap_or(0);
+        let max_val = enum_def
+            .values
+            .iter()
+            .map(|v| v.value.unwrap_or(0))
+            .max()
+            .unwrap_or(0);
         let upper_name = name.to_uppercase();
         let depr = "#[deprecated(since = \"2.0.0\", note = \"Use associated constants instead. This will no longer be generated in 2021.\")]";
         w.line(depr);
-        w.line(&format!("pub const ENUM_MIN_{upper_name}: {rust_type} = {min_val};"));
+        w.line(&format!(
+            "pub const ENUM_MIN_{upper_name}: {rust_type} = {min_val};"
+        ));
         w.line(depr);
-        w.line(&format!("pub const ENUM_MAX_{upper_name}: {rust_type} = {max_val};"));
+        w.line(&format!(
+            "pub const ENUM_MAX_{upper_name}: {rust_type} = {max_val};"
+        ));
         w.line(depr);
         w.line("#[allow(non_camel_case_types)]");
         let n = enum_def.values.len();
-        w.line(&format!("pub const ENUM_VALUES_{upper_name}: [{name}; {n}] = ["));
+        w.line(&format!(
+            "pub const ENUM_VALUES_{upper_name}: [{name}; {n}] = ["
+        ));
         w.indent();
         for val in &enum_def.values {
             let vname = val.name.as_deref().unwrap_or("");
@@ -203,9 +214,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     }
 
     // Struct definition
-    w.line(
-        "#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]",
-    );
+    w.line("#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]");
     w.line("#[repr(transparent)]");
     w.line(&format!("pub struct {name}(pub {rust_type});"));
 
@@ -245,7 +254,8 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
                 .values
                 .iter()
                 .map(|v| {
-                    let sanitized = type_map::sanitize_union_const_name(v.name.as_deref().unwrap_or(""));
+                    let sanitized =
+                        type_map::sanitize_union_const_name(v.name.as_deref().unwrap_or(""));
                     let esc = type_map::escape_keyword(&sanitized);
                     format!("Self::{esc}")
                 })
@@ -261,43 +271,37 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
 
         // variant_name()
         w.line("/// Returns the variant's name or \"\" if unknown.");
-        w.block(
-            "pub fn variant_name(self) -> Option<&'static str>",
-            |w| {
-                w.block("match self", |w| {
-                    for val in &enum_def.values {
-                        let vname = val.name.as_deref().unwrap_or("");
-                        let sanitized = type_map::sanitize_union_const_name(vname);
-                        let escaped = type_map::escape_keyword(&sanitized);
-                        // Return sanitized name as string
-                        w.line(&format!("Self::{escaped} => Some(\"{sanitized}\"),"));
-                    }
-                    w.line("_ => None,");
-                });
-            },
-        );
+        w.block("pub fn variant_name(self) -> Option<&'static str>", |w| {
+            w.block("match self", |w| {
+                for val in &enum_def.values {
+                    let vname = val.name.as_deref().unwrap_or("");
+                    let sanitized = type_map::sanitize_union_const_name(vname);
+                    let escaped = type_map::escape_keyword(&sanitized);
+                    // Return sanitized name as string
+                    w.line(&format!("Self::{escaped} => Some(\"{sanitized}\"),"));
+                }
+                w.line("_ => None,");
+            });
+        });
     });
 
     // Debug impl
-    w.block(
-        &format!("impl ::core::fmt::Debug for {name}"),
-        |w| {
-            w.block(
-                "fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result",
-                |w| {
-                    w.line("if let Some(name) = self.variant_name() {");
-                    w.indent();
-                    w.line("f.write_str(name)");
-                    w.dedent();
-                    w.line("} else {");
-                    w.indent();
-                    w.line("f.write_fmt(format_args!(\"<UNKNOWN {:?}>\", self.0))");
-                    w.dedent();
-                    w.line("}");
-                },
-            );
-        },
-    );
+    w.block(&format!("impl ::core::fmt::Debug for {name}"), |w| {
+        w.block(
+            "fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result",
+            |w| {
+                w.line("if let Some(name) = self.variant_name() {");
+                w.indent();
+                w.line("f.write_str(name)");
+                w.dedent();
+                w.line("} else {");
+                w.indent();
+                w.line("f.write_fmt(format_args!(\"<UNKNOWN {:?}>\", self.0))");
+                w.dedent();
+                w.line("}");
+            },
+        );
+    });
 
     if opts.rust_serialize {
         w.blank();
@@ -339,7 +343,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
                             w.line("}");
                             w.dedent();
                             w.line("}");
-                            w.line(&format!("Err(E::custom(format!(\"unknown variant: {{}}\", value)))"));
+                            w.line("Err(E::custom(format!(\"unknown variant: {}\", value)))");
                         });
                         w.block(&format!("fn visit_{rust_type}<E>(self, value: {rust_type}) -> Result<Self::Value, E>\nwhere E: ::serde::de::Error"), |w| {
                             w.line(&format!("Ok({name}(value))"));
@@ -394,12 +398,9 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
         |w| {
             w.line(&format!("type Scalar = {rust_type};"));
             w.line("#[inline]");
-            w.block(
-                &format!("fn to_little_endian(self) -> {rust_type}"),
-                |w| {
-                    w.line("self.0.to_le()");
-                },
-            );
+            w.block(&format!("fn to_little_endian(self) -> {rust_type}"), |w| {
+                w.line("self.0.to_le()");
+            });
             w.line("#[inline]");
             w.line("#[allow(clippy::wrong_self_convention)]");
             w.block(
@@ -437,7 +438,12 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
 }
 
 /// Generate the Object API union T enum for a union type.
-fn gen_union_object_api(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
+fn gen_union_object_api(
+    w: &mut CodeWriter,
+    schema: &schema::Schema,
+    index: usize,
+    opts: &CodeGenOptions,
+) {
     let enum_def = &schema.enums[index];
     let name = enum_def.name.as_deref().unwrap_or("");
     let t_name = format!("{name}T");
@@ -466,11 +472,7 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &schema::Schema, index: usiz
             let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
             let variant_bt = type_map::get_base_type(val.union_type.as_ref());
             if variant_bt == BaseType::BASE_TYPE_TABLE {
-                let table_idx = val
-                    .union_type
-                    .as_ref()
-                    .and_then(|t| t.index)
-                    .unwrap_or(0) as usize;
+                let table_idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
                 let table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
                 w.line(&format!("{t_variant}(alloc::boxed::Box<{table_name}T>),"));
             }
@@ -508,7 +510,7 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &schema::Schema, index: usiz
 
         // Pack method
         w.block(
-            &format!("pub fn pack<'b, A: ::flatbuffers::Allocator + 'b>(\n    &self,\n    fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,\n  ) -> Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>"),
+            "pub fn pack<'b, A: ::flatbuffers::Allocator + 'b>(\n    &self,\n    fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,\n  ) -> Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>",
             |w| {
                 w.block("match self", |w| {
                     w.line("Self::NONE => None,");
@@ -527,4 +529,3 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &schema::Schema, index: usiz
         );
     });
 }
-

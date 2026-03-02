@@ -4,7 +4,7 @@
 //! This module builds the binary using `flatbuffers::FlatBufferBuilder` with manual
 //! vtable field offsets matching the official reflection schema layout.
 
-use flatbuffers::{FlatBufferBuilder, WIPOffset, TableFinishedWIPOffset};
+use flatbuffers::{FlatBufferBuilder, TableFinishedWIPOffset, WIPOffset};
 use flatc_rs_schema as schema;
 
 // ---------------------------------------------------------------------------
@@ -112,8 +112,7 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
         schema.objects.iter().enumerate().collect();
     sorted_objects.sort_by(|a, b| obj_name(a.1).cmp(obj_name(b.1)));
 
-    let mut sorted_enums: Vec<(usize, &schema::Enum)> =
-        schema.enums.iter().enumerate().collect();
+    let mut sorted_enums: Vec<(usize, &schema::Enum)> = schema.enums.iter().enumerate().collect();
     sorted_enums.sort_by(|a, b| enum_name(a.1).cmp(enum_name(b.1)));
 
     // Mapping from original object index -> sorted position (for root_table lookup).
@@ -264,10 +263,7 @@ fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum) -> TOff {
 
     let mut sorted_vals: Vec<&schema::EnumVal> = e.values.iter().collect();
     sorted_vals.sort_by_key(|v| v.value.unwrap_or(0));
-    let val_offs: Vec<TOff> = sorted_vals
-        .iter()
-        .map(|v| write_enum_val(b, v))
-        .collect();
+    let val_offs: Vec<TOff> = sorted_vals.iter().map(|v| write_enum_val(b, v)).collect();
     let values_vec = b.create_vector(&val_offs);
 
     let underlying = e.underlying_type.as_ref().map(|t| write_type(b, t));
@@ -297,8 +293,14 @@ fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum) -> TOff {
 fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field) -> TOff {
     let name = field.name.as_deref().map(|s| b.create_string(s));
     let field_type = field.type_.as_ref().map(|t| write_type(b, t));
-    let attrs = field.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
-    let doc = field.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+    let attrs = field
+        .attributes
+        .as_ref()
+        .and_then(|a| write_attrs_vec(b, a));
+    let doc = field
+        .documentation
+        .as_ref()
+        .and_then(|d| write_doc_vec(b, d));
 
     let start = b.start_table();
     if let Some(n) = name {
@@ -311,7 +313,11 @@ fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field) -> TOff {
     b.push_slot::<u16>(FIELD_OFFSET, field.offset.unwrap_or(0) as u16, 0);
     b.push_slot::<i64>(FIELD_DEFAULT_INTEGER, field.default_integer.unwrap_or(0), 0);
     b.push_slot::<f64>(FIELD_DEFAULT_REAL, field.default_real.unwrap_or(0.0), 0.0);
-    b.push_slot::<bool>(FIELD_DEPRECATED, field.is_deprecated.unwrap_or(false), false);
+    b.push_slot::<bool>(
+        FIELD_DEPRECATED,
+        field.is_deprecated.unwrap_or(false),
+        false,
+    );
     b.push_slot::<bool>(FIELD_REQUIRED, field.is_required.unwrap_or(false), false);
     b.push_slot::<bool>(FIELD_KEY, field.is_key.unwrap_or(false), false);
     if let Some(a) = attrs {
@@ -333,12 +339,12 @@ fn write_object(b: &mut FlatBufferBuilder<'_>, obj: &schema::Object) -> TOff {
     // Fields sorted by name (reflection.fbs requires sorted fields)
     let mut sorted_fields: Vec<&schema::Field> = obj.fields.iter().collect();
     sorted_fields.sort_by(|a, b| {
-        a.name.as_deref().unwrap_or("").cmp(b.name.as_deref().unwrap_or(""))
+        a.name
+            .as_deref()
+            .unwrap_or("")
+            .cmp(b.name.as_deref().unwrap_or(""))
     });
-    let field_offs: Vec<TOff> = sorted_fields
-        .iter()
-        .map(|f| write_field(b, f))
-        .collect();
+    let field_offs: Vec<TOff> = sorted_fields.iter().map(|f| write_field(b, f)).collect();
     let fields_vec = b.create_vector(&field_offs);
 
     let attrs = obj.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
@@ -368,7 +374,10 @@ fn write_rpc_call(b: &mut FlatBufferBuilder<'_>, call: &schema::RpcCall) -> TOff
     let request = call.request.as_ref().map(|obj| write_object(b, obj));
     let response = call.response.as_ref().map(|obj| write_object(b, obj));
     let attrs = call.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
-    let doc = call.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
+    let doc = call
+        .documentation
+        .as_ref()
+        .and_then(|d| write_doc_vec(b, d));
 
     let start = b.start_table();
     if let Some(n) = name {
@@ -425,7 +434,11 @@ fn write_schema_file(b: &mut FlatBufferBuilder<'_>, sf: &schema::SchemaFile) -> 
     let included = if sf.included_filenames.is_empty() {
         None
     } else {
-        let strs: Vec<_> = sf.included_filenames.iter().map(|s| b.create_string(s)).collect();
+        let strs: Vec<_> = sf
+            .included_filenames
+            .iter()
+            .map(|s| b.create_string(s))
+            .collect();
         Some(b.create_vector(&strs))
     };
 
@@ -448,11 +461,16 @@ fn write_schema_file(b: &mut FlatBufferBuilder<'_>, sf: &schema::SchemaFile) -> 
 fn write_attrs_vec<'a>(
     b: &mut FlatBufferBuilder<'a>,
     attrs: &schema::Attributes,
-) -> Option<WIPOffset<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<TableFinishedWIPOffset>>>> {
+) -> Option<WIPOffset<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<TableFinishedWIPOffset>>>>
+{
     if attrs.entries.is_empty() {
         return None;
     }
-    let offs: Vec<TOff> = attrs.entries.iter().map(|kv| write_key_value(b, kv)).collect();
+    let offs: Vec<TOff> = attrs
+        .entries
+        .iter()
+        .map(|kv| write_key_value(b, kv))
+        .collect();
     Some(b.create_vector(&offs))
 }
 
@@ -554,6 +572,9 @@ mod tests {
         assert_eq!(schema::BaseType::BASE_TYPE_TABLE.to_reflection_byte(), 15);
         assert_eq!(schema::BaseType::BASE_TYPE_STRUCT.to_reflection_byte(), 15);
         assert_eq!(schema::BaseType::BASE_TYPE_UNION.to_reflection_byte(), 16);
-        assert_eq!(schema::BaseType::BASE_TYPE_VECTOR64.to_reflection_byte(), 18);
+        assert_eq!(
+            schema::BaseType::BASE_TYPE_VECTOR64.to_reflection_byte(),
+            18
+        );
     }
 }

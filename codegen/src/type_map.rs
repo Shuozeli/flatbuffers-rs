@@ -57,10 +57,7 @@ pub fn is_scalar(bt: BaseType) -> bool {
 
 /// Returns true if the BaseType is a floating-point type.
 pub fn is_float(bt: BaseType) -> bool {
-    matches!(
-        bt,
-        BaseType::BASE_TYPE_FLOAT | BaseType::BASE_TYPE_DOUBLE
-    )
+    matches!(bt, BaseType::BASE_TYPE_FLOAT | BaseType::BASE_TYPE_DOUBLE)
 }
 
 /// Convert a PascalCase or camelCase identifier to snake_case.
@@ -246,16 +243,14 @@ pub fn resolve_object_name(
 }
 
 /// Check if an enum at a given index is a bitflags enum.
-pub fn is_bitflags_enum(
-    schema: &crate::schema::Schema,
-    enum_idx: usize,
-) -> bool {
+pub fn is_bitflags_enum(schema: &crate::schema::Schema, enum_idx: usize) -> bool {
     let e = &schema.enums[enum_idx];
-    e.attributes
-        .as_ref()
-        .map_or(false, |attrs| {
-            attrs.entries.iter().any(|entry| entry.key.as_deref() == Some("bit_flags"))
-        })
+    e.attributes.as_ref().is_some_and(|attrs| {
+        attrs
+            .entries
+            .iter()
+            .any(|entry| entry.key.as_deref() == Some("bit_flags"))
+    })
 }
 
 /// Resolve a qualified enum name relative to the current namespace.
@@ -315,16 +310,16 @@ mod tests {
     fn qualified_name_ancestor_namespace() {
         // Target is ancestor of current - visible via use super::*
         assert_eq!(qualified_name("Game.Player", "Game", "Root"), "Root");
-        assert_eq!(qualified_name("Game.Player", "", "GlobalTable"), "GlobalTable");
+        assert_eq!(
+            qualified_name("Game.Player", "", "GlobalTable"),
+            "GlobalTable"
+        );
     }
 
     #[test]
     fn qualified_name_descendant_namespace() {
         // Target is deeper than current
-        assert_eq!(
-            qualified_name("Game", "Game.Items", "Item"),
-            "items::Item"
-        );
+        assert_eq!(qualified_name("Game", "Game.Items", "Item"), "items::Item");
         assert_eq!(
             qualified_name("", "Game.Items", "Item"),
             "game::items::Item"
@@ -333,10 +328,7 @@ mod tests {
 
     #[test]
     fn qualified_name_distant_namespace() {
-        assert_eq!(
-            qualified_name("A.B.C", "A.D.E", "Stuff"),
-            "d::e::Stuff"
-        );
+        assert_eq!(qualified_name("A.B.C", "A.D.E", "Stuff"), "d::e::Stuff");
     }
 
     #[test]
@@ -355,7 +347,10 @@ mod tests {
             "MyGame_Example2_Monster"
         );
         assert_eq!(sanitize_union_const_name("Monster"), "Monster");
-        assert_eq!(fqn_to_pascal("MyGame.Example2.Monster"), "MyGameExample2Monster");
+        assert_eq!(
+            fqn_to_pascal("MyGame.Example2.Monster"),
+            "MyGameExample2Monster"
+        );
         assert_eq!(fqn_to_pascal("Monster"), "Monster");
     }
 }

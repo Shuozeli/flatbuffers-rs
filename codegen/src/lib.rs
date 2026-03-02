@@ -51,6 +51,7 @@ fn field_type_index(field: &schema::Field) -> usize {
 }
 
 /// Options for Rust code generation.
+#[derive(Default)]
 pub struct CodeGenOptions {
     /// Generate fully-qualified name constants on tables (--gen-name-strings).
     pub gen_name_constants: bool,
@@ -65,18 +66,8 @@ pub struct CodeGenOptions {
     pub gen_only_files: Option<HashSet<String>>,
 }
 
-impl Default for CodeGenOptions {
-    fn default() -> Self {
-        Self {
-            gen_name_constants: false,
-            gen_object_api: false,
-            rust_serialize: false,
-            gen_only_files: None,
-        }
-    }
-}
-
 /// Options for TypeScript code generation.
+#[derive(Default)]
 pub struct TsCodeGenOptions {
     /// Generate Object API types (`*T` classes with `pack`/`unpack` methods).
     /// Requires `--gen-object-api` to enable (matches C++ flatc behavior).
@@ -84,15 +75,6 @@ pub struct TsCodeGenOptions {
     /// When set, only generate code for types whose `declaration_file` matches
     /// one of these paths. When `None`, generate for all types (--gen-all).
     pub gen_only_files: Option<HashSet<String>>,
-}
-
-impl Default for TsCodeGenOptions {
-    fn default() -> Self {
-        Self {
-            gen_object_api: false,
-            gen_only_files: None,
-        }
-    }
 }
 
 /// Check if a type should be included based on its declaration file and the filter.
