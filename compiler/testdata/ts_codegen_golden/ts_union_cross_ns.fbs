@@ -1,0 +1,19 @@
+namespace A;
+
+table Foo {
+  x: int;
+}
+
+namespace B;
+
+table Bar {
+  y: string;
+}
+
+namespace A;
+
+union MyUnion { Foo, B.Bar }
+
+table Root {
+  u: MyUnion;
+}

@@ -1,12 +1,10 @@
-use std::collections::BTreeMap;
-
 use flatc_rs_schema as schema;
 
 use super::code_writer::CodeWriter;
 use super::enum_gen;
-use super::should_generate;
+use super::namespace_tree::{self, NamespaceNode, TypeEntry};
+use super::rust_table_gen;
 use super::struct_gen;
-use super::table_gen;
 use super::type_map;
 use super::CodeGenOptions;
 
@@ -48,43 +46,7 @@ impl<'a> RustGenerator<'a> {
 
     /// Group all types by namespace and emit nested `pub mod` blocks.
     fn gen_body(&mut self) {
-        // Build a namespace tree so that shared prefixes produce a single
-        // `pub mod` block (e.g., MyGame.Example and MyGame.Example2 share
-        // `pub mod my_game`).
-        let mut root = NamespaceNode::new();
-
-        let filter = &self._opts.gen_only_files;
-
-        for (i, enum_def) in self.schema.enums.iter().enumerate() {
-            if !should_generate(enum_def.declaration_file.as_deref(), filter) {
-                continue;
-            }
-            let ns = namespace_str(enum_def.namespace.as_ref());
-            let parts: Vec<&str> = if ns.is_empty() {
-                vec![]
-            } else {
-                ns.split('.').collect()
-            };
-            root.insert(&parts, TypeEntry::Enum(i));
-        }
-
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if !should_generate(obj.declaration_file.as_deref(), filter) {
-                continue;
-            }
-            let ns = namespace_str(obj.namespace.as_ref());
-            let parts: Vec<&str> = if ns.is_empty() {
-                vec![]
-            } else {
-                ns.split('.').collect()
-            };
-            let entry = if obj.is_struct == Some(true) {
-                TypeEntry::Struct(i)
-            } else {
-                TypeEntry::Table(i)
-            };
-            root.insert(&parts, entry);
-        }
+        let root = namespace_tree::build_namespace_tree(self.schema, &self._opts.gen_only_files);
 
         // Emit root-level types first
         if !root.types.is_empty() {
@@ -134,7 +96,7 @@ impl<'a> RustGenerator<'a> {
                     self.w.blank();
                 }
                 TypeEntry::Table(idx) => {
-                    table_gen::generate(&mut self.w, self.schema, *idx, self._opts);
+                    rust_table_gen::generate(&mut self.w, self.schema, *idx, self._opts);
                     self.w.blank();
                 }
             }
@@ -151,7 +113,7 @@ impl<'a> RustGenerator<'a> {
             return;
         }
 
-        let ns = namespace_str(root_table.namespace.as_ref());
+        let ns = namespace_tree::namespace_str(root_table.namespace.as_ref());
         let full_name = if ns.is_empty() {
             name.to_string()
         } else {
@@ -269,48 +231,4 @@ impl<'a> RustGenerator<'a> {
             }
         }
     }
-}
-
-/// What kind of type an entry represents.
-enum TypeEntry {
-    Enum(usize),
-    Struct(usize),
-    Table(usize),
-}
-
-/// A tree node for grouping types by namespace hierarchy.
-/// This prevents duplicate `pub mod` blocks when multiple namespaces share
-/// a common prefix (e.g., `MyGame.Example` and `MyGame.Example2` both need
-/// a single `pub mod my_game` wrapping their respective sub-modules).
-struct NamespaceNode {
-    children: BTreeMap<String, NamespaceNode>,
-    types: Vec<TypeEntry>,
-}
-
-impl NamespaceNode {
-    fn new() -> Self {
-        Self {
-            children: BTreeMap::new(),
-            types: Vec::new(),
-        }
-    }
-
-    /// Insert a type at the given namespace path (split into components).
-    fn insert(&mut self, parts: &[&str], entry: TypeEntry) {
-        if parts.is_empty() {
-            self.types.push(entry);
-        } else {
-            self.children
-                .entry(parts[0].to_string())
-                .or_insert_with(NamespaceNode::new)
-                .insert(&parts[1..], entry);
-        }
-    }
-}
-
-/// Extract namespace string from an optional Namespace message.
-fn namespace_str(ns: Option<&schema::Namespace>) -> String {
-    ns.and_then(|n| n.namespace.as_deref())
-        .unwrap_or("")
-        .to_string()
 }

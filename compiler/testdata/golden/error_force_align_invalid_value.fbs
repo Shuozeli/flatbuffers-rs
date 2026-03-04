@@ -1,0 +1,5 @@
+struct Vec3 (force_align: abc) {
+  x:float;
+  y:float;
+  z:float;
+}

@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_union_none_not_first.fbs"), line: 3, col: 27 }): union NONE variant in 'Equipment' must be the first variant (index 0)

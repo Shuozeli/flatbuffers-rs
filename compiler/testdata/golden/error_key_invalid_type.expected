@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_key_invalid_type.fbs"), line: 3, col: 3 }): key field 'data' in table 'Outer' must be a scalar or string type, got BASE_TYPE_TABLE

@@ -48,6 +48,34 @@ impl BaseType {
             _ => self as u8,
         }
     }
+
+    /// Convert from the official reflection.fbs byte value.
+    /// Maps `Obj` (15) to `BASE_TYPE_TABLE`; the caller must disambiguate
+    /// TABLE vs STRUCT using the referenced object's `is_struct` flag.
+    pub fn from_reflection_byte(b: u8) -> Option<Self> {
+        match b {
+            0 => Some(Self::BASE_TYPE_NONE),
+            1 => Some(Self::BASE_TYPE_U_TYPE),
+            2 => Some(Self::BASE_TYPE_BOOL),
+            3 => Some(Self::BASE_TYPE_BYTE),
+            4 => Some(Self::BASE_TYPE_U_BYTE),
+            5 => Some(Self::BASE_TYPE_SHORT),
+            6 => Some(Self::BASE_TYPE_U_SHORT),
+            7 => Some(Self::BASE_TYPE_INT),
+            8 => Some(Self::BASE_TYPE_U_INT),
+            9 => Some(Self::BASE_TYPE_LONG),
+            10 => Some(Self::BASE_TYPE_U_LONG),
+            11 => Some(Self::BASE_TYPE_FLOAT),
+            12 => Some(Self::BASE_TYPE_DOUBLE),
+            13 => Some(Self::BASE_TYPE_STRING),
+            14 => Some(Self::BASE_TYPE_VECTOR),
+            15 => Some(Self::BASE_TYPE_TABLE), // Obj; caller resolves TABLE vs STRUCT
+            16 => Some(Self::BASE_TYPE_UNION),
+            17 => Some(Self::BASE_TYPE_ARRAY),
+            18 => Some(Self::BASE_TYPE_VECTOR64),
+            _ => None,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,3 +1,35 @@
+//! Struct memory layout computation.
+//!
+//! FlatBuffers structs are stored inline (no vtable, no indirection). Their
+//! binary layout must match exactly between writer and reader, so the compiler
+//! must compute deterministic field offsets, padding, and total sizes.
+//!
+//! ## Algorithm
+//!
+//! 1. **Topological sort**: Structs are sorted in dependency order (leaf-first)
+//!    using a depth-first traversal. This ensures that when we compute the
+//!    layout of struct A which contains struct B, B's size and alignment are
+//!    already known. Circular dependencies are detected and rejected.
+//!
+//! 2. **Field layout**: For each struct (in topological order), iterate fields
+//!    in declaration order:
+//!    - Compute each field's (size, alignment) from its type
+//!    - Align the current offset up to the field's alignment
+//!    - Record the field's offset and advance by its size
+//!    - Track the maximum alignment seen across all fields
+//!
+//! 3. **force_align**: If the struct has a `force_align` attribute with a value
+//!    larger than the natural max alignment, use that instead. This forces the
+//!    struct's alignment (and therefore its total size padding) to a larger
+//!    boundary.
+//!
+//! 4. **Final padding**: The total struct size is aligned up to max_align, so
+//!    that arrays of the struct maintain proper alignment.
+//!
+//! 5. **Padding fields**: For each field, compute the padding bytes between its
+//!    end and the next field's start (or the struct's end for the last field).
+//!    This padding is stored in `field.padding` for codegen to emit.
+
 use flatc_rs_schema::{self as schema, BaseType};
 
 use crate::error::{AnalyzeError, Result};
@@ -176,6 +208,10 @@ fn align_up(offset: u32, align: u32) -> u32 {
     (offset + align - 1) & !(align - 1)
 }
 
+/// Maximum nesting depth for struct dependencies.
+/// Prevents stack overflow from deeply nested struct chains.
+const MAX_STRUCT_DEPTH: usize = 256;
+
 /// Topological sort of struct indices. Returns indices in dependency order
 /// (leaf structs first). Detects circular dependencies.
 fn topological_sort_structs(schema: &schema::Schema) -> Result<Vec<usize>> {
@@ -190,7 +226,7 @@ fn topological_sort_structs(schema: &schema::Schema) -> Result<Vec<usize>> {
             continue;
         }
         if state[i] == 0 {
-            visit_struct(schema, i, &mut state, &mut order, &mut path)?;
+            visit_struct(schema, i, &mut state, &mut order, &mut path, 0)?;
         }
     }
 
@@ -203,9 +239,15 @@ fn visit_struct(
     state: &mut [u8],
     order: &mut Vec<usize>,
     path: &mut Vec<String>,
+    depth: usize,
 ) -> Result<()> {
     if state[idx] == 2 {
         return Ok(());
+    }
+
+    // G3.7: Prevent stack overflow from deeply nested struct chains
+    if depth > MAX_STRUCT_DEPTH {
+        return Err(AnalyzeError::CircularStruct(path.clone()));
     }
 
     let obj = &schema.objects[idx];
@@ -228,14 +270,14 @@ fn visit_struct(
             if bt == BaseType::BASE_TYPE_STRUCT {
                 if let Some(dep_idx) = ty.index {
                     let i = checked_obj_index(dep_idx, &schema.objects, &name)?;
-                    visit_struct(schema, i, state, order, path)?;
+                    visit_struct(schema, i, state, order, path, depth + 1)?;
                 }
             } else if bt == BaseType::BASE_TYPE_ARRAY {
                 let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
                 if et == BaseType::BASE_TYPE_STRUCT {
                     if let Some(dep_idx) = ty.index {
                         let i = checked_obj_index(dep_idx, &schema.objects, &name)?;
-                        visit_struct(schema, i, state, order, path)?;
+                        visit_struct(schema, i, state, order, path, depth + 1)?;
                     }
                 }
             }

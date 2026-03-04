@@ -3,6 +3,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 use super::code_writer::CodeWriter;
 use super::type_map;
 use super::CodeGenOptions;
+use super::{enum_val_value, union_variant_type_index};
 
 /// Check if an enum has a specific attribute (e.g., "bit_flags").
 fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
@@ -53,7 +54,7 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
             w.block(&format!("pub struct {name}: {rust_type}"), |w| {
                 for val in &enum_def.values {
                     let vname = val.name.as_deref().unwrap_or("");
-                    let bit_pos = val.value.unwrap_or(0);
+                    let bit_pos = enum_val_value(val);
                     let bit_val: u64 = 1u64 << bit_pos;
                     // Documentation for individual values
                     if let Some(doc) = &val.documentation {
@@ -176,13 +177,13 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
         let min_val = enum_def
             .values
             .iter()
-            .map(|v| v.value.unwrap_or(0))
+            .map(enum_val_value)
             .min()
             .unwrap_or(0);
         let max_val = enum_def
             .values
             .iter()
-            .map(|v| v.value.unwrap_or(0))
+            .map(enum_val_value)
             .max()
             .unwrap_or(0);
         let upper_name = name.to_uppercase();
@@ -227,7 +228,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
             // Sanitize FQN: "MyGame.Example2.Monster" -> "MyGame_Example2_Monster"
             let sanitized = type_map::sanitize_union_const_name(vname);
             let escaped = type_map::escape_keyword(&sanitized);
-            let vval = val.value.unwrap_or(0);
+            let vval = enum_val_value(val);
             w.line(&format!("pub const {escaped}: Self = Self({vval});"));
         }
 
@@ -237,13 +238,13 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
             let min_val = enum_def
                 .values
                 .iter()
-                .map(|v| v.value.unwrap_or(0))
+                .map(enum_val_value)
                 .min()
                 .unwrap_or(0);
             let max_val = enum_def
                 .values
                 .iter()
-                .map(|v| v.value.unwrap_or(0))
+                .map(enum_val_value)
                 .max()
                 .unwrap_or(0);
             w.line(&format!("pub const ENUM_MIN: {rust_type} = {min_val};"));
@@ -472,7 +473,7 @@ fn gen_union_object_api(
             let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
             let variant_bt = type_map::get_base_type(val.union_type.as_ref());
             if variant_bt == BaseType::BASE_TYPE_TABLE {
-                let table_idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+                let table_idx = union_variant_type_index(val);
                 let table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
                 w.line(&format!("{t_variant}(alloc::boxed::Box<{table_name}T>),"));
             }

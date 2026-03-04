@@ -1,0 +1,7 @@
+union Equipment { Weapon, Armor }
+table Weapon { damage:short; }
+table Armor { defense:short; }
+table Hero {
+  equipped:Equipment (id: 0);
+  name:string (id: 2);
+}

@@ -119,12 +119,24 @@ fn output_file_path(
 }
 
 /// Write generated code to a file, creating parent directories as needed.
+/// G3.13: Uses write-to-temp + rename for atomic output (no partial files on interrupt).
 fn write_output(path: &Path, content: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("failed to create directory {}: {e}", parent.display()))?;
     }
-    fs::write(path, content).map_err(|e| format!("failed to write {}: {e}", path.display()))
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, content)
+        .map_err(|e| format!("failed to write {}: {e}", tmp_path.display()))?;
+    fs::rename(&tmp_path, path).map_err(|e| {
+        // Clean up temp file on rename failure
+        let _ = fs::remove_file(&tmp_path);
+        format!(
+            "failed to rename {} -> {}: {e}",
+            tmp_path.display(),
+            path.display()
+        )
+    })
 }
 
 fn warn(msg: &str, no_warnings: bool) {
@@ -234,18 +246,22 @@ fn main() {
     // When --gen-all is NOT set, only generate code for types from the
     // direct input files. Canonicalize paths to match how the compiler
     // records declaration_file.
+    // G3.12: Propagate canonicalize errors instead of silently dropping files
     let gen_only_files: Option<HashSet<String>> = if cli.gen_all {
         None
     } else {
-        let files: HashSet<String> = cli
-            .files
-            .iter()
-            .filter_map(|f| {
-                fs::canonicalize(f)
-                    .ok()
-                    .map(|p| p.to_string_lossy().to_string())
-            })
-            .collect();
+        let mut files = HashSet::new();
+        for f in &cli.files {
+            match fs::canonicalize(f) {
+                Ok(p) => {
+                    files.insert(p.to_string_lossy().to_string());
+                }
+                Err(e) => {
+                    eprintln!("error: failed to resolve input file {}: {e}", f.display());
+                    process::exit(1);
+                }
+            }
+        }
         Some(files)
     };
 

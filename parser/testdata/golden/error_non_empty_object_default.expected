@@ -1,0 +1,1 @@
+ERROR: unexpected content '{...}': non-empty array/object default values are not supported for field 'inner'

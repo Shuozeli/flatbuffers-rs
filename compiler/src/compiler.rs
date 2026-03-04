@@ -37,6 +37,9 @@ pub enum CompilerError {
     #[error("absolute include path not allowed: '{include}' (referenced from {from})")]
     AbsoluteIncludePath { include: String, from: PathBuf },
 
+    #[error("include depth limit exceeded ({depth} levels) while processing {file}")]
+    IncludeDepthLimit { depth: usize, file: PathBuf },
+
     #[error("semantic error: {0}")]
     AnalyzeError(#[from] AnalyzeError),
 }
@@ -99,7 +102,7 @@ pub fn compile(
 
     // Parse each input file and its transitive includes.
     for file in input_files {
-        resolver.resolve_file(file)?;
+        resolver.resolve_file(file, 0)?;
     }
 
     // Collect parsed files in dependency order (includes first).
@@ -142,8 +145,19 @@ struct IncludeResolver {
     visiting: HashSet<PathBuf>,
 }
 
+/// Maximum include depth to prevent stack overflow from deep include chains.
+const MAX_INCLUDE_DEPTH: usize = 64;
+
 impl IncludeResolver {
-    fn resolve_file(&mut self, file_path: &Path) -> Result<(), CompilerError> {
+    fn resolve_file(&mut self, file_path: &Path, depth: usize) -> Result<(), CompilerError> {
+        // G3.8: Prevent stack overflow from deep (non-circular) include chains
+        if depth > MAX_INCLUDE_DEPTH {
+            return Err(CompilerError::IncludeDepthLimit {
+                depth,
+                file: file_path.to_path_buf(),
+            });
+        }
+
         let canonical = std::fs::canonicalize(file_path)
             .map_err(|_| CompilerError::FileNotFound(file_path.to_path_buf()))?;
 
@@ -176,7 +190,7 @@ impl IncludeResolver {
         for fbs_file in &output.schema.fbs_files {
             if let Some(include_name) = &fbs_file.filename {
                 let include_path = self.find_include(include_name, &canonical)?;
-                self.resolve_file(&include_path)?;
+                self.resolve_file(&include_path, depth + 1)?;
             }
         }
 
@@ -302,15 +316,46 @@ fn merge_schemas(files: &[ParsedFile]) -> ParseOutput {
         }
 
         // Use file-level metadata from the root file (last one wins).
+        // G3.11: Warn when conflicting values are detected across includes.
         if file.schema.file_ident.is_some() {
+            if let Some(ref existing) = merged_schema.file_ident {
+                if file.schema.file_ident.as_ref() != Some(existing) {
+                    eprintln!(
+                        "warning: conflicting file_identifier in {}: '{}' overrides '{}'",
+                        file.path.display(),
+                        file.schema.file_ident.as_deref().unwrap_or(""),
+                        existing
+                    );
+                }
+            }
             merged_schema.file_ident = file.schema.file_ident.clone();
         }
         if file.schema.file_ext.is_some() {
+            if let Some(ref existing) = merged_schema.file_ext {
+                if file.schema.file_ext.as_ref() != Some(existing) {
+                    eprintln!(
+                        "warning: conflicting file_extension in {}: '{}' overrides '{}'",
+                        file.path.display(),
+                        file.schema.file_ext.as_deref().unwrap_or(""),
+                        existing
+                    );
+                }
+            }
             merged_schema.file_ext = file.schema.file_ext.clone();
         }
 
         // Merge parser state.
         if file.state.root_type_name.is_some() {
+            if let Some(ref existing) = merged_state.root_type_name {
+                if file.state.root_type_name.as_ref() != Some(existing) {
+                    eprintln!(
+                        "warning: conflicting root_type in {}: '{}' overrides '{}'",
+                        file.path.display(),
+                        file.state.root_type_name.as_deref().unwrap_or(""),
+                        existing
+                    );
+                }
+            }
             merged_state.root_type_name = file.state.root_type_name.clone();
             merged_state.root_type_namespace = file.state.root_type_namespace.clone();
         }

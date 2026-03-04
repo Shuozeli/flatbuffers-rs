@@ -1,0 +1,4 @@
+table Inner { x: int; }
+table Outer {
+  inner: Inner = { x: 42 };
+}

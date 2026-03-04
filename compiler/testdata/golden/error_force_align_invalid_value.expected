@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_force_align_invalid_value.fbs"), line: 1, col: 1 }): invalid force_align value 'abc' on 'Vec3': must be a positive integer

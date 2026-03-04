@@ -1,0 +1,5 @@
+table Inner { x:int; }
+table Outer {
+  data:Inner (key);
+  name:string;
+}

@@ -169,6 +169,52 @@ pub enum AnalyzeError {
         max_bits: u32,
         type_name: String,
     },
+
+    #[error("{span:?}: union field '{field_name}' in table '{table_name}' has id: 0, but union fields require a companion _type field at id-1; union field ids must be >= 1")]
+    UnionFieldIdZero {
+        table_name: String,
+        field_name: String,
+        span: Option<Span>,
+    },
+
+    #[error("{span:?}: union NONE variant in '{union_name}' {reason}")]
+    InvalidUnionNone {
+        union_name: String,
+        reason: String,
+        span: Option<Span>,
+    },
+
+    #[error("{span:?}: multiple key fields in table '{table_name}': '{field_a}' and '{field_b}'")]
+    MultipleKeys {
+        table_name: String,
+        field_a: String,
+        field_b: String,
+        span: Option<Span>,
+    },
+
+    #[error("{span:?}: key field '{field_name}' in table '{table_name}' must be a scalar or string type, got {actual_type}")]
+    InvalidKeyFieldType {
+        table_name: String,
+        field_name: String,
+        actual_type: String,
+        span: Option<Span>,
+    },
+
+    #[error("{span:?}: key field '{field_name}' in table '{table_name}' cannot be deprecated")]
+    DeprecatedKeyField {
+        table_name: String,
+        field_name: String,
+        span: Option<Span>,
+    },
+
+    #[error(
+        "{span:?}: invalid force_align value '{value}' on '{name}': must be a positive integer"
+    )]
+    InvalidForceAlignValue {
+        name: String,
+        value: String,
+        span: Option<Span>,
+    },
 }
 
 fn format_cycle(names: &[String]) -> String {

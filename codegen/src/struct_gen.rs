@@ -1,5 +1,5 @@
-use super::type_map::{escape_keyword, get_base_type, get_element_type, get_index};
-use super::{field_type, field_type_index};
+use super::type_map::{escape_keyword, get_base_type, get_element_type, has_enum_index};
+use super::{field_offset, field_type, field_type_index, obj_byte_size, obj_min_align, type_index};
 use flatc_rs_schema::{self as schema, BaseType};
 
 use super::code_writer::CodeWriter;
@@ -10,8 +10,8 @@ use super::CodeGenOptions;
 pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
-    let byte_size = obj.byte_size.unwrap_or(0) as usize;
-    let min_align = obj.min_align.unwrap_or(1) as usize;
+    let byte_size = obj_byte_size(obj);
+    let min_align = obj_min_align(obj);
 
     // Struct definition
     w.line(&format!("// struct {name}, aligned to {min_align}"));
@@ -202,7 +202,7 @@ fn gen_constructor(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Ob
         .collect();
 
     w.block(&format!("pub fn new({}) -> Self", params.join(", ")), |w| {
-        let byte_size = obj.byte_size.unwrap_or(0) as usize;
+        let byte_size = obj_byte_size(obj);
         w.line(&format!("let mut s = Self([0; {byte_size}]);"));
         for field in &obj.fields {
             let fname = escape_keyword(&type_map::to_snake_case(
@@ -219,7 +219,7 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     let fname = escape_keyword(&type_map::to_snake_case(
         field.name.as_deref().unwrap_or(""),
     ));
-    let offset = field.offset.unwrap_or(0) as usize;
+    let offset = field_offset(field);
 
     let bt = get_base_type(field.type_.as_ref());
 
@@ -243,9 +243,9 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
 
     // Struct fields inside structs are read via nested struct accessor
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let struct_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+        let struct_idx = field_type_index(field);
         let struct_name = schema.objects[struct_idx].name.as_deref().unwrap_or("");
-        let struct_size = schema.objects[struct_idx].byte_size.unwrap_or(0) as usize;
+        let struct_size = obj_byte_size(&schema.objects[struct_idx]);
 
         w.line(&format!("pub fn {fname}(&self) -> &{struct_name} {{"));
         w.indent();
@@ -258,10 +258,7 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     }
 
     // Check if this is an enum-typed field (scalar base type with index)
-    let has_enum_index = get_index(field.type_.as_ref())
-        .map(|i| i >= 0)
-        .unwrap_or(false);
-    if type_map::is_scalar(bt) && has_enum_index {
+    if type_map::is_scalar(bt) && has_enum_index(field) {
         let enum_idx = field_type_index(field);
         let enum_name = schema.enums[enum_idx].name.as_deref().unwrap_or("");
 
@@ -318,7 +315,7 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     let fname = escape_keyword(&type_map::to_snake_case(
         field.name.as_deref().unwrap_or(""),
     ));
-    let offset = field.offset.unwrap_or(0) as usize;
+    let offset = field_offset(field);
 
     let bt = get_base_type(field.type_.as_ref());
 
@@ -329,8 +326,8 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
 
         if et == BaseType::BASE_TYPE_STRUCT {
             // Struct arrays: raw byte copy
-            let struct_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
-            let struct_size = schema.objects[struct_idx].byte_size.unwrap_or(0) as usize;
+            let struct_idx = field_type_index(field);
+            let struct_size = obj_byte_size(&schema.objects[struct_idx]);
             let total_bytes = struct_size * fixed_len;
             w.line(&format!(
                 "pub fn set_{fname}(&mut self, x: &[{elem_type_str}; {fixed_len}]) {{"
@@ -364,9 +361,9 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
 
     // Struct fields inside structs
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let struct_idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+        let struct_idx = field_type_index(field);
         let struct_name = schema.objects[struct_idx].name.as_deref().unwrap_or("");
-        let struct_size = schema.objects[struct_idx].byte_size.unwrap_or(0) as usize;
+        let struct_size = obj_byte_size(&schema.objects[struct_idx]);
 
         w.line(&format!(
             "pub fn set_{fname}(&mut self, {fname}: &{struct_name}) {{"
@@ -383,10 +380,7 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     let ftype = field_rust_type(schema, field);
 
     // Enum-typed field: use EndianScalar trait to avoid private field access (bitflags)
-    let has_enum_index = get_index(field.type_.as_ref())
-        .map(|i| i >= 0)
-        .unwrap_or(false);
-    if type_map::is_scalar(bt) && has_enum_index {
+    if type_map::is_scalar(bt) && has_enum_index(field) {
         let enum_idx = field_type_index(field);
         let enum_name = schema.enums[enum_idx].name.as_deref().unwrap_or("");
 
@@ -441,7 +435,7 @@ fn field_rust_type(schema: &schema::Schema, field: &schema::Field) -> String {
     let bt = get_base_type(field.type_.as_ref());
 
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+        let idx = field_type_index(field);
         return schema.objects[idx]
             .name
             .as_deref()
@@ -450,10 +444,7 @@ fn field_rust_type(schema: &schema::Schema, field: &schema::Field) -> String {
     }
 
     // Check if this is an enum-typed field
-    let has_enum_index = get_index(field.type_.as_ref())
-        .map(|i| i >= 0)
-        .unwrap_or(false);
-    if type_map::is_scalar(bt) && has_enum_index {
+    if type_map::is_scalar(bt) && has_enum_index(field) {
         let enum_idx = field_type_index(field);
         return schema.enums[enum_idx]
             .name
@@ -469,10 +460,12 @@ fn field_rust_type(schema: &schema::Schema, field: &schema::Field) -> String {
 fn array_element_info(schema: &schema::Schema, field: &schema::Field) -> (String, usize) {
     let ty = field_type(field);
     let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
-    let fixed_len = ty.fixed_length.unwrap_or(0) as usize;
+    let fixed_len = ty
+        .fixed_length
+        .expect("BUG: array field has no fixed_length") as usize;
 
     let elem_type_str = if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = ty.index.unwrap_or(0) as usize;
+        let idx = type_index(ty, "array element struct lookup");
         schema.objects[idx]
             .name
             .as_deref()
@@ -606,15 +599,12 @@ fn gen_object_api(
 /// Get the owned Rust type for a struct field in the Object API.
 fn struct_owned_field_type(schema: &schema::Schema, field: &schema::Field, bt: BaseType) -> String {
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+        let idx = field_type_index(field);
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         format!("{struct_name}T")
     } else if type_map::is_scalar(bt) {
         // Check for enum-typed field
-        let has_enum_index = get_index(field.type_.as_ref())
-            .map(|i| i >= 0)
-            .unwrap_or(false);
-        if has_enum_index {
+        if has_enum_index(field) {
             let enum_idx = field_type_index(field);
             schema.enums[enum_idx]
                 .name

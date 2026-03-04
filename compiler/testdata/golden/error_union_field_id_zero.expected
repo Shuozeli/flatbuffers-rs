@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_union_field_id_zero.fbs"), line: 5, col: 3 }): union field 'equipped' in table 'Hero' has id: 0, but union fields require a companion _type field at id-1; union field ids must be >= 1

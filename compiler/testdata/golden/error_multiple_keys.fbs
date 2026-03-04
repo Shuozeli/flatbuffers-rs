@@ -1,0 +1,5 @@
+table Monster {
+  id:uint (key);
+  name:string (key);
+  hp:short;
+}

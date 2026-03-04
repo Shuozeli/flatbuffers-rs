@@ -1,8 +1,9 @@
 mod code_writer;
 mod enum_gen;
+mod namespace_tree;
 mod rust_gen;
+mod rust_table_gen;
 mod struct_gen;
-mod table_gen;
 mod ts_enum_gen;
 mod ts_gen;
 mod ts_struct_gen;
@@ -48,6 +49,78 @@ fn field_type_index(field: &schema::Field) -> usize {
             field.name.as_deref().unwrap_or("<unknown>")
         )
     }) as usize
+}
+
+/// Get the enum/object index from a Type descriptor. Panics with a descriptive message if missing.
+fn type_index(ty: &schema::Type, context: &str) -> usize {
+    ty.index.unwrap_or_else(|| {
+        panic!(
+            "BUG: type has no index in {context} (schema should have been validated by analyzer)"
+        )
+    }) as usize
+}
+
+/// Get the type index for a union variant's type. Panics with a descriptive message if missing.
+fn union_variant_type_index(val: &schema::EnumVal) -> usize {
+    val.union_type
+        .as_ref()
+        .and_then(|t| t.index)
+        .unwrap_or_else(|| {
+            panic!(
+                "BUG: union variant '{}' has no type index (schema should have been validated by analyzer)",
+                val.name.as_deref().unwrap_or("<unknown>")
+            )
+        }) as usize
+}
+
+/// Get the byte_size of an object (struct). Panics with a descriptive message if missing.
+fn obj_byte_size(obj: &schema::Object) -> usize {
+    obj.byte_size.unwrap_or_else(|| {
+        panic!(
+            "BUG: object '{}' has no byte_size (layout should have been computed by analyzer)",
+            obj.name.as_deref().unwrap_or("<unknown>")
+        )
+    }) as usize
+}
+
+/// Get the min_align of an object (struct). Panics with a descriptive message if missing.
+fn obj_min_align(obj: &schema::Object) -> usize {
+    obj.min_align.unwrap_or_else(|| {
+        panic!(
+            "BUG: object '{}' has no min_align (layout should have been computed by analyzer)",
+            obj.name.as_deref().unwrap_or("<unknown>")
+        )
+    }) as usize
+}
+
+/// Get a struct field's byte offset. Panics with a descriptive message if missing.
+fn field_offset(field: &schema::Field) -> usize {
+    field.offset.unwrap_or_else(|| {
+        panic!(
+            "BUG: field '{}' has no offset (layout should have been computed by analyzer)",
+            field.name.as_deref().unwrap_or("<unknown>")
+        )
+    }) as usize
+}
+
+/// Get a table field's ID. Panics with a descriptive message if missing.
+fn field_id(field: &schema::Field) -> u32 {
+    field.id.unwrap_or_else(|| {
+        panic!(
+            "BUG: field '{}' has no id (should have been assigned by analyzer)",
+            field.name.as_deref().unwrap_or("<unknown>")
+        )
+    })
+}
+
+/// Get an enum value's integer discriminator. Panics with a descriptive message if missing.
+fn enum_val_value(val: &schema::EnumVal) -> i64 {
+    val.value.unwrap_or_else(|| {
+        panic!(
+            "BUG: enum value '{}' has no value (should have been assigned by analyzer)",
+            val.name.as_deref().unwrap_or("<unknown>")
+        )
+    })
 }
 
 /// Options for Rust code generation.

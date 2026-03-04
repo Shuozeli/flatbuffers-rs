@@ -1,0 +1,39 @@
+mod builder;
+mod helpers;
+mod object_api;
+mod reader;
+
+use flatc_rs_schema as schema;
+
+use super::code_writer::CodeWriter;
+use super::type_map;
+use super::CodeGenOptions;
+
+/// Generate Rust code for the table at `schema.objects[index]`.
+pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
+    let obj = &schema.objects[index];
+    let name = obj.name.as_deref().unwrap_or("");
+    let current_ns = type_map::object_namespace(obj);
+
+    reader::gen_offset_marker(w, name);
+    reader::gen_reader_struct(w, name);
+    w.blank();
+    reader::gen_follow_impl(w, name);
+    w.blank();
+    reader::gen_impl_block(w, schema, obj, name, current_ns);
+    w.blank();
+    reader::gen_verifiable_impl(w, schema, obj, name, current_ns);
+    builder::gen_args_struct(w, schema, obj, name, current_ns);
+    w.blank();
+    builder::gen_builder(w, schema, obj, name, current_ns);
+    w.blank();
+    reader::gen_debug_impl(w, schema, obj, name, opts);
+    w.blank();
+    builder::gen_create_fn(w, schema, obj, name, current_ns);
+
+    // Object API: owned T type with pack/unpack
+    if opts.gen_object_api {
+        w.blank();
+        object_api::gen_object_api(w, schema, obj, name, current_ns, opts);
+    }
+}

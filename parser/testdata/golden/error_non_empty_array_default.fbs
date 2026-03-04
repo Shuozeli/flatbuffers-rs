@@ -1,0 +1,3 @@
+table Monster {
+  items: [int] = [1, 2, 3];
+}

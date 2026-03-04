@@ -94,12 +94,22 @@ impl TypeIndex {
         if let Some(&r) = self.fqn_types.get(name) {
             return Some(r);
         }
-        // Try prepending the current namespace
+        // Try prepending the current namespace, then walk parent namespaces.
+        // G3.6: For "A.B.C", try "A.B.C.Name", then "A.B.Name", then "A.Name".
         if let Some(ns) = current_namespace {
             if !ns.is_empty() {
                 let qualified = format!("{ns}.{name}");
                 if let Some(&r) = self.fqn_types.get(&qualified) {
                     return Some(r);
+                }
+                // Walk parent namespaces
+                let mut parent = ns;
+                while let Some(dot_pos) = parent.rfind('.') {
+                    parent = &parent[..dot_pos];
+                    let qualified = format!("{parent}.{name}");
+                    if let Some(&r) = self.fqn_types.get(&qualified) {
+                        return Some(r);
+                    }
                 }
             }
         }
@@ -167,6 +177,36 @@ mod tests {
         // Namespace-qualified lookup
         assert_eq!(
             index.resolve("Monster", Some("MyGame.Sample")),
+            Some(TypeRef::Object(0))
+        );
+    }
+
+    #[test]
+    fn test_resolve_parent_namespace_walking() {
+        let mut schema = schema::Schema::new();
+
+        // Type "Weapon" in namespace "A.B"
+        let mut obj = schema::Object::new();
+        obj.name = Some("Weapon".into());
+        obj.namespace = make_namespace("A.B");
+        schema.objects.push(obj);
+
+        let index = TypeIndex::build(&schema).unwrap();
+
+        // From "A.B.C", should find "A.B.Weapon" by walking up
+        assert_eq!(
+            index.resolve("Weapon", Some("A.B.C")),
+            Some(TypeRef::Object(0))
+        );
+        // From "A.B", should find directly
+        assert_eq!(
+            index.resolve("Weapon", Some("A.B")),
+            Some(TypeRef::Object(0))
+        );
+        // From "X.Y", should not find via parent walking (different branch)
+        // but short name still resolves
+        assert_eq!(
+            index.resolve("Weapon", Some("X.Y")),
             Some(TypeRef::Object(0))
         );
     }

@@ -1,3 +1,44 @@
+//! Semantic analysis pipeline for parsed FlatBuffers schemas.
+//!
+//! The analyzer transforms an unresolved `Schema` (produced by the parser, where
+//! user-defined types are just name strings) into a fully resolved schema ready
+//! for code generation. It runs 8 sequential steps, each depending on the
+//! results of the previous:
+//!
+//! 1. **Build type index** -- Collect all type names into a lookup table.
+//!    Detects duplicate names. After this step, every type name can be mapped
+//!    to its position in `schema.objects` or `schema.enums`.
+//!
+//! 2. **Resolve field types** -- Walk every field in every object and resolve
+//!    `unresolved_name` strings to concrete `BaseType` + `index` pairs using
+//!    the type index. After this step, all `Type.index` values point to the
+//!    correct object or enum.
+//!
+//! 2b. **Insert union type fields** -- For each union-typed field in a table,
+//!     insert a companion `_type` discriminator field (an enum of the union's
+//!     underlying type). Processed back-to-front to avoid index invalidation.
+//!
+//! 3. **Assign enum values** -- Walk every enum and assign sequential integer
+//!    values to variants that lack explicit values. Validates ranges against
+//!    the underlying type (e.g., byte values must fit in 0..255).
+//!
+//! 4. **Resolve union variant types** -- For each union, resolve variant type
+//!    names to concrete object references.
+//!
+//! 5. **Resolve root type** -- If `root_type` was declared, find the matching
+//!    table in the schema and set `schema.root_table`.
+//!
+//! 6. **Resolve RPC types** -- For each RPC service call, resolve the request
+//!    and response type names to concrete table references.
+//!
+//! 7. **Validate schema** -- Run constraint checks: field ID validity, key
+//!    attributes, struct field restrictions, bitflags ranges, force_align
+//!    validity, etc. This is where most user-facing errors are reported.
+//!
+//! 8. **Compute struct layouts** -- Topologically sort structs (leaf-first),
+//!    then compute byte_size, min_align, field offsets, and padding for each.
+//!    Detects circular struct dependencies.
+
 use crate::error::{AnalyzeError, Result};
 use crate::struct_layout;
 use crate::type_index::{TypeIndex, TypeRef};
@@ -8,6 +49,11 @@ use flatc_rs_schema::{self as schema, BaseType};
 /// computing struct layouts, and validating correctness.
 ///
 /// Returns a fully resolved `Schema` ready for code generation.
+///
+/// # Errors
+///
+/// Returns `AnalyzeError` if any validation step fails. Errors carry `Span`
+/// information (file, line, column) whenever available.
 pub fn analyze(output: ParseOutput) -> Result<schema::Schema> {
     let ParseOutput { mut schema, state } = output;
 
@@ -615,6 +661,12 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
             validate_enum_underlying_type(enum_def)?;
         }
 
+        // G3.3: Validate union NONE variant position and value (before duplicate
+        // name check, so explicit NONE at wrong position is caught first)
+        if enum_def.is_union == Some(true) {
+            validate_union_none_variant(enum_def)?;
+        }
+
         // Check for duplicate enum value names
         validate_enum_value_names(enum_def)?;
 
@@ -668,6 +720,24 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
                 table_name: obj_name.to_string(),
                 span: obj.span.clone(),
             });
+        }
+
+        // G3.1: Union fields with explicit id:0 cause collision with companion _type field
+        for field in &obj.fields {
+            let bt = field
+                .type_
+                .as_ref()
+                .and_then(|t| t.base_type)
+                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            if bt == BaseType::BASE_TYPE_UNION {
+                if let Some(0) = field.id {
+                    return Err(AnalyzeError::UnionFieldIdZero {
+                        table_name: obj_name.to_string(),
+                        field_name: field.name.as_deref().unwrap_or("").to_string(),
+                        span: field.span.clone(),
+                    });
+                }
+            }
         }
 
         // When all fields have explicit IDs, validate them
@@ -764,6 +834,9 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
             // Validate default values fit in their type
             validate_default_value_ranges(obj)?;
         }
+
+        // G3.4: Validate key attribute constraints (applies to both structs and tables)
+        validate_key_attribute(obj)?;
     }
 
     Ok(())
@@ -830,11 +903,21 @@ fn validate_force_align(obj: &schema::Object) -> Result<()> {
         for entry in &attrs.entries {
             if entry.key.as_deref() == Some("force_align") {
                 if let Some(ref val) = entry.value {
-                    if let Ok(n) = val.parse::<i64>() as std::result::Result<i64, _> {
-                        if n <= 0 || (n & (n - 1)) != 0 {
-                            return Err(AnalyzeError::ForceAlignNotPowerOf2 {
+                    // G3.5: Report error on unparseable values instead of silently ignoring
+                    match val.parse::<i64>() {
+                        Ok(n) => {
+                            if n <= 0 || (n & (n - 1)) != 0 {
+                                return Err(AnalyzeError::ForceAlignNotPowerOf2 {
+                                    name: obj_name.to_string(),
+                                    value: n,
+                                    span: obj.span.clone(),
+                                });
+                            }
+                        }
+                        Err(_) => {
+                            return Err(AnalyzeError::InvalidForceAlignValue {
                                 name: obj_name.to_string(),
-                                value: n,
+                                value: val.clone(),
                                 span: obj.span.clone(),
                             });
                         }
@@ -1033,4 +1116,96 @@ fn validate_struct_field_type(
             span: field.span.clone(),
         }),
     }
+}
+
+/// G3.3: Validate union NONE variant position and value.
+/// NONE must be the first variant (index 0) and have value 0.
+fn validate_union_none_variant(enum_def: &schema::Enum) -> Result<()> {
+    let union_name = enum_def.name.as_deref().unwrap_or("");
+
+    for (idx, val) in enum_def.values.iter().enumerate() {
+        if val.name.as_deref() == Some("NONE") {
+            if idx != 0 {
+                return Err(AnalyzeError::InvalidUnionNone {
+                    union_name: union_name.to_string(),
+                    reason: "must be the first variant (index 0)".to_string(),
+                    span: val.span.clone(),
+                });
+            }
+            if let Some(v) = val.value {
+                if v != 0 {
+                    return Err(AnalyzeError::InvalidUnionNone {
+                        union_name: union_name.to_string(),
+                        reason: format!("must have value 0, got {v}"),
+                        span: val.span.clone(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// G3.4: Validate key attribute constraints.
+/// - At most one key field per table/struct
+/// - Key field must be scalar or string (not table, vector, union, etc.)
+/// - Key field cannot be deprecated
+fn validate_key_attribute(obj: &schema::Object) -> Result<()> {
+    let obj_name = obj.name.as_deref().unwrap_or("");
+    let mut first_key: Option<&str> = None;
+
+    for field in &obj.fields {
+        if field.is_key != Some(true) {
+            continue;
+        }
+        let fname = field.name.as_deref().unwrap_or("");
+
+        // Check for multiple keys
+        if let Some(existing) = first_key {
+            return Err(AnalyzeError::MultipleKeys {
+                table_name: obj_name.to_string(),
+                field_a: existing.to_string(),
+                field_b: fname.to_string(),
+                span: field.span.clone(),
+            });
+        }
+        first_key = Some(fname);
+
+        // Key field must be scalar or string
+        if let Some(ty) = field.type_.as_ref() {
+            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            match bt {
+                BaseType::BASE_TYPE_BOOL
+                | BaseType::BASE_TYPE_BYTE
+                | BaseType::BASE_TYPE_U_BYTE
+                | BaseType::BASE_TYPE_SHORT
+                | BaseType::BASE_TYPE_U_SHORT
+                | BaseType::BASE_TYPE_INT
+                | BaseType::BASE_TYPE_U_INT
+                | BaseType::BASE_TYPE_LONG
+                | BaseType::BASE_TYPE_U_LONG
+                | BaseType::BASE_TYPE_FLOAT
+                | BaseType::BASE_TYPE_DOUBLE
+                | BaseType::BASE_TYPE_STRING => {}
+                _ => {
+                    return Err(AnalyzeError::InvalidKeyFieldType {
+                        table_name: obj_name.to_string(),
+                        field_name: fname.to_string(),
+                        actual_type: format!("{:?}", bt),
+                        span: field.span.clone(),
+                    });
+                }
+            }
+        }
+
+        // Key field cannot be deprecated
+        if field.is_deprecated == Some(true) {
+            return Err(AnalyzeError::DeprecatedKeyField {
+                table_name: obj_name.to_string(),
+                field_name: fname.to_string(),
+                span: field.span.clone(),
+            });
+        }
+    }
+    Ok(())
 }

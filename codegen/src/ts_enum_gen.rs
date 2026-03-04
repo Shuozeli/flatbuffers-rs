@@ -1,7 +1,9 @@
 use flatc_rs_schema::{self as schema, BaseType};
 
 use super::code_writer::CodeWriter;
+use super::ts_type_map;
 use super::type_map;
+use super::{enum_val_value, union_variant_type_index};
 
 /// Generate TypeScript code for the enum at `schema.enums[index]`.
 pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, gen_object_api: bool) {
@@ -15,38 +17,21 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, gen_o
     }
 }
 
-/// Emit a JSDoc comment block if documentation is present.
-fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&schema::Documentation>) {
-    let doc = match doc {
-        Some(d) if !d.lines.is_empty() => d,
-        _ => return,
-    };
-    w.line("/**");
-    for line in &doc.lines {
-        if line.is_empty() {
-            w.line(" *");
-        } else {
-            w.line(&format!(" * {line}"));
-        }
-    }
-    w.line(" */");
-}
-
 /// Generate a regular TypeScript enum.
 fn generate_regular_enum(w: &mut CodeWriter, enum_def: &schema::Enum) {
     let name = enum_def.name.as_deref().unwrap_or("");
 
-    gen_doc_comment(w, enum_def.documentation.as_ref());
+    ts_type_map::gen_doc_comment(w, enum_def.documentation.as_ref());
     w.block(&format!("export enum {name}"), |w| {
         for (i, val) in enum_def.values.iter().enumerate() {
             let vname = val.name.as_deref().unwrap_or("");
-            let vval = val.value.unwrap_or(0);
+            let vval = enum_val_value(val);
             let comma = if i < enum_def.values.len() - 1 {
                 ","
             } else {
                 ""
             };
-            gen_doc_comment(w, val.documentation.as_ref());
+            ts_type_map::gen_doc_comment(w, val.documentation.as_ref());
             w.line(&format!("{vname} = {vval}{comma}"));
         }
     });
@@ -63,17 +48,17 @@ fn generate_union_enum(
     let name = enum_def.name.as_deref().unwrap_or("");
 
     // Generate the union discriminator enum
-    gen_doc_comment(w, enum_def.documentation.as_ref());
+    ts_type_map::gen_doc_comment(w, enum_def.documentation.as_ref());
     w.block(&format!("export enum {name}"), |w| {
         for (i, val) in enum_def.values.iter().enumerate() {
             let vname = val.name.as_deref().unwrap_or("");
-            let vval = val.value.unwrap_or(0);
+            let vval = enum_val_value(val);
             let comma = if i < enum_def.values.len() - 1 {
                 ","
             } else {
                 ""
             };
-            gen_doc_comment(w, val.documentation.as_ref());
+            ts_type_map::gen_doc_comment(w, val.documentation.as_ref());
             w.line(&format!("{vname} = {vval}{comma}"));
         }
     });
@@ -104,7 +89,7 @@ fn union_variant_types(schema: &schema::Schema, enum_def: &schema::Enum) -> Vec<
         let variant_bt = type_map::get_base_type(val.union_type.as_ref());
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+                let idx = union_variant_type_index(val);
                 let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
                 if !types.contains(&obj_name.to_string()) {
                     types.push(obj_name.to_string());
@@ -150,11 +135,7 @@ fn gen_union_to_helper(
                     let variant_bt = type_map::get_base_type(val.union_type.as_ref());
                     match variant_bt {
                         BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                            let idx = val
-                                .union_type
-                                .as_ref()
-                                .and_then(|t| t.index)
-                                .unwrap_or(0) as usize;
+                            let idx = union_variant_type_index(val);
                             let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
                             w.line(&format!(
                                 "case '{vname}': return accessor(new {obj_name}())! as {obj_name};"
@@ -203,11 +184,7 @@ fn gen_union_list_to_helper(
                     let variant_bt = type_map::get_base_type(val.union_type.as_ref());
                     match variant_bt {
                         BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                            let idx = val
-                                .union_type
-                                .as_ref()
-                                .and_then(|t| t.index)
-                                .unwrap_or(0) as usize;
+                            let idx = union_variant_type_index(val);
                             let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
                             w.line(&format!(
                                 "case '{vname}': return accessor(index, new {obj_name}())! as {obj_name};"
@@ -243,7 +220,7 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &schema::Schema, index: usiz
         let variant_bt = type_map::get_base_type(val.union_type.as_ref());
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = val.union_type.as_ref().and_then(|t| t.index).unwrap_or(0) as usize;
+                let idx = union_variant_type_index(val);
                 let obj_name = schema.objects[idx].name.as_deref().unwrap_or("");
                 variants.push((vname, obj_name.to_string(), variant_bt));
             }

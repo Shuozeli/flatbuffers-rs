@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_key_deprecated.fbs"), line: 2, col: 3 }): key field 'name' in table 'Monster' cannot be deprecated

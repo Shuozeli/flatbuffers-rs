@@ -1,0 +1,3 @@
+table Weapon { damage:short; }
+table Armor { defense:short; }
+union Equipment { Weapon, NONE, Armor }

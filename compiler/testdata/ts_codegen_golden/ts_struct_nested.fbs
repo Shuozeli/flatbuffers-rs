@@ -1,0 +1,2 @@
+struct Point { x: float; y: float; }
+struct Rect { min: Point; max: Point; }

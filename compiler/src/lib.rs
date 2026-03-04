@@ -2,6 +2,17 @@ pub mod analyzer;
 pub mod bfbs;
 pub mod compiler;
 pub mod error;
+#[allow(
+    unused_imports,
+    dead_code,
+    clippy::all,
+    non_camel_case_types,
+    non_snake_case,
+    unused_variables,
+    unused_mut,
+    deprecated
+)]
+pub mod reflection;
 pub mod struct_layout;
 pub mod type_index;
 

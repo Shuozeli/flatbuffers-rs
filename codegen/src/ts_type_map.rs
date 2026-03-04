@@ -1,4 +1,7 @@
-use flatc_rs_schema::BaseType;
+use flatc_rs_schema::{self as schema, BaseType};
+
+use super::code_writer::CodeWriter;
+use super::type_map;
 
 /// Returns the TypeScript type name for a scalar BaseType.
 pub fn scalar_ts_type(bt: BaseType) -> &'static str {
@@ -261,6 +264,34 @@ pub fn escape_ts_keyword(name: &str) -> String {
         format!("{name}_")
     } else {
         name.to_string()
+    }
+}
+
+/// Emit a JSDoc comment block if documentation is present.
+pub fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&schema::Documentation>) {
+    let doc = match doc {
+        Some(d) if !d.lines.is_empty() => d,
+        _ => return,
+    };
+    w.line("/**");
+    for line in &doc.lines {
+        if line.is_empty() {
+            w.line(" *");
+        } else {
+            w.line(&format!(" * {line}"));
+        }
+    }
+    w.line(" */");
+}
+
+/// Build FQN like "MyGame.Example.Monster".
+pub fn build_fqn(obj: &schema::Object) -> String {
+    let name = obj.name.as_deref().unwrap_or("");
+    let ns = type_map::object_namespace(obj);
+    if ns.is_empty() {
+        name.to_string()
+    } else {
+        format!("{ns}.{name}")
     }
 }
 

@@ -17,6 +17,14 @@ pub fn get_index(ty: Option<&schema::Type>) -> Option<i32> {
     ty.and_then(|t| t.index)
 }
 
+/// Returns true if a field's type has a non-negative index, indicating it
+/// references an enum (or union) definition in `schema.enums`.
+pub fn has_enum_index(field: &schema::Field) -> bool {
+    get_index(field.type_.as_ref())
+        .map(|i| i >= 0)
+        .unwrap_or(false)
+}
+
 /// Returns the Rust type name for a scalar BaseType.
 pub fn scalar_rust_type(bt: BaseType) -> &'static str {
     match bt {
