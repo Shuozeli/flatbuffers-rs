@@ -51,9 +51,12 @@ fn assert_compiles(schema_source: &str, opts: &CodeGenOptions, test_name: &str) 
 
     if let Some(ref deps_dir) = flatbuffers_dir {
         cmd.arg("-L").arg(deps_dir);
-        // Also add --extern for flatbuffers if we can find the rlib
-        if let Some(rlib) = find_extern_rlib(deps_dir, "flatbuffers") {
-            cmd.arg("--extern").arg(format!("flatbuffers={rlib}"));
+        // Add --extern for crates used by generated code to avoid ambiguity
+        // when multiple versions exist in the deps directory.
+        for crate_name in &["flatbuffers", "serde"] {
+            if let Some(rlib) = find_extern_rlib(deps_dir, crate_name) {
+                cmd.arg("--extern").arg(format!("{crate_name}={rlib}"));
+            }
         }
     }
 
@@ -100,22 +103,28 @@ fn find_flatbuffers_rlib() -> Option<String> {
 }
 
 /// Find a specific crate's rlib file in a deps directory.
+/// When multiple candidates exist (e.g., different feature sets), pick the
+/// newest one -- dev-dependency builds run last and include all features.
 fn find_extern_rlib(deps_dir: &str, crate_name: &str) -> Option<String> {
     let dir = std::path::Path::new(deps_dir);
     if !dir.is_dir() {
         return None;
     }
-    // Look for libflatbuffers-*.rlib
     let prefix = format!("lib{crate_name}-");
+    let mut best: Option<(String, std::time::SystemTime)> = None;
     for entry in std::fs::read_dir(dir).ok()? {
         let entry = entry.ok()?;
         let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if name.starts_with(&prefix) && name.ends_with(".rlib") {
-            return Some(entry.path().to_string_lossy().to_string());
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with(&prefix) && name_str.ends_with(".rlib") {
+            let mtime = entry.metadata().ok()?.modified().ok()?;
+            let path = entry.path().to_string_lossy().to_string();
+            if best.as_ref().is_none_or(|(_, t)| mtime > *t) {
+                best = Some((path, mtime));
+            }
         }
     }
-    None
+    best.map(|(p, _)| p)
 }
 
 fn default_opts() -> CodeGenOptions {
