@@ -5,7 +5,7 @@ edition = "2021"
 description = "FlatBuffers schema compiler (Rust implementation)"
 
 [[bin]]
-name = "flatc-rs"
+name = "flatc"
 path = "src/main.rs"
 
 [dependencies]

@@ -2,8 +2,8 @@ use flatc_rs_schema::{self as schema, BaseType};
 
 use super::code_writer::CodeWriter;
 use super::type_map;
-use super::CodeGenOptions;
 use super::{enum_val_value, union_variant_type_index};
+use super::{type_visibility, CodeGenOptions};
 
 /// Check if an enum has a specific attribute (e.g., "bit_flags").
 fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
@@ -34,6 +34,7 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
 /// Generate a bitflags enum using the `bitflags!` macro.
 fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) {
     let name = enum_def.name.as_deref().unwrap_or("");
+    let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let underlying_bt = type_map::get_base_type(enum_def.underlying_type.as_ref());
     let rust_type = type_map::scalar_rust_type(underlying_bt);
     let mod_name = format!("bitflags_{}", type_map::to_snake_case(name));
@@ -67,7 +68,7 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
             });
         });
     });
-    w.line(&format!("pub use self::{mod_name}::{name};"));
+    w.line(&format!("{vis} use self::{mod_name}::{name};"));
 
     if opts.rust_serialize {
         w.blank();
@@ -167,6 +168,7 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
 /// Generate a regular (non-bitflags) enum.
 fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) {
     let name = enum_def.name.as_deref().unwrap_or("");
+    let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let is_union = enum_def.is_union == Some(true);
 
     let underlying_bt = type_map::get_base_type(enum_def.underlying_type.as_ref());
@@ -190,17 +192,17 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
         let depr = "#[deprecated(since = \"2.0.0\", note = \"Use associated constants instead. This will no longer be generated in 2021.\")]";
         w.line(depr);
         w.line(&format!(
-            "pub const ENUM_MIN_{upper_name}: {rust_type} = {min_val};"
+            "{vis} const ENUM_MIN_{upper_name}: {rust_type} = {min_val};"
         ));
         w.line(depr);
         w.line(&format!(
-            "pub const ENUM_MAX_{upper_name}: {rust_type} = {max_val};"
+            "{vis} const ENUM_MAX_{upper_name}: {rust_type} = {max_val};"
         ));
         w.line(depr);
         w.line("#[allow(non_camel_case_types)]");
         let n = enum_def.values.len();
         w.line(&format!(
-            "pub const ENUM_VALUES_{upper_name}: [{name}; {n}] = ["
+            "{vis} const ENUM_VALUES_{upper_name}: [{name}; {n}] = ["
         ));
         w.indent();
         for val in &enum_def.values {
@@ -217,7 +219,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     // Struct definition
     w.line("#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]");
     w.line("#[repr(transparent)]");
-    w.line(&format!("pub struct {name}(pub {rust_type});"));
+    w.line(&format!("{vis} struct {name}(pub {rust_type});"));
 
     // Impl block with constants
     w.line("#[allow(non_upper_case_globals)]");
@@ -434,7 +436,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     // For union types: also generate marker struct for table offset
     if is_union {
         w.blank();
-        w.line(&format!("pub struct {name}UnionTableOffset {{}}"));
+        w.line(&format!("{vis} struct {name}UnionTableOffset {{}}"));
     }
 }
 
@@ -454,6 +456,8 @@ fn gen_union_object_api(
         .and_then(|n| n.namespace.as_deref())
         .unwrap_or("");
 
+    let vis = type_visibility(enum_def.attributes.as_ref(), opts);
+
     // Enum definition
     w.line("#[non_exhaustive]");
     let mut derives = vec!["Debug", "Clone", "PartialEq"];
@@ -462,7 +466,7 @@ fn gen_union_object_api(
         derives.push("::serde::Deserialize");
     }
     w.line(&format!("#[derive({})]", derives.join(", ")));
-    w.block(&format!("pub enum {t_name}"), |w| {
+    w.block(&format!("{vis} enum {t_name}"), |w| {
         w.line("NONE,");
         for val in &enum_def.values {
             let vname = val.name.as_deref().unwrap_or("");

@@ -351,3 +351,118 @@ table Outer {
         "nested_table",
     );
 }
+
+// ---------------------------------------------------------------------------
+// --no-includes flag tests
+// ---------------------------------------------------------------------------
+
+/// Generate Rust code from a schema string, returning the generated source.
+fn generate_code(schema_source: &str, opts: &CodeGenOptions) -> String {
+    let parser = FbsParser::new(schema_source).with_file_name("test.fbs".to_string());
+    let parse_output = parser.parse().unwrap();
+    let schema = analyze(parse_output).unwrap();
+    generate_rust(&schema, opts).unwrap()
+}
+
+#[test]
+fn no_includes_omits_use_super() {
+    let schema = r#"
+namespace Game;
+table Monster { hp: int; }
+"#;
+    // Default: should contain "use super::*;"
+    let code_with = generate_code(schema, &default_opts());
+    assert!(
+        code_with.contains("use super::*;"),
+        "default codegen should include 'use super::*;'"
+    );
+
+    // With --no-includes: should NOT contain "use super::*;"
+    let mut opts = default_opts();
+    opts.no_includes = true;
+    let code_without = generate_code(schema, &opts);
+    assert!(
+        !code_without.contains("use super::*;"),
+        "codegen with no_includes should omit 'use super::*;'"
+    );
+}
+
+#[test]
+fn no_includes_still_compiles() {
+    assert_compiles(
+        r#"
+namespace Game;
+table Monster { hp: int; name: string; }
+"#,
+        &CodeGenOptions {
+            no_includes: true,
+            ..default_opts()
+        },
+        "no_includes",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// --no-leak-private-annotation flag tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn private_annotation_generates_pub_crate() {
+    let schema = r#"
+table PublicTable { x: int; }
+table PrivateTable (private) { y: int; }
+"#;
+    let mut opts = default_opts();
+    opts.no_leak_private = true;
+    let code = generate_code(schema, &opts);
+
+    // PublicTable should use "pub"
+    assert!(
+        code.contains("pub struct PublicTable"),
+        "PublicTable should be pub"
+    );
+
+    // PrivateTable should use "pub(crate)"
+    assert!(
+        code.contains("pub(crate) struct PrivateTable"),
+        "PrivateTable should be pub(crate), got:\n{}",
+        code.lines()
+            .filter(|l| l.contains("PrivateTable"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
+
+#[test]
+fn private_annotation_ignored_without_flag() {
+    let schema = r#"
+table PrivateTable (private) { y: int; }
+"#;
+    let opts = default_opts(); // no_leak_private = false (default)
+    let code = generate_code(schema, &opts);
+
+    // Without the flag, even (private)-annotated types should be "pub"
+    assert!(
+        code.contains("pub struct PrivateTable"),
+        "without --no-leak-private-annotation, PrivateTable should still be pub"
+    );
+    assert!(
+        !code.contains("pub(crate)"),
+        "no pub(crate) without the flag"
+    );
+}
+
+#[test]
+fn private_annotation_compiles() {
+    assert_compiles(
+        r#"
+table PublicTable { x: int; }
+table PrivateTable (private) { y: int; }
+"#,
+        &CodeGenOptions {
+            no_leak_private: true,
+            ..default_opts()
+        },
+        "private_annotation",
+    );
+}

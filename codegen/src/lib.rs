@@ -137,6 +137,30 @@ pub struct CodeGenOptions {
     /// When set, only generate code for types whose `declaration_file` matches
     /// one of these paths. When `None`, generate for all types (--gen-all).
     pub gen_only_files: Option<HashSet<String>>,
+    /// Don't generate `use` import statements for dependent schemas (--no-includes).
+    pub no_includes: bool,
+    /// Generate `pub(crate)` instead of `pub` for types with `(private)` attribute.
+    /// Also validates that public types don't expose private types through fields.
+    pub no_leak_private: bool,
+}
+
+/// Return the Rust visibility keyword for a type based on its attributes and options.
+///
+/// When `opts.no_leak_private` is true and the type has a `(private)` attribute,
+/// returns `"pub(crate)"`. Otherwise returns `"pub"`.
+pub fn type_visibility(attrs: Option<&schema::Attributes>, opts: &CodeGenOptions) -> &'static str {
+    if opts.no_leak_private {
+        if let Some(attrs) = attrs {
+            if attrs
+                .entries
+                .iter()
+                .any(|kv| kv.key.as_deref() == Some("private"))
+            {
+                return "pub(crate)";
+            }
+        }
+    }
+    "pub"
 }
 
 /// Options for TypeScript code generation.
@@ -148,6 +172,8 @@ pub struct TsCodeGenOptions {
     /// When set, only generate code for types whose `declaration_file` matches
     /// one of these paths. When `None`, generate for all types (--gen-all).
     pub gen_only_files: Option<HashSet<String>>,
+    /// Generate `mutate_*` methods for scalar fields in TypeScript (--gen-mutable).
+    pub gen_mutable: bool,
 }
 
 /// Check if a type should be included based on its declaration file and the filter.

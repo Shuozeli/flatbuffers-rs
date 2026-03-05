@@ -4,7 +4,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 
 use super::code_writer::CodeWriter;
 use super::type_map;
-use super::CodeGenOptions;
+use super::{type_visibility, CodeGenOptions};
 
 /// Generate Rust code for the struct at `schema.objects[index]`.
 pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
@@ -13,11 +13,13 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
     let byte_size = obj_byte_size(obj);
     let min_align = obj_min_align(obj);
 
+    let vis = type_visibility(obj.attributes.as_ref(), opts);
+
     // Struct definition
     w.line(&format!("// struct {name}, aligned to {min_align}"));
     w.line("#[repr(transparent)]");
     w.line("#[derive(Clone, Copy, PartialEq)]");
-    w.line(&format!("pub struct {name}(pub [u8; {byte_size}]);"));
+    w.line(&format!("{vis} struct {name}(pub [u8; {byte_size}]);"));
     w.blank();
 
     // Default impl
@@ -524,6 +526,7 @@ fn gen_object_api(
 ) {
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
+    let vis = type_visibility(obj.attributes.as_ref(), opts);
     let t_name = format!("{name}T");
 
     // Skip if it has array fields (complex; defer to future work)
@@ -538,7 +541,7 @@ fn gen_object_api(
         derives.push("::serde::Deserialize");
     }
     w.line(&format!("#[derive({})]", derives.join(", ")));
-    w.block(&format!("pub struct {t_name}"), |w| {
+    w.block(&format!("{vis} struct {t_name}"), |w| {
         for field in &obj.fields {
             let fname = escape_keyword(&type_map::to_snake_case(
                 field.name.as_deref().unwrap_or(""),

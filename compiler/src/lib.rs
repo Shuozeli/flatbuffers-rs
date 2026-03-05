@@ -1,7 +1,9 @@
 pub mod analyzer;
 pub mod bfbs;
 pub mod compiler;
+pub mod conform;
 pub mod error;
+pub mod json;
 #[allow(
     unused_imports,
     dead_code,

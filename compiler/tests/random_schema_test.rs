@@ -43,6 +43,7 @@ fn random_schema_compiles_typescript() {
         let opts = TsCodeGenOptions {
             gen_object_api: true,
             gen_only_files: None,
+            gen_mutable: false,
         };
         generate_typescript(&result.schema, &opts).unwrap_or_else(|e| {
             panic!("seed {seed} failed TS codegen:\n---\n{fbs_text}---\nerror: {e}");

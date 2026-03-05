@@ -9,15 +9,15 @@ use crate::CodeGenOptions;
 use super::helpers;
 
 /// `pub enum FooOffset {}`
-pub(super) fn gen_offset_marker(w: &mut CodeWriter, name: &str) {
-    w.line(&format!("pub enum {name}Offset {{}}"));
+pub(super) fn gen_offset_marker(w: &mut CodeWriter, name: &str, vis: &str) {
+    w.line(&format!("{vis} enum {name}Offset {{}}"));
     w.line("#[derive(Copy, Clone, PartialEq)]");
 }
 
 /// Reader struct with lifetime.
-pub(super) fn gen_reader_struct(w: &mut CodeWriter, name: &str) {
+pub(super) fn gen_reader_struct(w: &mut CodeWriter, name: &str, vis: &str) {
     w.blank();
-    w.block(&format!("pub struct {name}<'a>"), |w| {
+    w.block(&format!("{vis} struct {name}<'a>"), |w| {
         w.line("pub _tab: ::flatbuffers::Table<'a>,");
     });
 }

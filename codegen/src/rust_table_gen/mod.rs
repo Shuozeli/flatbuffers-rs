@@ -7,16 +7,17 @@ use flatc_rs_schema as schema;
 
 use super::code_writer::CodeWriter;
 use super::type_map;
-use super::CodeGenOptions;
+use super::{type_visibility, CodeGenOptions};
 
 /// Generate Rust code for the table at `schema.objects[index]`.
 pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
+    let vis = type_visibility(obj.attributes.as_ref(), opts);
     let current_ns = type_map::object_namespace(obj);
 
-    reader::gen_offset_marker(w, name);
-    reader::gen_reader_struct(w, name);
+    reader::gen_offset_marker(w, name, vis);
+    reader::gen_reader_struct(w, name, vis);
     w.blank();
     reader::gen_follow_impl(w, name);
     w.blank();

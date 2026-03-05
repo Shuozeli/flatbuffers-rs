@@ -67,7 +67,9 @@ impl<'a> RustGenerator<'a> {
         self.w.line("#[allow(unused_imports, dead_code)]");
         self.w.line(&format!("pub mod {mod_name} {{"));
         self.w.indent();
-        self.w.line("use super::*;");
+        if !self._opts.no_includes {
+            self.w.line("use super::*;");
+        }
 
         // Types at this namespace level
         if !node.types.is_empty() {

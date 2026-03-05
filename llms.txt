@@ -1,0 +1,138 @@
+# flatbuffers-rs
+
+> Pure Rust FlatBuffers schema compiler. Drop-in replacement for C++ `flatc`
+> with binary-compatible output. Compiles `.fbs` schemas to Rust, TypeScript,
+> and binary schema (.bfbs) formats.
+
+Source: https://github.com/Shuozeli/flatbuffers-rs
+
+## What This Is
+
+A from-scratch Rust implementation of the FlatBuffers schema compiler (`flatc`).
+Takes `.fbs` schema files as input and produces the same generated code and
+binary wire format as the official C++ `flatc`. Designed as a drop-in
+replacement: same input, same output, same binary compatibility.
+
+Use cases:
+- Compile `.fbs` schemas to Rust or TypeScript without a C++ toolchain
+- CI/CD schema evolution checking (`--conform`)
+- Binary schema (.bfbs) generation for tooling
+- JSON <-> FlatBuffers binary conversion
+
+## Architecture
+
+Six crates in a Cargo workspace:
+
+### grammar
+
+Tree-sitter grammar for the `.fbs` IDL. Defines the syntax rules for parsing
+FlatBuffers schema files.
+
+### schema
+
+Protobuf-based schema types that mirror the official FlatBuffers reflection
+schema (`reflection.fbs`). The internal representation used by all other crates.
+
+### parser
+
+`.fbs` text -> unresolved Schema. Uses tree-sitter for incremental,
+error-tolerant parsing.
+
+### codegen
+
+Code generators for multiple target languages:
+- `rust_gen.rs` -- Rust code generation (tables, structs, enums, unions, Object API)
+- `ts_gen.rs` -- TypeScript code generation
+- `enum_gen.rs` -- Enum and bitflags generation
+- `struct_gen.rs` -- Struct generation
+- `rust_table_gen/` -- Table reader, builder, and Object API generation
+
+### compiler
+
+The main orchestrator:
+- `analyzer.rs` -- 8-step semantic analysis (type resolution, field ID assignment, etc.)
+- `compiler.rs` -- Multi-file include resolution and schema merging
+- `bfbs.rs` -- Binary schema (.bfbs) serialization and deserialization
+- `conform.rs` -- Schema backwards-compatibility checking
+- `json/` -- JSON <-> FlatBuffers binary encoder/decoder
+- `main.rs` -- CLI entry point (`flatc` binary)
+
+### test-utils
+
+Shared golden test framework. Tests are `.fbs` + `.expected` pairs,
+auto-discovered by build.rs.
+
+## CLI Usage
+
+```bash
+# Generate Rust code
+flatc --rust -o out/ schema.fbs
+
+# Generate Rust with Object API
+flatc --rust --gen-object-api -o out/ schema.fbs
+
+# Generate TypeScript
+flatc --ts -o out/ schema.fbs
+
+# Generate binary schema
+flatc -b -o out/ schema.fbs
+
+# JSON -> FlatBuffers binary
+flatc -b schema.fbs -- data.json
+
+# FlatBuffers binary -> JSON
+flatc -t schema.fbs -- data.bin
+
+# Schema evolution check
+flatc --conform base_schema.fbs schema.fbs
+
+# Include search paths
+flatc --rust -I includes/ schema.fbs
+```
+
+## Supported Flags
+
+Core: `-o`, `-I`, `--rust`, `--ts`, `-b`/`--schema`, `-t`/`--json`, `--root-type`,
+`--gen-all`, `--gen-object-api`, `--gen-name-strings`, `--filename-suffix`,
+`--filename-ext`, `--file-names-only`, `--no-warnings`, `--warnings-as-errors`
+
+Rust-specific: `--rust-serialize`, `--no-leak-private-annotation`, `--no-includes`
+
+TypeScript-specific: `--gen-mutable`
+
+JSON/Binary: `--strict-json`, `--defaults-json`, `--force-defaults`,
+`--unknown-json`, `--size-prefixed`
+
+BFBS: `--bfbs-comments`, `--bfbs-filenames`, `--bfbs-absolute-paths`
+
+Schema validation: `--conform`, `--conform-includes`
+
+## Build
+
+```bash
+# Build
+cargo build --workspace
+
+# Run all tests (550+ tests)
+cargo test --workspace
+
+# Regenerate golden files after intentional changes
+UPDATE_GOLDEN=1 cargo test --workspace
+```
+
+## Status
+
+- 550+ tests passing
+- Cross-compatibility verified against C++ flatc for monster_test, optional_scalars, more_defaults
+- 90.6% of official .fbs test files compile successfully
+- Binary-compatible output (same bytes as C++ flatc for same schema + data)
+
+## Related Projects
+
+- [fbsviewer-lib](https://github.com/Shuozeli/fbsviewer-lib) -- Interactive binary visualizer built on this compiler
+- [fbsviewer.shuozeli.com](https://fbsviewer.shuozeli.com/) -- Live demo of the visualizer
+
+## Optional: Detailed Documentation
+
+- [Flag parity document](https://github.com/Shuozeli/flatbuffers-rs/blob/main/docs/flag-parity.md)
+- [Roadmap](https://github.com/Shuozeli/flatbuffers-rs/blob/main/ROADMAP.md)

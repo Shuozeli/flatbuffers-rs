@@ -92,7 +92,7 @@ impl<'a> TsGenerator<'a> {
                     self.w.blank();
                 }
                 TypeEntry::Table(idx) => {
-                    ts_table_gen::generate(&mut self.w, self.schema, *idx, gen_object_api);
+                    ts_table_gen::generate(&mut self.w, self.schema, *idx, self.opts);
                     self.w.blank();
                 }
             }

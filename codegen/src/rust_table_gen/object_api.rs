@@ -4,7 +4,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 
 use crate::code_writer::CodeWriter;
 use crate::type_map;
-use crate::CodeGenOptions;
+use crate::{type_visibility, CodeGenOptions};
 
 use super::helpers;
 
@@ -17,6 +17,7 @@ pub(super) fn gen_object_api(
     current_ns: &str,
     opts: &CodeGenOptions,
 ) {
+    let vis = type_visibility(obj.attributes.as_ref(), opts);
     let t_name = format!("{name}T");
 
     // --- Struct definition ---
@@ -27,7 +28,7 @@ pub(super) fn gen_object_api(
         derives.push("::serde::Deserialize");
     }
     w.line(&format!("#[derive({})]", derives.join(", ")));
-    w.block(&format!("pub struct {t_name}"), |w| {
+    w.block(&format!("{vis} struct {t_name}"), |w| {
         for field in &obj.fields {
             let bt = get_base_type(field.type_.as_ref());
             // Skip union type discriminator fields (they're handled by the union T enum)

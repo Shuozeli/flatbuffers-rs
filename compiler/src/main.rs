@@ -8,13 +8,16 @@ use clap::Parser;
 use flatc_rs_compiler::{
     bfbs::serialize_schema,
     codegen::{generate_rust, generate_typescript, CodeGenOptions, TsCodeGenOptions},
-    compile, CompilerOptions,
+    compile,
+    conform::check_conform,
+    json::{binary_to_json, json_to_binary_with_opts, EncoderOptions, JsonOptions},
+    CompilerOptions,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Parser)]
-#[command(name = "flatc-rs")]
+#[command(name = "flatc")]
 #[command(about = "FlatBuffers schema compiler (Rust implementation)")]
 #[command(version = VERSION)]
 struct Cli {
@@ -95,6 +98,71 @@ struct Cli {
     #[arg(short = 'b', long = "schema")]
     binary_schema: bool,
 
+    // -- JSON conversion (matching C++ flatc -t) --
+    /// Convert FlatBuffer binary to JSON (provide data files after --).
+    #[arg(short = 't', long = "json")]
+    to_json: bool,
+
+    /// Use strict JSON format.
+    #[arg(long)]
+    strict_json: bool,
+
+    /// Output fields with default values in JSON.
+    #[arg(long)]
+    defaults_json: bool,
+
+    /// When encoding JSON -> binary, emit fields even when they equal the default.
+    #[arg(long)]
+    force_defaults: bool,
+
+    /// Allow unknown fields in JSON input instead of erroring.
+    #[arg(long)]
+    unknown_json: bool,
+
+    /// Treat input binary as size-prefixed (4-byte length header).
+    #[arg(long)]
+    size_prefixed: bool,
+
+    // -- Codegen control --
+    /// Don't generate include statements for dependent schemas.
+    #[arg(long)]
+    no_includes: bool,
+
+    /// Generate pub(crate) for types with (private) attribute and validate
+    /// that public types don't expose private types.
+    #[arg(long)]
+    no_leak_private_annotation: bool,
+
+    /// Generate mutate methods for scalar fields (TypeScript).
+    #[arg(long)]
+    gen_mutable: bool,
+
+    // -- BFBS options --
+    /// Include doc comments in binary schema output.
+    #[arg(long)]
+    bfbs_comments: bool,
+
+    /// Set root path for relative filenames in BFBS output.
+    #[arg(long)]
+    bfbs_filenames: Option<PathBuf>,
+
+    /// Use absolute paths in BFBS output (modifier for --bfbs-filenames).
+    #[arg(long)]
+    bfbs_absolute_paths: bool,
+
+    // -- Schema evolution --
+    /// Check backwards compatibility against a base schema file.
+    #[arg(long)]
+    conform: Option<PathBuf>,
+
+    /// Search path for includes when compiling the --conform schema.
+    #[arg(long)]
+    conform_includes: Vec<PathBuf>,
+
+    /// Data files (binary or JSON) for conversion. Specified after -- separator.
+    #[arg(last = true)]
+    data_files: Vec<PathBuf>,
+
     // -- flatc-rs extensions --
     /// Output the resolved schema as JSON (flatc-rs only).
     #[arg(long)]
@@ -154,11 +222,33 @@ fn main() {
         process::exit(1);
     }
 
-    let has_action = cli.rust || cli.ts || cli.binary_schema || cli.dump_schema;
+    let has_action = cli.rust
+        || cli.ts
+        || cli.binary_schema
+        || cli.dump_schema
+        || cli.to_json
+        || cli.conform.is_some();
     if !has_action {
-        eprintln!("error: no action specified, use --rust, --ts, --schema, or --dump-schema");
+        eprintln!(
+            "error: no action specified, use --rust, --ts, --json, --schema, --conform, or --dump-schema"
+        );
         process::exit(1);
     }
+
+    // Validate JSON conversion: -t requires data files
+    if cli.to_json && cli.data_files.is_empty() {
+        eprintln!("error: --json (-t) requires data files after -- separator");
+        eprintln!("usage: flatc -t schema.fbs -- data.bin");
+        process::exit(1);
+    }
+
+    // -b with data files: JSON -> binary
+    let json_to_bin = cli.binary_schema
+        && !cli.data_files.is_empty()
+        && cli.data_files.iter().all(|f| {
+            f.extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+        });
 
     // Warn about unimplemented features.
     if cli.rust_module_root_file {
@@ -201,6 +291,34 @@ fn main() {
         }
     };
 
+    // -- Conform check --
+    if let Some(ref conform_file) = cli.conform {
+        let conform_opts = CompilerOptions {
+            include_paths: if cli.conform_includes.is_empty() {
+                cli.include.clone()
+            } else {
+                cli.conform_includes.clone()
+            },
+        };
+        let base_result = match compile(std::slice::from_ref(conform_file), &conform_opts) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!(
+                    "error: failed to compile conform schema {}: {e}",
+                    conform_file.display()
+                );
+                process::exit(1);
+            }
+        };
+        if let Err(errors) = check_conform(&result.schema, &base_result.schema) {
+            for err in &errors {
+                eprintln!("error: {err}");
+            }
+            eprintln!("{} conformance error(s) found", errors.len());
+            process::exit(1);
+        }
+    }
+
     // -- Output --
     let output_dir = cli.output_path.as_deref().unwrap_or(Path::new("."));
 
@@ -215,7 +333,34 @@ fn main() {
     }
 
     if cli.binary_schema {
-        let bfbs = serialize_schema(&result.schema);
+        // Apply --bfbs-filenames path rewriting if set
+        let schema_for_bfbs = if let Some(ref bfbs_root) = cli.bfbs_filenames {
+            let mut schema = result.schema.clone();
+            let bfbs_root = fs::canonicalize(bfbs_root).unwrap_or_else(|_| bfbs_root.clone());
+            let root_str = bfbs_root.to_string_lossy();
+            for obj in &mut schema.objects {
+                if let Some(ref mut df) = obj.declaration_file {
+                    if !cli.bfbs_absolute_paths {
+                        if let Some(rel) = df.strip_prefix(&*root_str) {
+                            *df = rel.trim_start_matches('/').to_string();
+                        }
+                    }
+                }
+            }
+            for enum_def in &mut schema.enums {
+                if let Some(ref mut df) = enum_def.declaration_file {
+                    if !cli.bfbs_absolute_paths {
+                        if let Some(rel) = df.strip_prefix(&*root_str) {
+                            *df = rel.trim_start_matches('/').to_string();
+                        }
+                    }
+                }
+            }
+            schema
+        } else {
+            result.schema.clone()
+        };
+        let bfbs = serialize_schema(&schema_for_bfbs);
         for input_file in &cli.files {
             let stem = input_file
                 .file_stem()
@@ -237,6 +382,132 @@ fn main() {
                 if let Err(e) = fs::write(&out_path, &bfbs) {
                     eprintln!("error: failed to write {}: {e}", out_path.display());
                     process::exit(1);
+                }
+            }
+        }
+    }
+
+    // -- JSON conversion --
+    if cli.to_json || json_to_bin {
+        // Determine root type from schema or --root-type flag
+        let root_type_name = cli
+            .root_type
+            .as_deref()
+            .or(result.schema.root_table.as_ref().and_then(|rt| {
+                // root_table is an Object -- extract its name
+                rt.name.as_deref()
+            }))
+            .unwrap_or_else(|| {
+                eprintln!("error: no root_type in schema and --root-type not specified");
+                process::exit(1);
+            })
+            .to_string();
+
+        let json_opts = JsonOptions {
+            strict_json: cli.strict_json,
+            output_defaults: cli.defaults_json,
+            output_enum_identifiers: true,
+            size_prefixed: cli.size_prefixed,
+        };
+
+        let enc_opts = EncoderOptions {
+            unknown_json: cli.unknown_json,
+            force_defaults: cli.force_defaults,
+        };
+
+        for data_file in &cli.data_files {
+            if cli.to_json {
+                // Binary -> JSON
+                let buf = match fs::read(data_file) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        eprintln!("error: failed to read {}: {e}", data_file.display());
+                        process::exit(1);
+                    }
+                };
+                let json_val =
+                    match binary_to_json(&buf, &result.schema, &root_type_name, &json_opts) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            eprintln!("error: failed to decode {}: {e}", data_file.display());
+                            process::exit(1);
+                        }
+                    };
+
+                let json_str = if cli.strict_json {
+                    serde_json::to_string(&json_val)
+                } else {
+                    serde_json::to_string_pretty(&json_val)
+                }
+                .unwrap_or_else(|e| {
+                    eprintln!("error: failed to serialize JSON: {e}");
+                    process::exit(1);
+                });
+
+                // Write to output file or stdout
+                let stem = data_file
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "output".to_string());
+                let out_path = output_dir.join(format!("{stem}.json"));
+
+                if cli.file_names_only {
+                    println!("{}", out_path.display());
+                } else if let Err(e) = write_output(&out_path, &json_str) {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+            } else if json_to_bin {
+                // JSON -> Binary
+                let json_str = match fs::read_to_string(data_file) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("error: failed to read {}: {e}", data_file.display());
+                        process::exit(1);
+                    }
+                };
+                let json_val: serde_json::Value = match serde_json::from_str(&json_str) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("error: failed to parse JSON {}: {e}", data_file.display());
+                        process::exit(1);
+                    }
+                };
+                let bin = match json_to_binary_with_opts(
+                    &json_val,
+                    &result.schema,
+                    &root_type_name,
+                    &enc_opts,
+                ) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        eprintln!("error: failed to encode {}: {e}", data_file.display());
+                        process::exit(1);
+                    }
+                };
+
+                let stem = data_file
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "output".to_string());
+                let out_path = output_dir.join(format!("{stem}.bin"));
+
+                if cli.file_names_only {
+                    println!("{}", out_path.display());
+                } else {
+                    if let Some(parent) = out_path.parent() {
+                        if let Err(e) = fs::create_dir_all(parent) {
+                            eprintln!(
+                                "error: failed to create directory {}: {e}",
+                                parent.display()
+                            );
+                            process::exit(1);
+                        }
+                    }
+                    if let Err(e) = fs::write(&out_path, &bin) {
+                        eprintln!("error: failed to write {}: {e}", out_path.display());
+                        process::exit(1);
+                    }
                 }
             }
         }
@@ -274,6 +545,8 @@ fn main() {
                 gen_object_api: cli.gen_object_api,
                 rust_serialize: cli.rust_serialize,
                 gen_only_files: gen_only_files.clone(),
+                no_includes: cli.no_includes,
+                no_leak_private: cli.no_leak_private_annotation,
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("rs");
             let code = match generate_rust(&result.schema, &rust_opts) {
@@ -304,6 +577,7 @@ fn main() {
             let ts_opts = TsCodeGenOptions {
                 gen_object_api: cli.gen_object_api,
                 gen_only_files: gen_only_files.clone(),
+                gen_mutable: cli.gen_mutable,
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("ts");
             let code = match generate_typescript(&result.schema, &ts_opts) {

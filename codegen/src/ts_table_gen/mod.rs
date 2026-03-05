@@ -8,9 +8,16 @@ use flatc_rs_schema::{self as schema, BaseType};
 use super::code_writer::CodeWriter;
 use super::ts_type_map;
 use super::type_map;
+use super::TsCodeGenOptions;
 
 /// Generate TypeScript code for the table at `schema.objects[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, gen_object_api: bool) {
+pub fn generate(
+    w: &mut CodeWriter,
+    schema: &schema::Schema,
+    index: usize,
+    opts: &TsCodeGenOptions,
+) {
+    let gen_object_api = opts.gen_object_api;
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
     let fqn = ts_type_map::build_fqn(obj);
@@ -90,15 +97,17 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, gen_o
             w.blank();
         }
 
-        // Field mutators (for mutable fields)
-        for field in &obj.fields {
-            if field.is_deprecated == Some(true) {
-                continue;
-            }
-            let bt = type_map::get_base_type(field.type_.as_ref());
-            if type_map::is_scalar(bt) || bt == BaseType::BASE_TYPE_BOOL {
-                reader::gen_field_mutator(w, schema, field);
-                w.blank();
+        // Field mutators (for mutable fields, only with --gen-mutable)
+        if opts.gen_mutable {
+            for field in &obj.fields {
+                if field.is_deprecated == Some(true) {
+                    continue;
+                }
+                let bt = type_map::get_base_type(field.type_.as_ref());
+                if type_map::is_scalar(bt) || bt == BaseType::BASE_TYPE_BOOL {
+                    reader::gen_field_mutator(w, schema, field);
+                    w.blank();
+                }
             }
         }
 
