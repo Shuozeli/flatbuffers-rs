@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 flatbuffers = { version = "25.12.19" }
+flatc-rs-annotator = { path = "../annotator" }
 flatc-rs-codegen = { path = "../codegen" }
 flatc-rs-parser = { path = "../parser" }
 flatc-rs-schema = { path = "../schema" }

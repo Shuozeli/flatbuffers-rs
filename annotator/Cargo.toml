@@ -1,0 +1,9 @@
+[package]
+name = "flatc-rs-annotator"
+version = "0.1.0"
+edition = "2021"
+description = "FlatBuffers binary annotation engine"
+
+[dependencies]
+flatc-rs-schema = { path = "../schema" }
+thiserror = "2"

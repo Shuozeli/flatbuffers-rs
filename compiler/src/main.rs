@@ -163,6 +163,11 @@ struct Cli {
     #[arg(last = true)]
     data_files: Vec<PathBuf>,
 
+    /// Annotate a FlatBuffers binary with schema information.
+    /// Outputs an .afb file with hex dumps and field annotations.
+    #[arg(long)]
+    annotate: bool,
+
     // -- flatc-rs extensions --
     /// Output the resolved schema as JSON (flatc-rs only).
     #[arg(long)]
@@ -227,10 +232,11 @@ fn main() {
         || cli.binary_schema
         || cli.dump_schema
         || cli.to_json
+        || cli.annotate
         || cli.conform.is_some();
     if !has_action {
         eprintln!(
-            "error: no action specified, use --rust, --ts, --json, --schema, --conform, or --dump-schema"
+            "error: no action specified, use --rust, --ts, --json, --schema, --annotate, --conform, or --dump-schema"
         );
         process::exit(1);
     }
@@ -239,6 +245,13 @@ fn main() {
     if cli.to_json && cli.data_files.is_empty() {
         eprintln!("error: --json (-t) requires data files after -- separator");
         eprintln!("usage: flatc -t schema.fbs -- data.bin");
+        process::exit(1);
+    }
+
+    // Validate --annotate requires data files
+    if cli.annotate && cli.data_files.is_empty() {
+        eprintln!("error: --annotate requires data files after -- separator");
+        eprintln!("usage: flatc --annotate schema.fbs -- data.bin");
         process::exit(1);
     }
 
@@ -509,6 +522,77 @@ fn main() {
                         process::exit(1);
                     }
                 }
+            }
+        }
+    }
+
+    // -- Annotate --
+    if cli.annotate {
+        let root_type_name = cli
+            .root_type
+            .as_deref()
+            .or(result
+                .schema
+                .root_table
+                .as_ref()
+                .and_then(|rt| rt.name.as_deref()))
+            .unwrap_or_else(|| {
+                eprintln!("error: no root_type in schema and --root-type not specified");
+                process::exit(1);
+            })
+            .to_string();
+
+        let schema_name = cli
+            .files
+            .first()
+            .map(|p| {
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .unwrap_or_else(|| "schema.fbs".to_string());
+
+        for data_file in &cli.data_files {
+            let buf = match fs::read(data_file) {
+                Ok(b) => b,
+                Err(e) => {
+                    eprintln!("error: failed to read {}: {e}", data_file.display());
+                    process::exit(1);
+                }
+            };
+
+            let binary_name = data_file
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+
+            let afb = match flatc_rs_annotator::annotate_binary(
+                &buf,
+                &result.schema,
+                &root_type_name,
+                &schema_name,
+                &binary_name,
+            ) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: failed to annotate {}: {e}", data_file.display());
+                    process::exit(1);
+                }
+            };
+
+            let stem = data_file
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "output".to_string());
+            let out_path = output_dir.join(format!("{stem}.afb"));
+
+            if cli.file_names_only {
+                println!("{}", out_path.display());
+            } else if let Err(e) = write_output(&out_path, &afb) {
+                eprintln!("error: {e}");
+                process::exit(1);
             }
         }
     }
