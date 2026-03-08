@@ -1,0 +1,10 @@
+enum Permissions:ubyte (bit_flags) {
+  Read,
+  Write,
+  Execute
+}
+
+table FileInfo {
+  name:string;
+  perms:Permissions;
+}

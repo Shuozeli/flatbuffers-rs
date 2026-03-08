@@ -1,0 +1,78 @@
+{
+  "objects": [
+    {
+      "name": "Person",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/required_field.fbs",
+              "line": 2,
+              "col": 8
+            }
+          },
+          "id": 0,
+          "required": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "required"
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/required_field.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "age",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/required_field.fbs",
+              "line": 3,
+              "col": 7
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/required_field.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "email",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/required_field.fbs",
+              "line": 4,
+              "col": 9
+            }
+          },
+          "id": 2,
+          "span": {
+            "file": "testdata/golden/required_field.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/required_field.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

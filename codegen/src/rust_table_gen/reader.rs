@@ -621,7 +621,13 @@ fn gen_create_method(
 ) {
     let needs_lifetime = obj.fields.iter().any(|f| {
         let bt = get_base_type(f.type_.as_ref());
-        !type_map::is_scalar(bt)
+        matches!(
+            bt,
+            BaseType::BASE_TYPE_STRING
+                | BaseType::BASE_TYPE_STRUCT
+                | BaseType::BASE_TYPE_TABLE
+                | BaseType::BASE_TYPE_VECTOR
+        )
     });
 
     let args_lifetime = if needs_lifetime { "<'args>" } else { "" };

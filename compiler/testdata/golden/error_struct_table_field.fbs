@@ -1,0 +1,2 @@
+table Inner { x:int; }
+struct Outer { inner:Inner; }

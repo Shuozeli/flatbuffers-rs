@@ -7,6 +7,7 @@ use std::process;
 use clap::Parser;
 use flatc_rs_compiler::{
     bfbs::serialize_schema,
+    check_private_leak,
     codegen::{generate_rust, generate_typescript, CodeGenOptions, TsCodeGenOptions},
     compile,
     conform::check_conform,
@@ -328,6 +329,14 @@ fn main() {
                 eprintln!("error: {err}");
             }
             eprintln!("{} conformance error(s) found", errors.len());
+            process::exit(1);
+        }
+    }
+
+    // -- Private leak check --
+    if cli.no_leak_private_annotation {
+        if let Err(e) = check_private_leak(&result.schema) {
+            eprintln!("error: {e}");
             process::exit(1);
         }
     }

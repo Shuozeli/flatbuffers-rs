@@ -1,0 +1,117 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/doc_comments_preserved.fbs",
+              "line": 5,
+              "col": 8
+            }
+          },
+          "id": 0,
+          "documentation": {
+            "lines": [
+              " The monster's display name."
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/doc_comments_preserved.fbs",
+            "line": 4,
+            "col": 3
+          }
+        },
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/doc_comments_preserved.fbs",
+              "line": 7,
+              "col": 6
+            }
+          },
+          "id": 1,
+          "default_integer": 100,
+          "documentation": {
+            "lines": [
+              " Hit points remaining."
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/doc_comments_preserved.fbs",
+            "line": 6,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "documentation": {
+        "lines": [
+          " A monster in the game world.",
+          " Monsters can be friendly or hostile."
+        ]
+      },
+      "span": {
+        "file": "testdata/golden/doc_comments_preserved.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "MonsterType",
+      "values": [
+        {
+          "name": "Friendly",
+          "value": 0,
+          "documentation": {
+            "lines": [
+              " A friendly monster."
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/doc_comments_preserved.fbs",
+            "line": 12,
+            "col": 3
+          }
+        },
+        {
+          "name": "Hostile",
+          "value": 1,
+          "documentation": {
+            "lines": [
+              " A hostile monster."
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/doc_comments_preserved.fbs",
+            "line": 14,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_BYTE"
+      },
+      "documentation": {
+        "lines": [
+          " Types of monsters."
+        ]
+      },
+      "span": {
+        "file": "testdata/golden/doc_comments_preserved.fbs",
+        "line": 10,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,13 @@
+table Defaults {
+  b:bool = true;
+  i8:byte = -1;
+  u8:ubyte = 255;
+  i16:short = -1000;
+  u16:ushort = 60000;
+  i32:int = -100000;
+  u32:uint = 3000000000;
+  i64:long = -9999999999;
+  u64:ulong = 18000000000;
+  f32:float = 3.14;
+  f64:double = 2.718281828;
+}

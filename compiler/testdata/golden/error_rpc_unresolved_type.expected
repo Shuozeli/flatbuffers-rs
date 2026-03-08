@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_rpc_unresolved_type.fbs"), line: 2, col: 27 }): unresolved type 'NonExistent' in TestService.DoSomething response

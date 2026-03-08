@@ -215,6 +215,12 @@ pub enum AnalyzeError {
         value: String,
         span: Option<Span>,
     },
+
+    #[error("Leaking private implementation, verify all objects have similar annotations")]
+    PrivateLeak {
+        public_type: String,
+        private_type: String,
+    },
 }
 
 fn format_cycle(names: &[String]) -> String {

@@ -1,8 +1,10 @@
 [package]
 name = "flatc-rs-data-gen"
-version = "0.1.0"
-edition = "2021"
 description = "Random FlatBuffers JSON data generator from compiled Schema"
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
 flatc-rs-schema = { path = "../schema" }

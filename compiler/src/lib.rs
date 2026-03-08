@@ -21,7 +21,7 @@ pub mod type_index;
 /// Re-export the codegen crate as a module for backward compatibility.
 pub use flatc_rs_codegen as codegen;
 
-pub use analyzer::analyze;
+pub use analyzer::{analyze, check_private_leak};
 pub use codegen::generate_rust;
 pub use codegen::generate_typescript;
 pub use codegen::CodeGenError;

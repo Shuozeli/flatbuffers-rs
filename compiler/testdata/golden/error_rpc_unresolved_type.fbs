@@ -1,0 +1,2 @@
+table Request { data:string; }
+rpc_service TestService { DoSomething(Request):NonExistent; }

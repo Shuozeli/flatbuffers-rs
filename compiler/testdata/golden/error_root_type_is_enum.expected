@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_root_type_is_enum.fbs"), line: 2, col: 1 }): root_type 'Color' must be a table, not a struct or enum

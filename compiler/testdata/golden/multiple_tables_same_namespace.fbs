@@ -1,0 +1,7 @@
+namespace Game;
+
+table Player { name:string; level:int; }
+table Enemy { name:string; hp:int; }
+table Item { name:string; value:int; }
+
+root_type Player;

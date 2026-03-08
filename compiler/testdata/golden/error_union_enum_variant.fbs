@@ -1,0 +1,3 @@
+enum Color:byte { Red, Green, Blue }
+union MyUnion { Color }
+table Root { u:MyUnion; }

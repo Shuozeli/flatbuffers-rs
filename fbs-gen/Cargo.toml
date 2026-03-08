@@ -1,8 +1,10 @@
 [package]
 name = "flatc-rs-fbs-gen"
-version = "0.1.0"
-edition = "2021"
 description = "Random FlatBuffers schema generator for testing"
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
 rand = "0.8"

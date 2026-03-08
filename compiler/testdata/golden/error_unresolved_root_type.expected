@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_unresolved_root_type.fbs"), line: 2, col: 1 }): unresolved type 'Bar' in root_type declaration

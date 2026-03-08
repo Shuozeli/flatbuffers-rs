@@ -1,0 +1,9 @@
+struct Vec3 (force_align: 16) {
+  x:float;
+  y:float;
+  z:float;
+}
+
+table Model {
+  position:Vec3;
+}

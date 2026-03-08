@@ -1,0 +1,106 @@
+{
+  "objects": [
+    {
+      "name": "Monster",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/attributes_preserved.fbs",
+              "line": 5,
+              "col": 8
+            }
+          },
+          "id": 0,
+          "required": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "required"
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/attributes_preserved.fbs",
+            "line": 5,
+            "col": 3
+          }
+        },
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/attributes_preserved.fbs",
+              "line": 6,
+              "col": 6
+            }
+          },
+          "id": 1,
+          "default_integer": 100,
+          "deprecated": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "deprecated"
+              },
+              {
+                "key": "priority",
+                "value": "\"high\""
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/attributes_preserved.fbs",
+            "line": 6,
+            "col": 3
+          }
+        },
+        {
+          "name": "mana",
+          "type": {
+            "base_type": "BASE_TYPE_SHORT",
+            "base_size": 2,
+            "span": {
+              "file": "testdata/golden/attributes_preserved.fbs",
+              "line": 7,
+              "col": 8
+            }
+          },
+          "id": 2,
+          "key": true,
+          "attributes": {
+            "entries": [
+              {
+                "key": "key"
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/attributes_preserved.fbs",
+            "line": 7,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "attributes": {
+        "entries": [
+          {
+            "key": "custom_attr"
+          }
+        ]
+      },
+      "span": {
+        "file": "testdata/golden/attributes_preserved.fbs",
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -64,6 +64,47 @@ pub enum RegionType {
     },
     Padding,
     Unknown,
+
+    // --- Protobuf wire format regions ---
+    /// A protobuf message (top-level or nested).
+    ProtoMessage {
+        type_name: String,
+    },
+    /// A varint-encoded tag (field_number << 3 | wire_type).
+    ProtoTag {
+        field_number: u32,
+        wire_type: u8,
+    },
+    /// A varint value (wire type 0).
+    ProtoVarint {
+        field_name: String,
+    },
+    /// A 64-bit fixed value (wire type 1).
+    ProtoFixed64 {
+        field_name: String,
+    },
+    /// A 32-bit fixed value (wire type 5).
+    ProtoFixed32 {
+        field_name: String,
+    },
+    /// Length-delimited data (wire type 2): string, bytes, nested message, or packed repeated.
+    ProtoLengthDelimited {
+        field_name: String,
+    },
+    /// The length prefix of a length-delimited field.
+    ProtoLength,
+    /// Raw bytes within a length-delimited field (when type is unknown or bytes).
+    ProtoBytes {
+        field_name: String,
+    },
+    /// String data within a length-delimited field.
+    ProtoString {
+        field_name: String,
+    },
+    /// A packed repeated element.
+    ProtoPackedElement {
+        index: usize,
+    },
 }
 
 impl RegionType {
@@ -87,6 +128,15 @@ impl RegionType {
             RegionType::UnionTypeField { .. } | RegionType::UnionDataOffset { .. } => [205, 92, 92],
             RegionType::Padding => [128, 128, 128],
             RegionType::Unknown => [169, 169, 169],
+            // Protobuf colors
+            RegionType::ProtoMessage { .. } => [30, 144, 255],
+            RegionType::ProtoTag { .. } => [70, 130, 180],
+            RegionType::ProtoVarint { .. } => [60, 179, 113],
+            RegionType::ProtoFixed64 { .. } | RegionType::ProtoFixed32 { .. } => [255, 140, 0],
+            RegionType::ProtoLengthDelimited { .. } | RegionType::ProtoLength => [147, 112, 219],
+            RegionType::ProtoBytes { .. } => [218, 165, 32],
+            RegionType::ProtoString { .. } => [218, 165, 32],
+            RegionType::ProtoPackedElement { .. } => [147, 112, 219],
         }
     }
 
@@ -113,6 +163,17 @@ impl RegionType {
             RegionType::UnionDataOffset { .. } => "union_offset",
             RegionType::Padding => "padding",
             RegionType::Unknown => "unknown",
+            // Protobuf
+            RegionType::ProtoMessage { .. } => "proto_message",
+            RegionType::ProtoTag { .. } => "proto_tag",
+            RegionType::ProtoVarint { .. } => "proto_varint",
+            RegionType::ProtoFixed64 { .. } => "proto_fixed64",
+            RegionType::ProtoFixed32 { .. } => "proto_fixed32",
+            RegionType::ProtoLengthDelimited { .. } => "proto_length_delimited",
+            RegionType::ProtoLength => "proto_length",
+            RegionType::ProtoBytes { .. } => "proto_bytes",
+            RegionType::ProtoString { .. } => "proto_string",
+            RegionType::ProtoPackedElement { .. } => "proto_packed_elem",
         }
     }
 }

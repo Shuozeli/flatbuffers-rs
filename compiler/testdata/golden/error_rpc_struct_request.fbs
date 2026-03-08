@@ -1,0 +1,3 @@
+struct Request { x:int; }
+table Response { result:int; }
+rpc_service TestService { DoSomething(Request):Response; }

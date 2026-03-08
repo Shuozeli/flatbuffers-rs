@@ -1,0 +1,8 @@
+attribute "custom_attr";
+attribute "priority";
+
+table Monster (custom_attr) {
+  name:string (required);
+  hp:int = 100 (deprecated, priority: "high");
+  mana:short (key);
+}

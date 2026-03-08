@@ -12,7 +12,7 @@ mod ts_type_map;
 pub mod type_map;
 
 use std::collections::HashSet;
-use std::panic::{self, AssertUnwindSafe};
+use std::panic;
 
 use flatc_rs_schema as schema;
 use rust_gen::RustGenerator;
@@ -192,43 +192,48 @@ fn should_generate(declaration_file: Option<&str>, filter: &Option<HashSet<Strin
 ///
 /// The generated code is compatible with the `flatbuffers` runtime crate and
 /// includes readers, builders, and trait implementations for all types.
+///
+/// Panics in the codegen (which indicate bugs in the analyzer, not user errors)
+/// are caught and converted to `CodeGenError::Internal`.
 pub fn generate_rust(
     schema: &schema::Schema,
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
-    let schema = AssertUnwindSafe(schema);
-    let opts = AssertUnwindSafe(opts);
-    panic::catch_unwind(move || {
-        let gen = RustGenerator::new(&schema, &opts);
+    catch_codegen_panic(|| {
+        let gen = RustGenerator::new(schema, opts);
         gen.generate()
     })
-    .map_err(panic_to_codegen_error)
 }
 
 /// Generate TypeScript source code from a fully resolved FlatBuffers schema.
 ///
 /// The generated code is compatible with the `flatbuffers` npm package and
 /// includes reader classes, builder static methods, and Object API classes.
+///
+/// Panics in the codegen (which indicate bugs in the analyzer, not user errors)
+/// are caught and converted to `CodeGenError::Internal`.
 pub fn generate_typescript(
     schema: &schema::Schema,
     opts: &TsCodeGenOptions,
 ) -> Result<String, CodeGenError> {
-    let schema = AssertUnwindSafe(schema);
-    let opts = AssertUnwindSafe(opts);
-    panic::catch_unwind(move || {
-        let gen = TsGenerator::new(&schema, &opts);
+    catch_codegen_panic(|| {
+        let gen = TsGenerator::new(schema, opts);
         gen.generate()
     })
-    .map_err(panic_to_codegen_error)
 }
 
-fn panic_to_codegen_error(payload: Box<dyn std::any::Any + Send>) -> CodeGenError {
-    let msg = if let Some(s) = payload.downcast_ref::<&str>() {
-        s.to_string()
-    } else if let Some(s) = payload.downcast_ref::<String>() {
-        s.clone()
-    } else {
-        "unknown codegen error".to_string()
-    };
-    CodeGenError::Internal(msg)
+/// Run a codegen closure, catching any panics and converting them to errors.
+fn catch_codegen_panic<F: FnOnce() -> String + panic::UnwindSafe>(
+    f: F,
+) -> Result<String, CodeGenError> {
+    panic::catch_unwind(f).map_err(|payload| {
+        let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = payload.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown codegen error".to_string()
+        };
+        CodeGenError::Internal(msg)
+    })
 }

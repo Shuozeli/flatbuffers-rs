@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_struct_table_field.fbs"), line: 2, col: 16 }): invalid struct field 'inner' in struct 'Outer': type BASE_TYPE_TABLE is not allowed in structs

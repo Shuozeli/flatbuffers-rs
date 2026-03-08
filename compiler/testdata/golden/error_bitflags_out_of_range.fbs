@@ -1,0 +1,1 @@
+enum Flags:ubyte (bit_flags) { A, B, C, D, E, F, G, H, I }

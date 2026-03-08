@@ -43,7 +43,7 @@ use crate::error::{AnalyzeError, Result};
 use crate::struct_layout;
 use crate::type_index::{TypeIndex, TypeRef};
 use flatc_rs_parser::{ParseOutput, ParserState};
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::{self as schema, Attributes, BaseType};
 
 /// Analyze a parsed schema, resolving type references, assigning enum values,
 /// computing struct layouts, and validating correctness.
@@ -577,7 +577,7 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
                                 span,
                             });
                         }
-                        schema.services[svc_idx].calls[call_idx].request = Some(obj.clone());
+                        schema.services[svc_idx].calls[call_idx].request_index = Some(idx as i32);
                     }
                     TypeRef::Enum(_) => {
                         return Err(AnalyzeError::InvalidRpcType {
@@ -619,7 +619,7 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
                                 span,
                             });
                         }
-                        schema.services[svc_idx].calls[call_idx].response = Some(obj.clone());
+                        schema.services[svc_idx].calls[call_idx].response_index = Some(idx as i32);
                     }
                     TypeRef::Enum(_) => {
                         return Err(AnalyzeError::InvalidRpcType {
@@ -1207,5 +1207,104 @@ fn validate_key_attribute(obj: &schema::Object) -> Result<()> {
             });
         }
     }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Private leak validation (--no-leak-private-annotation)
+// ---------------------------------------------------------------------------
+
+fn has_private_attr(attrs: Option<&Attributes>) -> bool {
+    attrs.is_some_and(|a| {
+        a.entries
+            .iter()
+            .any(|kv| kv.key.as_deref() == Some("private"))
+    })
+}
+
+/// Check that public types do not expose private types through their fields.
+///
+/// Matches C++ flatc `CheckPrivateLeak()`: for each struct/table, if it is NOT
+/// private but a field's type (enum or struct/table) IS private, that's an error.
+/// Similarly for union types: if a union is not private but a variant's struct is.
+pub fn check_private_leak(schema: &schema::Schema) -> Result<()> {
+    // Check struct/table fields
+    for obj in &schema.objects {
+        let obj_name = obj.name.as_deref().unwrap_or("");
+        let obj_is_private = has_private_attr(obj.attributes.as_ref());
+
+        for field in &obj.fields {
+            if let Some(ref ty) = field.type_ {
+                let field_type_bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+                match field_type_bt {
+                    BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                        if let Some(idx) = ty.index {
+                            if let Some(ref_obj) = schema.objects.get(idx as usize) {
+                                if !obj_is_private && has_private_attr(ref_obj.attributes.as_ref())
+                                {
+                                    return Err(AnalyzeError::PrivateLeak {
+                                        public_type: obj_name.to_string(),
+                                        private_type: ref_obj
+                                            .name
+                                            .as_deref()
+                                            .unwrap_or("")
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        // Check enum types via index
+                        if let Some(idx) = ty.index {
+                            if let Some(ref_enum) = schema.enums.get(idx as usize) {
+                                if !ref_enum.is_union.unwrap_or(false)
+                                    && !obj_is_private
+                                    && has_private_attr(ref_enum.attributes.as_ref())
+                                {
+                                    return Err(AnalyzeError::PrivateLeak {
+                                        public_type: obj_name.to_string(),
+                                        private_type: ref_enum
+                                            .name
+                                            .as_deref()
+                                            .unwrap_or("")
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check union variants
+    for enum_def in &schema.enums {
+        if enum_def.is_union != Some(true) {
+            continue;
+        }
+        let enum_name = enum_def.name.as_deref().unwrap_or("");
+        let enum_is_private = has_private_attr(enum_def.attributes.as_ref());
+
+        for val in &enum_def.values {
+            if let Some(ref union_type) = val.union_type {
+                let bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+                if bt == BaseType::BASE_TYPE_TABLE || bt == BaseType::BASE_TYPE_STRUCT {
+                    if let Some(idx) = union_type.index {
+                        if let Some(ref_obj) = schema.objects.get(idx as usize) {
+                            if !enum_is_private && has_private_attr(ref_obj.attributes.as_ref()) {
+                                return Err(AnalyzeError::PrivateLeak {
+                                    public_type: enum_name.to_string(),
+                                    private_type: ref_obj.name.as_deref().unwrap_or("").to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Ok(())
 }

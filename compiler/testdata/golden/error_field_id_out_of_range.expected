@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_field_id_out_of_range.fbs"), line: 3, col: 3 }): field id 70000 out of range in table 'Foo' (field 'y'): must be 0..=65535

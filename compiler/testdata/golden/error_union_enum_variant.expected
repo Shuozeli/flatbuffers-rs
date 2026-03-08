@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_union_enum_variant.fbs"), line: 2, col: 17 }): invalid union variant 'Color' in union 'MyUnion': union variants must be tables or structs, not enums

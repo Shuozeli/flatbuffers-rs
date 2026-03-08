@@ -1,0 +1,2 @@
+table Req { data:string; }
+rpc_service Svc { Method(Req); }

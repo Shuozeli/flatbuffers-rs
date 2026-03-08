@@ -289,7 +289,7 @@ pub mod a {
     #[allow(unused_mut)]
     pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
       _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-      args: &'args RootArgs<'args>
+      args: &'args RootArgs
     ) -> ::flatbuffers::WIPOffset<Root<'bldr>> {
       let mut builder = RootBuilder::new(_fbb);
       if let Some(x) = args.u { builder.add_u(x); }
@@ -340,11 +340,11 @@ pub mod a {
       Ok(())
     }
   }
-  pub struct RootArgs<'a> {
+  pub struct RootArgs {
       pub u_type: MyUnion,
       pub u: Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>,
   }
-  impl<'a> Default for RootArgs<'a> {
+  impl<'a> Default for RootArgs {
     #[inline]
     fn default() -> Self {
       RootArgs {
@@ -393,7 +393,7 @@ pub mod a {
   #[inline]
   pub fn createRoot<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
     fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args RootArgs<'args>,
+    args: &'args RootArgs,
   ) -> ::flatbuffers::WIPOffset<Root<'bldr>> {
     let mut builder = RootBuilder::new(fbb);
     if let Some(x) = args.u { builder.add_u(x); }

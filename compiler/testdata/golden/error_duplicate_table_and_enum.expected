@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_duplicate_table_and_enum.fbs"), line: 2, col: 1 }): duplicate type name: Foo

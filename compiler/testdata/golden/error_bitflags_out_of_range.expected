@@ -1,0 +1,1 @@
+ANALYZE ERROR: bit_flags value 8 out of range in enum 'Flags': must be 0..8 for ubyte

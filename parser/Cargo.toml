@@ -1,8 +1,12 @@
 [package]
 name = "flatc-rs-parser"
-version = "0.1.0"
-edition = "2021"
 description = "Hand-written recursive-descent parser for FlatBuffers schema files"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 flatc-rs-schema = { path = "../schema" }

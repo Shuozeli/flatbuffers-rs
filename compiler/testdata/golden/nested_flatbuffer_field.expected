@@ -1,0 +1,73 @@
+{
+  "objects": [
+    {
+      "name": "Inner",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/nested_flatbuffer_field.fbs",
+              "line": 1,
+              "col": 17
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/nested_flatbuffer_field.fbs",
+            "line": 1,
+            "col": 15
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/nested_flatbuffer_field.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Outer",
+      "fields": [
+        {
+          "name": "data",
+          "type": {
+            "base_type": "BASE_TYPE_VECTOR",
+            "base_size": 4,
+            "element_size": 1,
+            "element": "BASE_TYPE_U_BYTE",
+            "span": {
+              "file": "testdata/golden/nested_flatbuffer_field.fbs",
+              "line": 2,
+              "col": 20
+            }
+          },
+          "id": 0,
+          "attributes": {
+            "entries": [
+              {
+                "key": "nested_flatbuffer",
+                "value": "\"Inner\""
+              }
+            ]
+          },
+          "span": {
+            "file": "testdata/golden/nested_flatbuffer_field.fbs",
+            "line": 2,
+            "col": 15
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/nested_flatbuffer_field.fbs",
+        "line": 2,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

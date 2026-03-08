@@ -1,0 +1,2 @@
+table Inner { x:int; }
+table Outer { data:[ubyte] (nested_flatbuffer: "Inner"); }

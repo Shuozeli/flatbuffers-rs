@@ -1,8 +1,12 @@
 [package]
 name = "flatc-rs-annotator"
-version = "0.1.0"
-edition = "2021"
 description = "FlatBuffers binary annotation engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 flatc-rs-schema = { path = "../schema" }

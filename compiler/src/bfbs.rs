@@ -203,7 +203,7 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
     let svc_offs: Vec<TOff> = schema
         .services
         .iter()
-        .map(|svc| write_service(&mut b, svc, &index_maps))
+        .map(|svc| write_service(&mut b, svc, &schema.objects, &index_maps))
         .collect();
     let services_vec = if svc_offs.is_empty() {
         None
@@ -508,11 +508,16 @@ fn write_object(b: &mut FlatBufferBuilder<'_>, obj: &schema::Object, maps: &Inde
 fn write_rpc_call(
     b: &mut FlatBufferBuilder<'_>,
     call: &schema::RpcCall,
+    objects: &[schema::Object],
     maps: &IndexMaps<'_>,
 ) -> TOff {
     let name = call.name.as_deref().map(|s| b.create_string(s));
-    let request = call.request.as_ref().map(|obj| write_object(b, obj, maps));
-    let response = call.response.as_ref().map(|obj| write_object(b, obj, maps));
+    let request = call
+        .request_index
+        .map(|idx| write_object(b, &objects[idx as usize], maps));
+    let response = call
+        .response_index
+        .map(|idx| write_object(b, &objects[idx as usize], maps));
     let attrs = call.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
     let doc = call
         .documentation
@@ -541,6 +546,7 @@ fn write_rpc_call(
 fn write_service(
     b: &mut FlatBufferBuilder<'_>,
     svc: &schema::Service,
+    objects: &[schema::Object],
     maps: &IndexMaps<'_>,
 ) -> TOff {
     let fq_name = fully_qualified_svc_name(svc);
@@ -549,7 +555,7 @@ fn write_service(
     let call_offs: Vec<TOff> = svc
         .calls
         .iter()
-        .map(|c| write_rpc_call(b, c, maps))
+        .map(|c| write_rpc_call(b, c, objects, maps))
         .collect();
     let calls_vec = if call_offs.is_empty() {
         None
@@ -727,6 +733,10 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
         }
     }
 
+    // Resolve RPC request/response indices by matching inline Object names
+    // against the deserialized objects list.
+    resolve_rpc_indices(&mut out_services, &out_objects);
+
     // Convert fbs_files
     let mut out_fbs_files: Vec<schema::SchemaFile> = Vec::new();
     if let Some(files) = root.fbs_files() {
@@ -772,6 +782,33 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
         advanced_features,
         fbs_files: out_fbs_files,
     })
+}
+
+/// Resolve `request_index` and `response_index` on RpcCalls by matching
+/// the inline Object's fully-qualified name against the objects list.
+fn resolve_rpc_indices(services: &mut [schema::Service], objects: &[schema::Object]) {
+    for svc in services.iter_mut() {
+        for call in svc.calls.iter_mut() {
+            if let Some(ref req) = call.request {
+                let fq = fully_qualified_obj_name(req);
+                if let Some(idx) = objects
+                    .iter()
+                    .position(|o| fully_qualified_obj_name(o) == fq)
+                {
+                    call.request_index = Some(idx as i32);
+                }
+            }
+            if let Some(ref resp) = call.response {
+                let fq = fully_qualified_obj_name(resp);
+                if let Some(idx) = objects
+                    .iter()
+                    .position(|o| fully_qualified_obj_name(o) == fq)
+                {
+                    call.response_index = Some(idx as i32);
+                }
+            }
+        }
+    }
 }
 
 /// Split a fully-qualified name like "MyGame.Example.Monster" into
@@ -1023,10 +1060,15 @@ fn read_rpc_call(
     call: &refl::RPCCall<'_>,
     is_struct_flags: &[bool],
 ) -> Result<schema::RpcCall, BfbsError> {
+    // Read inline Objects to extract names; indices are resolved in a post-pass.
+    let request = read_object(&call.request(), is_struct_flags)?;
+    let response = read_object(&call.response(), is_struct_flags)?;
     Ok(schema::RpcCall {
         name: Some(call.name().to_string()),
-        request: Some(read_object(&call.request(), is_struct_flags)?),
-        response: Some(read_object(&call.response(), is_struct_flags)?),
+        request_index: None, // resolved in resolve_rpc_indices()
+        response_index: None,
+        request: Some(request),
+        response: Some(response),
         attributes: read_attributes(call.attributes()),
         documentation: read_documentation(call.documentation()),
         span: None,

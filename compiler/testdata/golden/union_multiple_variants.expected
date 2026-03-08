@@ -1,0 +1,211 @@
+{
+  "objects": [
+    {
+      "name": "Sword",
+      "fields": [
+        {
+          "name": "damage",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_multiple_variants.fbs",
+              "line": 1,
+              "col": 22
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 1,
+            "col": 15
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/union_multiple_variants.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Shield",
+      "fields": [
+        {
+          "name": "defense",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_multiple_variants.fbs",
+              "line": 2,
+              "col": 24
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 2,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/union_multiple_variants.fbs",
+        "line": 2,
+        "col": 1
+      }
+    },
+    {
+      "name": "Potion",
+      "fields": [
+        {
+          "name": "heal",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_multiple_variants.fbs",
+              "line": 3,
+              "col": 21
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 3,
+            "col": 16
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/union_multiple_variants.fbs",
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Character",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/union_multiple_variants.fbs",
+              "line": 8,
+              "col": 8
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "equipped_type",
+          "type": {
+            "base_type": "BASE_TYPE_U_TYPE",
+            "base_size": 1,
+            "index": 0
+          },
+          "id": 1
+        },
+        {
+          "name": "equipped",
+          "type": {
+            "base_type": "BASE_TYPE_UNION",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/union_multiple_variants.fbs",
+              "line": 9,
+              "col": 12
+            }
+          },
+          "id": 2,
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 9,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/union_multiple_variants.fbs",
+        "line": 7,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Equipment",
+      "values": [
+        {
+          "name": "NONE",
+          "value": 0
+        },
+        {
+          "name": "Sword",
+          "value": 1,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "index": 0
+          },
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 5,
+            "col": 19
+          }
+        },
+        {
+          "name": "Shield",
+          "value": 2,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "index": 1
+          },
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 5,
+            "col": 26
+          }
+        },
+        {
+          "name": "Potion",
+          "value": 3,
+          "union_type": {
+            "base_type": "BASE_TYPE_TABLE",
+            "base_size": 4,
+            "index": 2
+          },
+          "span": {
+            "file": "testdata/golden/union_multiple_variants.fbs",
+            "line": 5,
+            "col": 34
+          }
+        }
+      ],
+      "is_union": true,
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_TYPE"
+      },
+      "span": {
+        "file": "testdata/golden/union_multiple_variants.fbs",
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -1,0 +1,4 @@
+table Foo {
+  x:int
+  y:string;
+}

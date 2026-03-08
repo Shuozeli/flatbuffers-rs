@@ -1,0 +1,16 @@
+/// A monster in the game world.
+/// Monsters can be friendly or hostile.
+table Monster {
+  /// The monster's display name.
+  name:string;
+  /// Hit points remaining.
+  hp:int = 100;
+}
+
+/// Types of monsters.
+enum MonsterType:byte {
+  /// A friendly monster.
+  Friendly,
+  /// A hostile monster.
+  Hostile,
+}

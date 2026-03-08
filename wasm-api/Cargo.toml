@@ -1,0 +1,14 @@
+[package]
+name = "flatc-rs-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WASM bindings for the FlatBuffers Rust compiler"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+flatc-rs-codegen = { path = "../codegen" }
+flatc-rs-compiler = { path = "../compiler" }
+flatc-rs-annotator = { path = "../annotator" }
+wasm-bindgen = "0.2"

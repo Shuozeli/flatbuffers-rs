@@ -1,0 +1,111 @@
+{
+  "objects": [
+    {
+      "name": "Vec3",
+      "fields": [
+        {
+          "name": "x",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_force_align.fbs",
+              "line": 2,
+              "col": 5
+            }
+          },
+          "offset": 0,
+          "span": {
+            "file": "testdata/golden/struct_force_align.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "y",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_force_align.fbs",
+              "line": 3,
+              "col": 5
+            }
+          },
+          "offset": 4,
+          "span": {
+            "file": "testdata/golden/struct_force_align.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "z",
+          "type": {
+            "base_type": "BASE_TYPE_FLOAT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/struct_force_align.fbs",
+              "line": 4,
+              "col": 5
+            }
+          },
+          "offset": 8,
+          "padding": 4,
+          "span": {
+            "file": "testdata/golden/struct_force_align.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": true,
+      "minalign": 16,
+      "bytesize": 16,
+      "attributes": {
+        "entries": [
+          {
+            "key": "force_align",
+            "value": "16"
+          }
+        ]
+      },
+      "span": {
+        "file": "testdata/golden/struct_force_align.fbs",
+        "line": 1,
+        "col": 1
+      }
+    },
+    {
+      "name": "Model",
+      "fields": [
+        {
+          "name": "position",
+          "type": {
+            "base_type": "BASE_TYPE_STRUCT",
+            "base_size": 4,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/struct_force_align.fbs",
+              "line": 8,
+              "col": 12
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/struct_force_align.fbs",
+            "line": 8,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/struct_force_align.fbs",
+        "line": 7,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

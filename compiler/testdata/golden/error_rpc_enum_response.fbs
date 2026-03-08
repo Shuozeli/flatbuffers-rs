@@ -1,0 +1,3 @@
+table Request { data:string; }
+enum Status:byte { OK, ERROR }
+rpc_service TestService { DoSomething(Request):Status; }

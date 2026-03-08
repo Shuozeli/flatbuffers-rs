@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_rpc_enum_response.fbs"), line: 3, col: 27 }): invalid RPC type 'Status' in TestService.DoSomething: must be a table

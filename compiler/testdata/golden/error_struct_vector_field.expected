@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_struct_vector_field.fbs"), line: 1, col: 14 }): invalid struct field 'data' in struct 'Foo': type BASE_TYPE_VECTOR is not allowed in structs

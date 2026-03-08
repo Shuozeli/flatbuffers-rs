@@ -388,9 +388,23 @@ pub struct RpcCall {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
+    /// Index into `Schema.objects` for the request type (table).
+    /// Set by the analyzer after resolving the type name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_index: Option<i32>,
+
+    /// Index into `Schema.objects` for the response type (table).
+    /// Set by the analyzer after resolving the type name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_index: Option<i32>,
+
+    /// Stub Object used only during parsing to carry the unresolved type name.
+    /// After analysis, use `request_index` to look up the actual Object.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request: Option<Object>,
 
+    /// Stub Object used only during parsing to carry the unresolved type name.
+    /// After analysis, use `response_index` to look up the actual Object.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response: Option<Object>,
 

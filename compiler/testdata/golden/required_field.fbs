@@ -1,0 +1,5 @@
+table Person {
+  name:string (required);
+  age:int;
+  email:string;
+}

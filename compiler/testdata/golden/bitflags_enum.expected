@@ -1,0 +1,102 @@
+{
+  "objects": [
+    {
+      "name": "FileInfo",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/bitflags_enum.fbs",
+              "line": 8,
+              "col": 8
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/bitflags_enum.fbs",
+            "line": 8,
+            "col": 3
+          }
+        },
+        {
+          "name": "perms",
+          "type": {
+            "base_type": "BASE_TYPE_U_BYTE",
+            "base_size": 1,
+            "index": 0,
+            "span": {
+              "file": "testdata/golden/bitflags_enum.fbs",
+              "line": 9,
+              "col": 9
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/bitflags_enum.fbs",
+            "line": 9,
+            "col": 3
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/bitflags_enum.fbs",
+        "line": 7,
+        "col": 1
+      }
+    }
+  ],
+  "enums": [
+    {
+      "name": "Permissions",
+      "values": [
+        {
+          "name": "Read",
+          "value": 0,
+          "span": {
+            "file": "testdata/golden/bitflags_enum.fbs",
+            "line": 2,
+            "col": 3
+          }
+        },
+        {
+          "name": "Write",
+          "value": 1,
+          "span": {
+            "file": "testdata/golden/bitflags_enum.fbs",
+            "line": 3,
+            "col": 3
+          }
+        },
+        {
+          "name": "Execute",
+          "value": 2,
+          "span": {
+            "file": "testdata/golden/bitflags_enum.fbs",
+            "line": 4,
+            "col": 3
+          }
+        }
+      ],
+      "underlying_type": {
+        "base_type": "BASE_TYPE_U_BYTE"
+      },
+      "attributes": {
+        "entries": [
+          {
+            "key": "bit_flags"
+          }
+        ]
+      },
+      "span": {
+        "file": "testdata/golden/bitflags_enum.fbs",
+        "line": 1,
+        "col": 1
+      }
+    }
+  ],
+  "advanced_features": 0
+}

@@ -5,7 +5,7 @@
 //! the output is syntactically and semantically valid.
 
 use flatc_rs_compiler::{
-    analyze,
+    analyze, check_private_leak,
     codegen::{generate_rust, CodeGenOptions},
     parser::FbsParser,
 };
@@ -201,7 +201,6 @@ table Monster {
 }
 
 #[test]
-#[ignore] // Known issue: HeroArgs<'a> has unused lifetime when table contains union fields.
 fn compile_enum_and_union() {
     assert_compiles(
         r#"
@@ -473,5 +472,100 @@ table PrivateTable (private) { y: int; }
             ..default_opts()
         },
         "private_annotation",
+    );
+}
+
+/// Analyze a schema and return the resolved schema for leak checking.
+fn analyze_schema(src: &str) -> flatc_rs_compiler::schema::Schema {
+    let parser = FbsParser::new(src).with_file_name("test.fbs".to_string());
+    let parse_output = parser.parse().unwrap();
+    analyze(parse_output).unwrap()
+}
+
+#[test]
+fn private_leak_public_table_exposes_private_table() {
+    let schema = analyze_schema(
+        r#"
+table PrivateInner (private) { x: int; }
+table PublicOuter { inner: PrivateInner; }
+"#,
+    );
+    let err = check_private_leak(&schema).unwrap_err();
+    assert!(
+        err.to_string().contains("Leaking private implementation"),
+        "expected leak error, got: {err}"
+    );
+}
+
+#[test]
+fn private_leak_public_table_exposes_private_enum() {
+    let schema = analyze_schema(
+        r#"
+enum PrivateColor: byte (private) { Red, Green, Blue }
+table PublicWidget { color: PrivateColor; }
+"#,
+    );
+    let err = check_private_leak(&schema).unwrap_err();
+    assert!(
+        err.to_string().contains("Leaking private implementation"),
+        "expected leak error, got: {err}"
+    );
+}
+
+#[test]
+fn private_leak_public_union_exposes_private_table() {
+    let schema = analyze_schema(
+        r#"
+table PrivatePayload (private) { data: int; }
+union PublicMsg { PrivatePayload }
+table Root { msg: PublicMsg; }
+"#,
+    );
+    let err = check_private_leak(&schema).unwrap_err();
+    assert!(
+        err.to_string().contains("Leaking private implementation"),
+        "expected leak error, got: {err}"
+    );
+}
+
+#[test]
+fn private_leak_ok_both_private() {
+    let schema = analyze_schema(
+        r#"
+table PrivateInner (private) { x: int; }
+table PrivateOuter (private) { inner: PrivateInner; }
+"#,
+    );
+    assert!(
+        check_private_leak(&schema).is_ok(),
+        "both private should not leak"
+    );
+}
+
+#[test]
+fn private_leak_ok_both_public() {
+    let schema = analyze_schema(
+        r#"
+table Inner { x: int; }
+table Outer { inner: Inner; }
+"#,
+    );
+    assert!(
+        check_private_leak(&schema).is_ok(),
+        "both public should not leak"
+    );
+}
+
+#[test]
+fn private_leak_ok_private_references_public() {
+    let schema = analyze_schema(
+        r#"
+table PublicInner { x: int; }
+table PrivateOuter (private) { inner: PublicInner; }
+"#,
+    );
+    assert!(
+        check_private_leak(&schema).is_ok(),
+        "private type referencing public type is fine"
     );
 }

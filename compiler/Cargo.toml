@@ -1,8 +1,12 @@
 [package]
 name = "flatc-rs-compiler"
-version = "0.1.0"
-edition = "2021"
 description = "FlatBuffers schema compiler (Rust implementation)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [[bin]]
 name = "flatc"

@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_key_on_vector.fbs"), line: 2, col: 3 }): key field 'data' in table 'Foo' must be a scalar or string type, got BASE_TYPE_VECTOR

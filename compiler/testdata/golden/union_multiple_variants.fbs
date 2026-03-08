@@ -1,0 +1,10 @@
+table Sword { damage:int; }
+table Shield { defense:int; }
+table Potion { heal:int; }
+
+union Equipment { Sword, Shield, Potion }
+
+table Character {
+  name:string;
+  equipped:Equipment;
+}

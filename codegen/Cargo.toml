@@ -1,8 +1,12 @@
 [package]
 name = "flatc-rs-codegen"
-version = "0.1.0"
-edition = "2021"
 description = "Code generators for FlatBuffers schemas (Rust, TypeScript)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 flatc-rs-schema = { path = "../schema" }

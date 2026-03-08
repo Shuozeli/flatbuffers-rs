@@ -1,0 +1,205 @@
+{
+  "objects": [
+    {
+      "name": "Player",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+              "line": 3,
+              "col": 21
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 3,
+            "col": 16
+          }
+        },
+        {
+          "name": "level",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+              "line": 3,
+              "col": 35
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 3,
+            "col": 29
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+        "line": 3,
+        "col": 1
+      }
+    },
+    {
+      "name": "Enemy",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+              "line": 4,
+              "col": 20
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 4,
+            "col": 15
+          }
+        },
+        {
+          "name": "hp",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+              "line": 4,
+              "col": 31
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 4,
+            "col": 28
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+        "line": 4,
+        "col": 1
+      }
+    },
+    {
+      "name": "Item",
+      "fields": [
+        {
+          "name": "name",
+          "type": {
+            "base_type": "BASE_TYPE_STRING",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+              "line": 5,
+              "col": 19
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 5,
+            "col": 14
+          }
+        },
+        {
+          "name": "value",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+              "line": 5,
+              "col": 33
+            }
+          },
+          "id": 1,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 5,
+            "col": 27
+          }
+        }
+      ],
+      "is_struct": false,
+      "namespace": {
+        "namespace": "Game"
+      },
+      "span": {
+        "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+        "line": 5,
+        "col": 1
+      }
+    }
+  ],
+  "root_table": {
+    "name": "Player",
+    "fields": [
+      {
+        "name": "name",
+        "type": {
+          "base_type": "BASE_TYPE_STRING",
+          "base_size": 4,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 3,
+            "col": 21
+          }
+        },
+        "id": 0,
+        "span": {
+          "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+          "line": 3,
+          "col": 16
+        }
+      },
+      {
+        "name": "level",
+        "type": {
+          "base_type": "BASE_TYPE_INT",
+          "base_size": 4,
+          "span": {
+            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+            "line": 3,
+            "col": 35
+          }
+        },
+        "id": 1,
+        "span": {
+          "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+          "line": 3,
+          "col": 29
+        }
+      }
+    ],
+    "is_struct": false,
+    "namespace": {
+      "namespace": "Game"
+    },
+    "span": {
+      "file": "testdata/golden/multiple_tables_same_namespace.fbs",
+      "line": 3,
+      "col": 1
+    }
+  },
+  "advanced_features": 0
+}

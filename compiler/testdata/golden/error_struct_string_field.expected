@@ -1,0 +1,1 @@
+ANALYZE ERROR: Some(Span { file: Some("testdata/golden/error_struct_string_field.fbs"), line: 1, col: 14 }): invalid struct field 'name' in struct 'Foo': type BASE_TYPE_STRING is not allowed in structs

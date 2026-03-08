@@ -1,0 +1,65 @@
+{
+  "objects": [
+    {
+      "name": "Data",
+      "fields": [
+        {
+          "name": "value",
+          "type": {
+            "base_type": "BASE_TYPE_INT",
+            "base_size": 4,
+            "span": {
+              "file": "testdata/golden/file_extension_valid.fbs",
+              "line": 4,
+              "col": 20
+            }
+          },
+          "id": 0,
+          "span": {
+            "file": "testdata/golden/file_extension_valid.fbs",
+            "line": 4,
+            "col": 14
+          }
+        }
+      ],
+      "is_struct": false,
+      "span": {
+        "file": "testdata/golden/file_extension_valid.fbs",
+        "line": 4,
+        "col": 1
+      }
+    }
+  ],
+  "file_ident": "TEST",
+  "file_ext": "dat",
+  "root_table": {
+    "name": "Data",
+    "fields": [
+      {
+        "name": "value",
+        "type": {
+          "base_type": "BASE_TYPE_INT",
+          "base_size": 4,
+          "span": {
+            "file": "testdata/golden/file_extension_valid.fbs",
+            "line": 4,
+            "col": 20
+          }
+        },
+        "id": 0,
+        "span": {
+          "file": "testdata/golden/file_extension_valid.fbs",
+          "line": 4,
+          "col": 14
+        }
+      }
+    ],
+    "is_struct": false,
+    "span": {
+      "file": "testdata/golden/file_extension_valid.fbs",
+      "line": 4,
+      "col": 1
+    }
+  },
+  "advanced_features": 0
+}
