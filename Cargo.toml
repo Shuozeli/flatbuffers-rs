@@ -11,3 +11,11 @@ members = [
     "test-utils",
     "wasm-api",
 ]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/Shuozeli/flatbuffers-rs"
+keywords = ["flatbuffers", "serialization", "codegen", "compiler"]
+categories = ["development-tools", "encoding", "parser-implementations"]
