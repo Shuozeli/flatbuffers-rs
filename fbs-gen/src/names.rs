@@ -86,7 +86,7 @@ impl<C: Chooser> SchemaBuilder<C> {
 
     pub(crate) fn field_name(&self, idx: usize) -> String {
         if idx < 26 {
-            format!("field_{}", (b'a' + idx as u8) as char)
+            format!("field_{}", char::from(b'a' + idx as u8))
         } else {
             format!("field_{idx}")
         }

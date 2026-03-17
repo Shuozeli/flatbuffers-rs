@@ -26,11 +26,11 @@ impl<'a> ::flatbuffers::Follow<'a> for Color {
 }
 
 impl ::flatbuffers::Push for Color {
-    type Output = Color;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.bits()) };
-    }
+  type Output = Color;
+  #[inline]
+  unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+    unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.bits()) };
+  }
 }
 
 impl ::flatbuffers::EndianScalar for Color {

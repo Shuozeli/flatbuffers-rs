@@ -85,32 +85,32 @@ fn field_no_default() {
 fn field_deprecated() {
     let s = analyze("table T { old:int (deprecated); current:int; }");
     let t = &s.objects[0];
-    assert_eq!(t.fields[0].is_deprecated, Some(true));
-    assert_ne!(t.fields[1].is_deprecated, Some(true));
+    assert!(t.fields[0].is_deprecated);
+    assert!(!t.fields[1].is_deprecated);
 }
 
 #[test]
 fn field_required() {
     let s = analyze("table T { name:string (required); opt:string; }");
     let t = &s.objects[0];
-    assert_eq!(t.fields[0].is_required, Some(true));
-    assert_ne!(t.fields[1].is_required, Some(true));
+    assert!(t.fields[0].is_required);
+    assert!(!t.fields[1].is_required);
 }
 
 #[test]
 fn field_key() {
     let s = analyze("table T { id:int (key); name:string; }");
     let t = &s.objects[0];
-    assert_eq!(t.fields[0].is_key, Some(true));
-    assert_ne!(t.fields[1].is_key, Some(true));
+    assert!(t.fields[0].is_key);
+    assert!(!t.fields[1].is_key);
 }
 
 #[test]
 fn field_optional_scalar() {
     let s = analyze("table T { x:int = null; y:int; }");
     let t = &s.objects[0];
-    assert_eq!(t.fields[0].is_optional, Some(true));
-    assert_ne!(t.fields[1].is_optional, Some(true));
+    assert!(t.fields[0].is_optional);
+    assert!(!t.fields[1].is_optional);
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ fn type_enum_field_uses_underlying() {
 fn struct_layout_basic() {
     let s = analyze("struct Vec3 { x:float; y:float; z:float; }");
     let obj = &s.objects[0];
-    assert_eq!(obj.is_struct, Some(true));
+    assert!(obj.is_struct);
     assert_eq!(obj.byte_size, Some(12)); // 3 * 4
     assert_eq!(obj.min_align, Some(4));
     assert_eq!(obj.fields[0].offset, Some(0));
@@ -259,7 +259,7 @@ fn enum_values_auto_numbered() {
     let s = analyze("enum Color:byte { Red, Green, Blue }");
     let e = &s.enums[0];
     assert_eq!(e.name.as_deref(), Some("Color"));
-    assert_ne!(e.is_union, Some(true));
+    assert!(!e.is_union);
     assert_eq!(e.values.len(), 3);
     assert_eq!(e.values[0].name.as_deref(), Some("Red"));
     assert_eq!(e.values[0].value, Some(0));
@@ -335,7 +335,7 @@ fn union_variants() {
     );
     let u = &s.enums[0];
     assert_eq!(u.name.as_deref(), Some("U"));
-    assert_eq!(u.is_union, Some(true));
+    assert!(u.is_union);
 
     // NONE variant is auto-inserted at index 0
     assert_eq!(u.values[0].name.as_deref(), Some("NONE"));
@@ -446,10 +446,10 @@ fn field_attribute_deprecated_and_key() {
     let t = &s.objects[0];
 
     // key
-    assert_eq!(t.fields[0].is_key, Some(true));
+    assert!(t.fields[0].is_key);
 
     // deprecated
-    assert_eq!(t.fields[1].is_deprecated, Some(true));
+    assert!(t.fields[1].is_deprecated);
 }
 
 #[test]
@@ -591,13 +591,13 @@ fn no_root_table() {
 #[test]
 fn table_is_not_struct() {
     let s = analyze("table T { x:int; }");
-    assert_eq!(s.objects[0].is_struct, Some(false));
+    assert!(!s.objects[0].is_struct);
 }
 
 #[test]
 fn struct_is_struct() {
     let s = analyze("struct S { x:int; }");
-    assert_eq!(s.objects[0].is_struct, Some(true));
+    assert!(s.objects[0].is_struct);
 }
 
 // ---------------------------------------------------------------------------
@@ -738,7 +738,7 @@ fn vector_of_structs() {
 fn empty_table() {
     let s = analyze("table Empty { }");
     assert_eq!(s.objects[0].fields.len(), 0);
-    assert_eq!(s.objects[0].is_struct, Some(false));
+    assert!(!s.objects[0].is_struct);
 }
 
 #[test]

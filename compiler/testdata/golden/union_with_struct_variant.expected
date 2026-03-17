@@ -89,7 +89,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_with_struct_variant.fbs",
         "line": 2,
@@ -128,7 +127,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_with_struct_variant.fbs",
         "line": 9,

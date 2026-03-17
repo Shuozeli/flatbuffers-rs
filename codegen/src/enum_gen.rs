@@ -3,7 +3,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 use super::code_writer::CodeWriter;
 use super::type_map;
 use super::{enum_val_value, union_variant_type_index};
-use super::{type_visibility, CodeGenOptions};
+use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Check if an enum has a specific attribute (e.g., "bit_flags").
 fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
@@ -14,30 +14,42 @@ fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
 }
 
 /// Generate Rust code for the enum at `schema.enums[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
+pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let is_bitflags = has_attribute(enum_def, "bit_flags");
 
     if is_bitflags {
-        generate_bitflags(w, enum_def, opts);
+        generate_bitflags(w, enum_def, opts)?;
     } else {
-        generate_regular(w, enum_def, opts);
+        generate_regular(w, enum_def, opts)?;
     }
 
     // Object API: generate union T enum for union types
-    if opts.gen_object_api && enum_def.is_union == Some(true) {
+    if opts.gen_object_api && enum_def.is_union {
         w.blank();
-        gen_union_object_api(w, schema, index, opts);
+        gen_union_object_api(w, schema, index, opts)?;
     }
+    Ok(())
 }
 
 /// Generate a bitflags enum using the `bitflags!` macro.
-fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) {
+fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let name = enum_def.name.as_deref().unwrap_or("");
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let underlying_bt = type_map::get_base_type(enum_def.underlying_type.as_ref());
     let rust_type = type_map::scalar_rust_type(underlying_bt);
     let mod_name = format!("bitflags_{}", type_map::to_snake_case(name));
+
+    // Pre-compute bit values so we don't need Result inside closures
+    let bit_entries: Vec<(&str, u64)> = enum_def
+        .values
+        .iter()
+        .map(|val| {
+            let vname = val.name.as_deref().unwrap_or("");
+            let bit_pos = enum_val_value(val)?;
+            Ok((vname, 1u64 << bit_pos))
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
 
     // Wrap in a private module to avoid name conflicts with the bitflags! macro
     w.line("#[allow(non_upper_case_globals)]");
@@ -53,10 +65,8 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
 
             w.line("#[derive(Default, Debug, Clone, Copy, PartialEq)]");
             w.block(&format!("pub struct {name}: {rust_type}"), |w| {
-                for val in &enum_def.values {
-                    let vname = val.name.as_deref().unwrap_or("");
-                    let bit_pos = enum_val_value(val);
-                    let bit_val: u64 = 1u64 << bit_pos;
+                for (i, val) in enum_def.values.iter().enumerate() {
+                    let (vname, bit_val) = bit_entries[i];
                     // Documentation for individual values
                     if let Some(doc) = &val.documentation {
                         for line in &doc.lines {
@@ -114,16 +124,16 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
     );
     w.blank();
 
-    // Push impl - uses .bits() instead of .0, 4-space indentation like C++
-    w.line(&format!("impl ::flatbuffers::Push for {name} {{"));
-    w.line(&format!("    type Output = {name};"));
-    w.line("    #[inline]");
-    w.line("    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {");
-    w.line(&format!(
-        "        unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.bits()) }};"
-    ));
-    w.line("    }");
-    w.line("}");
+    // Push impl - uses .bits() instead of .0
+    w.block(&format!("impl ::flatbuffers::Push for {name}"), |w| {
+        w.line(&format!("type Output = {name};"));
+        w.line("#[inline]");
+        w.block("unsafe fn push(&self, dst: &mut [u8], _written_len: usize)", |w| {
+            w.line(&format!(
+                "unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.bits()) }};"
+            ));
+        });
+    });
     w.blank();
 
     // EndianScalar impl - uses .bits() and from_bits_retain
@@ -148,46 +158,42 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
     );
     w.blank();
 
-    // Verifiable impl - multi-line run_verifier signature like C++
-    w.line(&format!("impl<'a> ::flatbuffers::Verifiable for {name} {{"));
-    w.line("  #[inline]");
-    w.line("  fn run_verifier(");
-    w.line("    v: &mut ::flatbuffers::Verifier, pos: usize");
-    w.line("  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {");
-    w.line(&format!("    {rust_type}::run_verifier(v, pos)"));
-    w.line("  }");
-    w.line("}");
+    // Verifiable impl
+    w.block(&format!("impl<'a> ::flatbuffers::Verifiable for {name}"), |w| {
+        w.line("#[inline]");
+        w.block("fn run_verifier(\n    v: &mut ::flatbuffers::Verifier, pos: usize\n  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer>", |w| {
+            w.line(&format!("{rust_type}::run_verifier(v, pos)"));
+        });
+    });
     w.blank();
 
     // SimpleToVerifyInSlice marker
     w.line(&format!(
         "impl ::flatbuffers::SimpleToVerifyInSlice for {name} {{}}"
     ));
+    Ok(())
 }
 
 /// Generate a regular (non-bitflags) enum.
-fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) {
+fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let name = enum_def.name.as_deref().unwrap_or("");
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
-    let is_union = enum_def.is_union == Some(true);
+    let is_union = enum_def.is_union;
 
     let underlying_bt = type_map::get_base_type(enum_def.underlying_type.as_ref());
     let rust_type = type_map::scalar_rust_type(underlying_bt);
 
+    // Pre-compute all enum values so we can use them without Result in closures
+    let val_values: Vec<i64> = enum_def
+        .values
+        .iter()
+        .map(|v| enum_val_value(v))
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
+
     // Deprecated global constants (non-union enums only, matching C++ flatc)
     if !is_union && !enum_def.values.is_empty() {
-        let min_val = enum_def
-            .values
-            .iter()
-            .map(enum_val_value)
-            .min()
-            .unwrap_or(0);
-        let max_val = enum_def
-            .values
-            .iter()
-            .map(enum_val_value)
-            .max()
-            .unwrap_or(0);
+        let min_val = *val_values.iter().min().unwrap_or(&0);
+        let max_val = *val_values.iter().max().unwrap_or(&0);
         let upper_name = name.to_uppercase();
         let depr = "#[deprecated(since = \"2.0.0\", note = \"Use associated constants instead. This will no longer be generated in 2021.\")]";
         w.line(depr);
@@ -225,30 +231,20 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     w.line("#[allow(non_upper_case_globals)]");
     w.block(&format!("impl {name}"), |w| {
         // Variant constants
-        for val in &enum_def.values {
+        for (i, val) in enum_def.values.iter().enumerate() {
             let vname = val.name.as_deref().unwrap_or("");
             // Sanitize FQN: "MyGame.Example2.Monster" -> "MyGame_Example2_Monster"
             let sanitized = type_map::sanitize_union_const_name(vname);
             let escaped = type_map::escape_keyword(&sanitized);
-            let vval = enum_val_value(val);
+            let vval = val_values[i];
             w.line(&format!("pub const {escaped}: Self = Self({vval});"));
         }
 
         if !enum_def.values.is_empty() {
             w.blank();
             // ENUM_MIN / ENUM_MAX
-            let min_val = enum_def
-                .values
-                .iter()
-                .map(enum_val_value)
-                .min()
-                .unwrap_or(0);
-            let max_val = enum_def
-                .values
-                .iter()
-                .map(enum_val_value)
-                .max()
-                .unwrap_or(0);
+            let min_val = *val_values.iter().min().unwrap_or(&0);
+            let max_val = *val_values.iter().max().unwrap_or(&0);
             w.line(&format!("pub const ENUM_MIN: {rust_type} = {min_val};"));
             w.line(&format!("pub const ENUM_MAX: {rust_type} = {max_val};"));
 
@@ -383,16 +379,16 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     );
 
     w.blank();
-    // Push impl - C++ uses 4-space indentation inside Push body
-    w.line(&format!("impl ::flatbuffers::Push for {name} {{"));
-    w.line(&format!("    type Output = {name};"));
-    w.line("    #[inline]");
-    w.line("    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {");
-    w.line(&format!(
-        "        unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.0) }};"
-    ));
-    w.line("    }");
-    w.line("}");
+    // Push impl
+    w.block(&format!("impl ::flatbuffers::Push for {name}"), |w| {
+        w.line(&format!("type Output = {name};"));
+        w.line("#[inline]");
+        w.block("unsafe fn push(&self, dst: &mut [u8], _written_len: usize)", |w| {
+            w.line(&format!(
+                "unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.0) }};"
+            ));
+        });
+    });
     w.blank();
 
     // EndianScalar impl
@@ -417,15 +413,13 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     );
     w.blank();
 
-    // Verifiable impl - multi-line run_verifier signature like C++
-    w.line(&format!("impl<'a> ::flatbuffers::Verifiable for {name} {{"));
-    w.line("  #[inline]");
-    w.line("  fn run_verifier(");
-    w.line("    v: &mut ::flatbuffers::Verifier, pos: usize");
-    w.line("  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {");
-    w.line(&format!("    {rust_type}::run_verifier(v, pos)"));
-    w.line("  }");
-    w.line("}");
+    // Verifiable impl
+    w.block(&format!("impl<'a> ::flatbuffers::Verifiable for {name}"), |w| {
+        w.line("#[inline]");
+        w.block("fn run_verifier(\n    v: &mut ::flatbuffers::Verifier, pos: usize\n  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer>", |w| {
+            w.line(&format!("{rust_type}::run_verifier(v, pos)"));
+        });
+    });
     w.blank();
 
     // SimpleToVerifyInSlice marker
@@ -438,6 +432,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
         w.blank();
         w.line(&format!("{vis} struct {name}UnionTableOffset {{}}"));
     }
+    Ok(())
 }
 
 /// Generate the Object API union T enum for a union type.
@@ -446,7 +441,7 @@ fn gen_union_object_api(
     schema: &schema::Schema,
     index: usize,
     opts: &CodeGenOptions,
-) {
+) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let name = enum_def.name.as_deref().unwrap_or("");
     let t_name = format!("{name}T");
@@ -458,6 +453,24 @@ fn gen_union_object_api(
 
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
 
+    // Pre-compute union variant type indices so we don't need Result inside closures
+    let variant_info: Vec<Option<usize>> = enum_def
+        .values
+        .iter()
+        .map(|val| {
+            let vname = val.name.as_deref().unwrap_or("");
+            if vname == "NONE" {
+                return Ok(None);
+            }
+            let variant_bt = type_map::get_base_type(val.union_type.as_ref());
+            if variant_bt == BaseType::BASE_TYPE_TABLE {
+                Ok(Some(union_variant_type_index(val)?))
+            } else {
+                Ok(None)
+            }
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
+
     // Enum definition
     w.line("#[non_exhaustive]");
     let mut derives = vec!["Debug", "Clone", "PartialEq"];
@@ -468,16 +481,14 @@ fn gen_union_object_api(
     w.line(&format!("#[derive({})]", derives.join(", ")));
     w.block(&format!("{vis} enum {t_name}"), |w| {
         w.line("NONE,");
-        for val in &enum_def.values {
+        for (i, val) in enum_def.values.iter().enumerate() {
             let vname = val.name.as_deref().unwrap_or("");
             if vname == "NONE" {
                 continue;
             }
             // T enum variants use PascalCase: "MyGame.Example2.Monster" -> "MyGameExample2Monster"
             let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
-            let variant_bt = type_map::get_base_type(val.union_type.as_ref());
-            if variant_bt == BaseType::BASE_TYPE_TABLE {
-                let table_idx = union_variant_type_index(val);
+            if let Some(table_idx) = variant_info[i] {
                 let table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
                 w.line(&format!("{t_variant}(alloc::boxed::Box<{table_name}T>),"));
             }
@@ -533,4 +544,5 @@ fn gen_union_object_api(
             },
         );
     });
+    Ok(())
 }

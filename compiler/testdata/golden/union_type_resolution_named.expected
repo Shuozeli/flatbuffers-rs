@@ -22,7 +22,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_type_resolution_named.fbs",
         "line": 1,
@@ -51,7 +50,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_type_resolution_named.fbs",
         "line": 2,
@@ -90,7 +88,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_type_resolution_named.fbs",
         "line": 6,

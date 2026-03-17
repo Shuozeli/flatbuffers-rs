@@ -207,11 +207,11 @@ pub mod my_game {
     }
 
     impl ::flatbuffers::Push for Color {
-        type Output = Color;
-        #[inline]
-        unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-            unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-        }
+      type Output = Color;
+      #[inline]
+      unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
+      }
     }
 
     impl ::flatbuffers::EndianScalar for Color {
@@ -231,8 +231,8 @@ pub mod my_game {
     impl<'a> ::flatbuffers::Verifiable for Color {
       #[inline]
       fn run_verifier(
-        v: &mut ::flatbuffers::Verifier, pos: usize
-      ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
         i8::run_verifier(v, pos)
       }
     }

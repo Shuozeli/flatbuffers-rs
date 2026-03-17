@@ -23,7 +23,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/enum_typed_field.fbs",
         "line": 3,

@@ -3,6 +3,7 @@ use crate::type_map::{get_base_type, get_element_type, has_enum_index};
 use flatc_rs_schema::{self as schema, BaseType};
 
 use crate::type_map;
+use crate::CodeGenError;
 
 /// Returns the alignment/size in bytes of a scalar type.
 /// Used to sort fields for optimal vtable packing (matching C++ flatc ordering).
@@ -26,34 +27,36 @@ pub(super) fn vector_element_type(
     element_bt: BaseType,
     lifetime: &str,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     match element_bt {
         bt if type_map::is_scalar(bt) => {
             // Check if vector of enum
             if has_enum_index(field) {
-                let enum_idx = field_type_index(field);
+                let enum_idx = field_type_index(field)?;
                 if enum_idx < schema.enums.len() {
-                    return type_map::resolve_enum_name(schema, current_ns, enum_idx);
+                    return Ok(type_map::resolve_enum_name(schema, current_ns, enum_idx));
                 }
             }
-            type_map::scalar_rust_type(bt).to_string()
+            Ok(type_map::scalar_rust_type(bt).to_string())
         }
         BaseType::BASE_TYPE_STRING => {
             // C++ uses double space for &'b  str (builder lifetime) but single space for &'a str
             let space = if lifetime == "'b" { "  " } else { " " };
-            format!("::flatbuffers::ForwardsUOffset<&{lifetime}{space}str>")
+            Ok(format!("::flatbuffers::ForwardsUOffset<&{lifetime}{space}str>"))
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("::flatbuffers::ForwardsUOffset<{tname}<{lifetime}>>")
+            Ok(format!("::flatbuffers::ForwardsUOffset<{tname}<{lifetime}>>"))
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
-            type_map::resolve_object_name(schema, current_ns, idx)
+            let idx = field_type_index(field)?;
+            Ok(type_map::resolve_object_name(schema, current_ns, idx))
         }
         _ => {
-            panic!("BUG: unhandled vector element type {element_bt:?} (schema should have been validated by analyzer)");
+            Err(CodeGenError::Internal(format!(
+                "unhandled vector element type {element_bt:?}"
+            )))
         }
     }
 }
@@ -63,37 +66,37 @@ pub(super) fn verifier_type_str(
     schema: &schema::Schema,
     field: &schema::Field,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     let bt = get_base_type(field.type_.as_ref());
 
     match bt {
         bt if type_map::is_scalar(bt) => {
             if has_enum_index(field) {
-                let idx = field_type_index(field);
-                type_map::resolve_enum_name(schema, current_ns, idx)
+                let idx = field_type_index(field)?;
+                Ok(type_map::resolve_enum_name(schema, current_ns, idx))
             } else {
-                type_map::scalar_rust_type(bt).to_string()
+                Ok(type_map::scalar_rust_type(bt).to_string())
             }
         }
-        BaseType::BASE_TYPE_STRING => "::flatbuffers::ForwardsUOffset<&str>".to_string(),
+        BaseType::BASE_TYPE_STRING => Ok("::flatbuffers::ForwardsUOffset<&str>".to_string()),
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
-            type_map::resolve_object_name(schema, current_ns, idx)
+            let idx = field_type_index(field)?;
+            Ok(type_map::resolve_object_name(schema, current_ns, idx))
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("::flatbuffers::ForwardsUOffset<{tname}>")
+            Ok(format!("::flatbuffers::ForwardsUOffset<{tname}>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = get_element_type(field.type_.as_ref());
-            let inner = vector_element_type(schema, field, element_bt, "'_", current_ns);
-            format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>")
+            let inner = vector_element_type(schema, field, element_bt, "'_", current_ns)?;
+            Ok(format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>"))
         }
         BaseType::BASE_TYPE_UNION => {
-            "::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'_>>".to_string()
+            Ok("::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'_>>".to_string())
         }
-        _ => "u8".to_string(),
+        _ => Ok("u8".to_string()),
     }
 }
 
@@ -123,15 +126,15 @@ pub(super) fn scalar_builder_type(
     field: &schema::Field,
     bt: BaseType,
     current_ns: &str,
-) -> (String, bool) {
-    let is_optional = field.is_optional == Some(true);
+) -> Result<(String, bool), CodeGenError> {
+    let is_optional = field.is_optional;
 
     if has_enum_index(field) {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field)?;
         let enum_name = type_map::resolve_enum_name(schema, current_ns, idx);
-        (enum_name, !is_optional)
+        Ok((enum_name, !is_optional))
     } else {
-        (type_map::scalar_rust_type(bt).to_string(), !is_optional)
+        Ok((type_map::scalar_rust_type(bt).to_string(), !is_optional))
     }
 }
 
@@ -141,23 +144,23 @@ pub(super) fn scalar_builder_default(
     field: &schema::Field,
     bt: BaseType,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     if has_enum_index(field) {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field)?;
         let enum_name = type_map::resolve_enum_name(schema, current_ns, idx);
         let is_bitflags = type_map::is_bitflags_enum(schema, idx);
         if let Some(ref ds) = field.default_string {
-            format!("{enum_name}::{ds}")
+            Ok(format!("{enum_name}::{ds}"))
         } else {
             let dv = field.default_integer.unwrap_or(0);
             if is_bitflags {
-                format!("{enum_name}::from_bits_retain({dv})")
+                Ok(format!("{enum_name}::from_bits_retain({dv})"))
             } else {
-                format!("{enum_name}({dv})")
+                Ok(format!("{enum_name}({dv})"))
             }
         }
     } else {
-        scalar_default(field, bt)
+        Ok(scalar_default(field, bt))
     }
 }
 
@@ -166,44 +169,44 @@ pub(super) fn args_field_type(
     schema: &schema::Schema,
     field: &schema::Field,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     let bt = get_base_type(field.type_.as_ref());
-    let is_optional = field.is_optional == Some(true);
+    let is_optional = field.is_optional;
 
     match bt {
         bt if type_map::is_scalar(bt) => {
             let base = if has_enum_index(field) {
-                let idx = field_type_index(field);
+                let idx = field_type_index(field)?;
                 type_map::resolve_enum_name(schema, current_ns, idx)
             } else {
                 type_map::scalar_rust_type(bt).to_string()
             };
             if is_optional {
-                format!("Option<{base}>")
+                Ok(format!("Option<{base}>"))
             } else {
-                base
+                Ok(base)
             }
         }
-        BaseType::BASE_TYPE_STRING => "Option<::flatbuffers::WIPOffset<&'a str>>".to_string(),
+        BaseType::BASE_TYPE_STRING => Ok("Option<::flatbuffers::WIPOffset<&'a str>>".to_string()),
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("Option<&'a {sname}>")
+            Ok(format!("Option<&'a {sname}>"))
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("Option<::flatbuffers::WIPOffset<{tname}<'a>>>")
+            Ok(format!("Option<::flatbuffers::WIPOffset<{tname}<'a>>>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = get_element_type(field.type_.as_ref());
-            let inner = vector_element_type(schema, field, element_bt, "'a", current_ns);
-            format!("Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, {inner}>>>")
+            let inner = vector_element_type(schema, field, element_bt, "'a", current_ns)?;
+            Ok(format!("Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, {inner}>>>"))
         }
         BaseType::BASE_TYPE_UNION => {
-            "Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>".to_string()
+            Ok("Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>".to_string())
         }
-        _ => "u8".to_string(),
+        _ => Ok("u8".to_string()),
     }
 }
 
@@ -212,18 +215,18 @@ pub(super) fn args_field_default(
     schema: &schema::Schema,
     field: &schema::Field,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     let bt = get_base_type(field.type_.as_ref());
 
     match bt {
         bt if type_map::is_scalar(bt) => {
-            if field.is_optional == Some(true) {
-                "None".to_string()
+            if field.is_optional {
+                Ok("None".to_string())
             } else {
                 scalar_builder_default(schema, field, bt, current_ns)
             }
         }
-        _ => "None".to_string(),
+        _ => Ok("None".to_string()),
     }
 }
 
@@ -249,7 +252,7 @@ pub(super) fn find_table_by_name(schema: &schema::Schema, name: &str) -> Option<
     schema
         .objects
         .iter()
-        .position(|obj| obj.is_struct != Some(true) && obj.name.as_deref() == Some(name))
+        .position(|obj| !obj.is_struct && obj.name.as_deref() == Some(name))
 }
 
 /// Check if a field has the `key` attribute.
@@ -268,6 +271,8 @@ pub(super) fn is_union_field(field: &schema::Field) -> bool {
 }
 
 /// Check if a field is a union type discriminator (the `_type` field for a union).
+/// Returns false if the field type index cannot be resolved (should not happen
+/// after analyzer validation).
 pub(super) fn is_union_type_field(schema: &schema::Schema, field: &schema::Field) -> bool {
     let bt = get_base_type(field.type_.as_ref());
     if !type_map::is_scalar(bt) {
@@ -276,20 +281,23 @@ pub(super) fn is_union_type_field(schema: &schema::Schema, field: &schema::Field
     if !has_enum_index(field) {
         return false;
     }
-    let idx = field_type_index(field);
+    let idx = match field_type_index(field) {
+        Ok(idx) => idx,
+        Err(_) => return false,
+    };
     if idx >= schema.enums.len() {
         return false;
     }
-    schema.enums[idx].is_union == Some(true)
+    schema.enums[idx].is_union
 }
 
 /// Check if a field is required (explicitly or implicitly as a string key).
 pub(super) fn is_field_required(field: &schema::Field) -> bool {
-    if field.is_required == Some(true) {
+    if field.is_required {
         return true;
     }
     // String key fields are implicitly required (C++ flatc behavior)
-    if field.is_key == Some(true) {
+    if field.is_key {
         let bt = get_base_type(field.type_.as_ref());
         if bt == BaseType::BASE_TYPE_STRING {
             return true;

@@ -230,8 +230,7 @@ fn value_string_for_region(
         }
         RegionType::FileIdentifier => {
             let bytes = &binary[start..start + size.min(4)];
-            let s: String = bytes.iter().map(|&b| b as char).collect();
-            s
+            String::from_utf8_lossy(bytes).into_owned()
         }
         RegionType::TableSOffset { .. } => {
             if size == 4 && start + 4 <= binary.len() {
@@ -283,7 +282,7 @@ fn value_string_for_region(
             let bytes = &binary[start..start + size.min(16)];
             let s: String = bytes
                 .iter()
-                .map(|&b| if b == 0 { '.' } else { b as char })
+                .map(|&b| if b.is_ascii_graphic() || b == b' ' { b as char } else { '.' })
                 .collect();
             s
         }

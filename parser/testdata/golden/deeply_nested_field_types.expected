@@ -85,7 +85,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "A.B.C.D"
       },

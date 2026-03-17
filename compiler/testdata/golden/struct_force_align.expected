@@ -99,7 +99,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/struct_force_align.fbs",
         "line": 7,

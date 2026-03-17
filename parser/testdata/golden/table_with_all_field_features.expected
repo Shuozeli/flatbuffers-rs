@@ -151,7 +151,6 @@
           }
         }
       ],
-      "is_struct": false,
       "documentation": {
         "lines": [
           " A well-documented table"

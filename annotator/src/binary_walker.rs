@@ -1,136 +1,18 @@
 use std::collections::HashSet;
 use std::ops::Range;
 
+use flatc_rs_schema::buf_reader::{BoundsError, BufReader};
 use flatc_rs_schema::{BaseType, Enum, Field, Object, Schema, Type};
 
 use crate::region::{AnnotatedRegion, RegionType, WalkError};
 
-// ---------------------------------------------------------------------------
-// Safe buffer reader
-// ---------------------------------------------------------------------------
-
-struct BufReader<'a> {
-    buf: &'a [u8],
-}
-
-impl<'a> BufReader<'a> {
-    fn new(buf: &'a [u8]) -> Self {
-        Self { buf }
-    }
-
-    fn len(&self) -> usize {
-        self.buf.len()
-    }
-
-    fn check_bounds(&self, offset: usize, size: usize) -> Result<(), WalkError> {
-        if offset
-            .checked_add(size)
-            .is_none_or(|end| end > self.buf.len())
-        {
-            return Err(WalkError::OutOfBounds {
-                offset,
-                size,
-                buf_len: self.buf.len(),
-            });
+impl From<BoundsError> for WalkError {
+    fn from(e: BoundsError) -> Self {
+        WalkError::OutOfBounds {
+            offset: e.offset,
+            size: e.size,
+            buf_len: e.buf_len,
         }
-        Ok(())
-    }
-
-    fn read_u8(&self, offset: usize) -> Result<u8, WalkError> {
-        self.check_bounds(offset, 1)?;
-        Ok(self.buf[offset])
-    }
-
-    fn read_i8(&self, offset: usize) -> Result<i8, WalkError> {
-        self.check_bounds(offset, 1)?;
-        Ok(self.buf[offset] as i8)
-    }
-
-    fn read_u16_le(&self, offset: usize) -> Result<u16, WalkError> {
-        self.check_bounds(offset, 2)?;
-        Ok(u16::from_le_bytes([self.buf[offset], self.buf[offset + 1]]))
-    }
-
-    fn read_i16_le(&self, offset: usize) -> Result<i16, WalkError> {
-        self.check_bounds(offset, 2)?;
-        Ok(i16::from_le_bytes([self.buf[offset], self.buf[offset + 1]]))
-    }
-
-    fn read_u32_le(&self, offset: usize) -> Result<u32, WalkError> {
-        self.check_bounds(offset, 4)?;
-        Ok(u32::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-        ]))
-    }
-
-    fn read_i32_le(&self, offset: usize) -> Result<i32, WalkError> {
-        self.check_bounds(offset, 4)?;
-        Ok(i32::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-        ]))
-    }
-
-    fn read_u64_le(&self, offset: usize) -> Result<u64, WalkError> {
-        self.check_bounds(offset, 8)?;
-        Ok(u64::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-            self.buf[offset + 4],
-            self.buf[offset + 5],
-            self.buf[offset + 6],
-            self.buf[offset + 7],
-        ]))
-    }
-
-    fn read_i64_le(&self, offset: usize) -> Result<i64, WalkError> {
-        self.check_bounds(offset, 8)?;
-        Ok(i64::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-            self.buf[offset + 4],
-            self.buf[offset + 5],
-            self.buf[offset + 6],
-            self.buf[offset + 7],
-        ]))
-    }
-
-    fn read_f32_le(&self, offset: usize) -> Result<f32, WalkError> {
-        self.check_bounds(offset, 4)?;
-        Ok(f32::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-        ]))
-    }
-
-    fn read_f64_le(&self, offset: usize) -> Result<f64, WalkError> {
-        self.check_bounds(offset, 8)?;
-        Ok(f64::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-            self.buf[offset + 4],
-            self.buf[offset + 5],
-            self.buf[offset + 6],
-            self.buf[offset + 7],
-        ]))
-    }
-
-    fn read_bytes(&self, offset: usize, len: usize) -> Result<&'a [u8], WalkError> {
-        self.check_bounds(offset, len)?;
-        Ok(&self.buf[offset..offset + len])
     }
 }
 
@@ -147,11 +29,23 @@ pub struct BinaryWalker<'a> {
     annotated: Vec<bool>,
     visited_tables: HashSet<usize>,
     visited_vtables: HashSet<usize>,
+    object_index: std::collections::HashMap<&'a str, usize>,
 }
 
 impl<'a> BinaryWalker<'a> {
     pub fn new(buf: &'a [u8], schema: &'a Schema) -> Self {
         let len = buf.len();
+        let mut object_index = std::collections::HashMap::new();
+        for (i, obj) in schema.objects.iter().enumerate() {
+            if let Some(ref name) = obj.name {
+                object_index.entry(name.as_str()).or_insert(i);
+                if let Some(short) = name.rsplit('.').next() {
+                    if short != name.as_str() {
+                        object_index.entry(short).or_insert(i);
+                    }
+                }
+            }
+        }
         Self {
             reader: BufReader::new(buf),
             schema,
@@ -159,6 +53,7 @@ impl<'a> BinaryWalker<'a> {
             annotated: vec![false; len],
             visited_tables: HashSet::new(),
             visited_vtables: HashSet::new(),
+            object_index,
         }
     }
 
@@ -210,24 +105,12 @@ impl<'a> BinaryWalker<'a> {
     }
 
     fn find_object_index(&self, name: &str) -> Result<usize, WalkError> {
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if let Some(ref obj_name) = obj.name {
-                if obj_name == name {
-                    return Ok(i);
-                }
-            }
-        }
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if let Some(ref obj_name) = obj.name {
-                let short = obj_name.rsplit('.').next().unwrap_or(obj_name);
-                if short == name {
-                    return Ok(i);
-                }
-            }
-        }
-        Err(WalkError::RootTypeNotFound {
-            name: name.to_string(),
-        })
+        self.object_index
+            .get(name)
+            .copied()
+            .ok_or_else(|| WalkError::RootTypeNotFound {
+                name: name.to_string(),
+            })
     }
 
     fn get_object(&self, idx: usize) -> Result<&Object, WalkError> {
@@ -544,7 +427,7 @@ impl<'a> BinaryWalker<'a> {
             BaseType::BASE_TYPE_TABLE => {
                 let table_uoffset = self.reader.read_u32_le(offset)? as usize;
                 let table_start = offset + table_uoffset;
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, fname)?;
 
                 let off_region = self.add_region(
                     offset..offset + 4,
@@ -566,7 +449,7 @@ impl<'a> BinaryWalker<'a> {
             }
 
             BaseType::BASE_TYPE_STRUCT => {
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, fname)?;
                 self.walk_struct_inline(offset, obj_idx, path, depth, parent_region)?;
             }
 
@@ -673,7 +556,7 @@ impl<'a> BinaryWalker<'a> {
 
             match field_bt {
                 BaseType::BASE_TYPE_STRUCT => {
-                    let inner_idx = field_ty.index.unwrap_or(0) as usize;
+                    let inner_idx = require_type_index(field_ty, &fname)?;
                     self.walk_struct_inline(
                         field_offset,
                         inner_idx,
@@ -763,7 +646,7 @@ impl<'a> BinaryWalker<'a> {
                 }
             }
             BaseType::BASE_TYPE_STRUCT => {
-                let inner_idx = ty.index.unwrap_or(0) as usize;
+                let inner_idx = require_type_index(ty, fname)?;
                 let inner_obj = self.get_object(inner_idx)?;
                 let struct_size = inner_obj.byte_size.unwrap_or(0) as usize;
                 let total = struct_size * fixed_len;
@@ -864,7 +747,7 @@ impl<'a> BinaryWalker<'a> {
             }
 
             BaseType::BASE_TYPE_TABLE => {
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, "vector element")?;
                 for i in 0..count {
                     let elem_offset = data_start + i * 4;
                     let table_uoffset = self.reader.read_u32_le(elem_offset)? as usize;
@@ -891,7 +774,7 @@ impl<'a> BinaryWalker<'a> {
             }
 
             BaseType::BASE_TYPE_STRUCT => {
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, "vector element")?;
                 let obj = self.get_object(obj_idx)?;
                 let struct_size = obj.byte_size.unwrap_or(0) as usize;
                 for i in 0..count {
@@ -1001,7 +884,7 @@ impl<'a> BinaryWalker<'a> {
             return Ok(());
         }
 
-        let enum_idx = ty.index.unwrap_or(0) as usize;
+        let enum_idx = require_type_index(ty, "union")?;
         let enum_def = self.get_enum(enum_idx)?;
 
         let variant = enum_def
@@ -1012,7 +895,7 @@ impl<'a> BinaryWalker<'a> {
         if let Some(variant) = variant {
             if let Some(ref union_type) = variant.union_type {
                 let variant_bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_TABLE);
-                let variant_idx = union_type.index.unwrap_or(0) as usize;
+                let variant_idx = require_type_index(union_type, "union variant")?;
 
                 match variant_bt {
                     BaseType::BASE_TYPE_TABLE => {
@@ -1176,19 +1059,20 @@ impl<'a> BinaryWalker<'a> {
 // Free functions
 // ---------------------------------------------------------------------------
 
+/// Extract a non-negative type index from a `Type`, or return a `WalkError`.
+fn require_type_index(ty: &Type, context: &str) -> Result<usize, WalkError> {
+    ty.index
+        .filter(|&i| i >= 0)
+        .map(|i| i as usize)
+        .ok_or_else(|| WalkError::MissingTypeIndex {
+            context: context.to_string(),
+        })
+}
+
 pub fn scalar_byte_size(bt: BaseType) -> usize {
-    match bt {
-        BaseType::BASE_TYPE_BOOL
-        | BaseType::BASE_TYPE_BYTE
-        | BaseType::BASE_TYPE_U_BYTE
-        | BaseType::BASE_TYPE_U_TYPE => 1,
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => 2,
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => 4,
-        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => 8,
-        _ => 0,
-    }
+    bt.scalar_byte_size()
 }
 
 pub fn is_scalar(bt: BaseType) -> bool {
-    scalar_byte_size(bt) > 0
+    bt.is_scalar()
 }

@@ -44,7 +44,7 @@ pub fn compute_struct_layouts(schema: &mut schema::Schema) -> Result<()> {
 
     for obj_idx in order {
         let obj = &schema.objects[obj_idx];
-        if obj.is_struct != Some(true) {
+        if !obj.is_struct {
             continue;
         }
 
@@ -222,7 +222,7 @@ fn topological_sort_structs(schema: &schema::Schema) -> Result<Vec<usize>> {
     let mut path: Vec<String> = Vec::new();
 
     for i in 0..struct_count {
-        if schema.objects[i].is_struct != Some(true) {
+        if !schema.objects[i].is_struct {
             continue;
         }
         if state[i] == 0 {
@@ -247,7 +247,15 @@ fn visit_struct(
 
     // G3.7: Prevent stack overflow from deeply nested struct chains
     if depth > MAX_STRUCT_DEPTH {
-        return Err(AnalyzeError::CircularStruct(path.clone()));
+        let type_name = schema.objects[idx]
+            .name
+            .as_deref()
+            .unwrap_or("<unnamed>")
+            .to_string();
+        return Err(AnalyzeError::StructDepthLimitExceeded {
+            depth,
+            type_name,
+        });
     }
 
     let obj = &schema.objects[idx];

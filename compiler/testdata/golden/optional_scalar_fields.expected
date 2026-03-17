@@ -79,7 +79,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/optional_scalar_fields.fbs",
         "line": 1,

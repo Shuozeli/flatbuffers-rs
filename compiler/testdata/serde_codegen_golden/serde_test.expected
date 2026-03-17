@@ -111,11 +111,11 @@ where E: ::serde::de::Error {
   }
 
   impl ::flatbuffers::Push for Color {
-      type Output = Color;
-      #[inline]
-      unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-          unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-      }
+    type Output = Color;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+      unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
+    }
   }
 
   impl ::flatbuffers::EndianScalar for Color {
@@ -135,8 +135,8 @@ where E: ::serde::de::Error {
   impl<'a> ::flatbuffers::Verifiable for Color {
     #[inline]
     fn run_verifier(
-      v: &mut ::flatbuffers::Verifier, pos: usize
-    ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
       i8::run_verifier(v, pos)
     }
   }
@@ -181,11 +181,11 @@ where D: ::serde::Deserializer<'de> {
   }
 
   impl ::flatbuffers::Push for Flags {
-      type Output = Flags;
-      #[inline]
-      unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-          unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.bits()) };
-      }
+    type Output = Flags;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+      unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.bits()) };
+    }
   }
 
   impl ::flatbuffers::EndianScalar for Flags {
@@ -205,8 +205,8 @@ where D: ::serde::Deserializer<'de> {
   impl<'a> ::flatbuffers::Verifiable for Flags {
     #[inline]
     fn run_verifier(
-      v: &mut ::flatbuffers::Verifier, pos: usize
-    ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
       u8::run_verifier(v, pos)
     }
   }

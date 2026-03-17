@@ -1,7 +1,15 @@
+use std::time::{Duration, Instant};
+
 use crate::base_type::{base_type_size, lookup_base_type};
 use crate::error::{ParseError, Result};
 use crate::tokenizer::{tokenize, Token, TokenKind};
 use flatc_rs_schema::{self as schema, BaseType};
+
+/// Maximum input size in bytes (10 MB).
+const MAX_INPUT_SIZE: usize = 10 * 1024 * 1024;
+
+/// Maximum time allowed for parsing (10 seconds).
+const PARSE_TIMEOUT: Duration = Duration::from_secs(10);
 
 // ---------------------------------------------------------------------------
 // Parser output: parsed schema + side-channel state
@@ -37,6 +45,7 @@ pub struct FbsParser<'src> {
     schema: schema::Schema,
     state: ParserState,
     namespace: Option<schema::Namespace>,
+    deadline: Option<Instant>,
 }
 
 impl<'src> FbsParser<'src> {
@@ -49,6 +58,7 @@ impl<'src> FbsParser<'src> {
             schema: schema::Schema::new(),
             state: ParserState::default(),
             namespace: None,
+            deadline: None,
         }
     }
 
@@ -59,9 +69,18 @@ impl<'src> FbsParser<'src> {
 
     /// Parse the source and return the schema + parser state.
     pub fn parse(mut self) -> Result<ParseOutput> {
+        if self.source.len() > MAX_INPUT_SIZE {
+            return Err(ParseError::InputTooLarge {
+                size: self.source.len(),
+                max: MAX_INPUT_SIZE,
+            });
+        }
+
+        self.deadline = Some(Instant::now() + PARSE_TIMEOUT);
         self.tokens = tokenize(self.source)?;
 
         while !self.at_eof() {
+            self.check_timeout()?;
             // Collect doc comments before the next declaration
             let doc_comments = self.collect_doc_comments();
 
@@ -99,6 +118,19 @@ impl<'src> FbsParser<'src> {
             schema: self.schema,
             state: self.state,
         })
+    }
+
+    // -----------------------------------------------------------------------
+    // Timeout guard
+    // -----------------------------------------------------------------------
+
+    fn check_timeout(&self) -> Result<()> {
+        if let Some(deadline) = self.deadline {
+            if Instant::now() > deadline {
+                return Err(ParseError::ParseTimeout);
+            }
+        }
+        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -260,7 +292,7 @@ impl<'src> FbsParser<'src> {
         obj.documentation = Self::make_documentation(&doc);
 
         let kind_tok = self.advance();
-        obj.is_struct = Some(kind_tok.text == "struct");
+        obj.is_struct = kind_tok.text == "struct";
 
         let name_tok = self.expect_ident_any()?;
         obj.name = Some(name_tok.text.clone());
@@ -335,10 +367,10 @@ impl<'src> FbsParser<'src> {
         for entry in &attrs.entries {
             let key = entry.key.as_deref().unwrap_or("");
             match key {
-                "required" => field.is_required = Some(true),
-                "optional" => field.is_optional = Some(true),
-                "deprecated" => field.is_deprecated = Some(true),
-                "key" => field.is_key = Some(true),
+                "required" => field.is_required = true,
+                "optional" => field.is_optional = true,
+                "deprecated" => field.is_deprecated = true,
+                "key" => field.is_key = true,
                 "id" => {
                     let val_str =
                         entry
@@ -557,7 +589,7 @@ impl<'src> FbsParser<'src> {
 
             // null
             if text == "null" {
-                field.is_optional = Some(true);
+                field.is_optional = true;
                 return Ok(());
             }
 
@@ -679,7 +711,7 @@ impl<'src> FbsParser<'src> {
     fn parse_union_decl(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<()> {
         let mut union_decl = schema::Enum::new();
         union_decl.span = Some(self.get_span(span_token));
-        union_decl.is_union = Some(true);
+        union_decl.is_union = true;
         union_decl.documentation = Self::make_documentation(&doc);
 
         self.expect_ident("union")?;

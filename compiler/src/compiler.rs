@@ -40,6 +40,9 @@ pub enum CompilerError {
     #[error("include depth limit exceeded ({depth} levels) while processing {file}")]
     IncludeDepthLimit { depth: usize, file: PathBuf },
 
+    #[error("included file limit exceeded: {count} files exceeds limit of {limit}")]
+    IncludedFileLimit { count: usize, limit: usize },
+
     #[error("semantic error: {0}")]
     AnalyzeError(#[from] AnalyzeError),
 }
@@ -148,6 +151,9 @@ struct IncludeResolver {
 /// Maximum include depth to prevent stack overflow from deep include chains.
 const MAX_INCLUDE_DEPTH: usize = 64;
 
+/// Maximum number of included files to prevent OOM on malicious schemas (G3.20).
+const MAX_INCLUDED_FILES: usize = 1000;
+
 impl IncludeResolver {
     fn resolve_file(&mut self, file_path: &Path, depth: usize) -> Result<(), CompilerError> {
         // G3.8: Prevent stack overflow from deep (non-circular) include chains
@@ -201,6 +207,14 @@ impl IncludeResolver {
             schema: output.schema,
             state: output.state,
         });
+
+        // G3.20: Limit total number of included files to prevent OOM
+        if self.parsed_files.len() > MAX_INCLUDED_FILES {
+            return Err(CompilerError::IncludedFileLimit {
+                count: self.parsed_files.len(),
+                limit: MAX_INCLUDED_FILES,
+            });
+        }
 
         Ok(())
     }

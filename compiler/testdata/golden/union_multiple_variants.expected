@@ -22,7 +22,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_multiple_variants.fbs",
         "line": 1,
@@ -51,7 +50,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_multiple_variants.fbs",
         "line": 2,
@@ -80,7 +78,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_multiple_variants.fbs",
         "line": 3,
@@ -137,7 +134,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/union_multiple_variants.fbs",
         "line": 7,

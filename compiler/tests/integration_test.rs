@@ -46,7 +46,7 @@ fn compile_with_include() {
     // Vec3 should be a struct with layout computed
     let vec3 = &result.schema.objects[0];
     assert_eq!(vec3.name.as_deref(), Some("Vec3"));
-    assert_eq!(vec3.is_struct, Some(true));
+    assert!(vec3.is_struct);
     assert_eq!(vec3.byte_size, Some(12));
     assert_eq!(vec3.min_align, Some(4));
 

@@ -9,7 +9,7 @@ use super::{field_offset, field_type, field_type_index, obj_byte_size, obj_min_a
 pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, gen_object_api: bool) {
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
-    let byte_size = obj_byte_size(obj);
+    let byte_size = obj_byte_size(obj).unwrap();
     let fqn = ts_type_map::build_fqn(obj);
 
     // Accessor class
@@ -92,7 +92,7 @@ fn gen_field_accessor(w: &mut CodeWriter, schema: &schema::Schema, field: &schem
     let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
         field.name.as_deref().unwrap_or(""),
     ));
-    let offset = field_offset(field);
+    let offset = field_offset(field).unwrap();
     let bt = type_map::get_base_type(field.type_.as_ref());
 
     if bt == BaseType::BASE_TYPE_ARRAY {
@@ -101,7 +101,7 @@ fn gen_field_accessor(w: &mut CodeWriter, schema: &schema::Schema, field: &schem
     }
 
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field).unwrap();
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         w.block(
             &format!("{fname}(obj?:{struct_name}):{struct_name}|null"),
@@ -143,9 +143,9 @@ fn gen_array_accessor(
     let (et, _fixed_len, elem_size) = array_element_info(schema, field);
 
     if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field).unwrap();
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
-        let struct_size = obj_byte_size(&schema.objects[idx]);
+        let struct_size = obj_byte_size(&schema.objects[idx]).unwrap();
 
         w.block(
             &format!("{fname}(index: number, obj?:{struct_name}):{struct_name}|null"),
@@ -177,7 +177,7 @@ fn gen_array_accessor(
 
 /// Generate a field mutator for a struct.
 fn gen_field_mutator(w: &mut CodeWriter, schema: &schema::Schema, field: &schema::Field) {
-    let offset = field_offset(field);
+    let offset = field_offset(field).unwrap();
     let bt = type_map::get_base_type(field.type_.as_ref());
 
     // Struct and array fields don't get simple mutators
@@ -215,8 +215,8 @@ fn gen_static_create(
     obj: &schema::Object,
     name: &str,
 ) {
-    let byte_size = obj_byte_size(obj);
-    let min_align = obj_min_align(obj);
+    let byte_size = obj_byte_size(obj).unwrap();
+    let min_align = obj_min_align(obj).unwrap();
 
     // Build parameter list
     let params: Vec<String> = obj
@@ -315,7 +315,7 @@ fn gen_array_field_write(
     let max_idx = fixed_len - 1;
 
     if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field).unwrap();
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         let t_name = format!("{struct_name}T");
 
@@ -457,7 +457,7 @@ fn object_api_field_type_and_default(
     if bt == BaseType::BASE_TYPE_ARRAY {
         let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
         if et == BaseType::BASE_TYPE_STRUCT {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field).unwrap();
             let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
             (format!("({struct_name}T)[]"), "[]".to_string())
         } else {
@@ -465,7 +465,7 @@ fn object_api_field_type_and_default(
             (format!("({ts_type})[]"), "[]".to_string())
         }
     } else if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field).unwrap();
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         (format!("{struct_name}T|null"), "null".to_string())
     } else {
@@ -478,7 +478,7 @@ fn object_api_field_type_and_default(
 /// Get the TypeScript type for a struct field.
 fn field_ts_type(schema: &schema::Schema, field: &schema::Field, bt: BaseType) -> String {
     if bt == BaseType::BASE_TYPE_STRUCT {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field).unwrap();
         return schema.objects[idx]
             .name
             .as_deref()
@@ -488,7 +488,7 @@ fn field_ts_type(schema: &schema::Schema, field: &schema::Field, bt: BaseType) -
 
     // Check for enum type
     if type_map::is_scalar(bt) && type_map::has_enum_index(field) {
-        let enum_idx = field_type_index(field);
+        let enum_idx = field_type_index(field).unwrap();
         let enum_def = &schema.enums[enum_idx];
         // TS enums are just number aliases, so use the enum name as type
         return enum_def.name.as_deref().unwrap_or("number").to_string();
@@ -509,15 +509,15 @@ fn field_default_ts(_field: &schema::Field, bt: BaseType) -> String {
 
 /// Extract array element info: (element_base_type, fixed_length, element_size_in_bytes).
 fn array_element_info(schema: &schema::Schema, field: &schema::Field) -> (BaseType, usize, usize) {
-    let ty = field_type(field);
+    let ty = field_type(field).unwrap();
     let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
     let fixed_len = ty
         .fixed_length
         .expect("BUG: array field has no fixed_length") as usize;
 
     let elem_size = if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = type_index(ty, "array element struct lookup");
-        obj_byte_size(&schema.objects[idx])
+        let idx = type_index(ty, "array element struct lookup").unwrap();
+        obj_byte_size(&schema.objects[idx]).unwrap()
     } else {
         ts_type_map::scalar_size(et)
     };
@@ -529,7 +529,7 @@ fn array_element_info(schema: &schema::Schema, field: &schema::Field) -> (BaseTy
 fn array_elem_ts_type(schema: &schema::Schema, field: &schema::Field, et: BaseType) -> String {
     // Check for enum index on the array type
     if type_map::is_scalar(et) && type_map::has_enum_index(field) {
-        let enum_idx = field_type_index(field);
+        let enum_idx = field_type_index(field).unwrap();
         schema.enums[enum_idx]
             .name
             .as_deref()
@@ -544,7 +544,7 @@ fn array_elem_ts_type(schema: &schema::Schema, field: &schema::Field, et: BaseTy
 fn create_param_array_type(schema: &schema::Schema, field: &schema::Field) -> String {
     let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
     if et == BaseType::BASE_TYPE_STRUCT {
-        let idx = field_type_index(field);
+        let idx = field_type_index(field).unwrap();
         let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
         let t_name = format!("{struct_name}T");
         format!("(any|{t_name})[]|null")
@@ -564,7 +564,7 @@ fn unpack_struct_field_expr(schema: &schema::Schema, field: &schema::Field) -> S
     if bt == BaseType::BASE_TYPE_ARRAY {
         let (et, fixed_len, _elem_size) = array_element_info(schema, field);
         if et == BaseType::BASE_TYPE_STRUCT {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field).unwrap();
             let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
             let t_name = format!("{struct_name}T");
             format!(

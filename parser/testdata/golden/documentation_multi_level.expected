@@ -45,7 +45,6 @@
           }
         }
       ],
-      "is_struct": false,
       "documentation": {
         "lines": [
           " Table doc line 1",

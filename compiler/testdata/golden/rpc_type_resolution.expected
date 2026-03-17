@@ -22,7 +22,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/rpc_type_resolution.fbs",
         "line": 1,
@@ -51,7 +50,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/rpc_type_resolution.fbs",
         "line": 2,

@@ -52,11 +52,11 @@ pub mod a {
   }
 
   impl ::flatbuffers::Push for MyUnion {
-      type Output = MyUnion;
-      #[inline]
-      unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-          unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
-      }
+    type Output = MyUnion;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+      unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
   }
 
   impl ::flatbuffers::EndianScalar for MyUnion {
@@ -76,8 +76,8 @@ pub mod a {
   impl<'a> ::flatbuffers::Verifiable for MyUnion {
     #[inline]
     fn run_verifier(
-      v: &mut ::flatbuffers::Verifier, pos: usize
-    ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
       u8::run_verifier(v, pos)
     }
   }

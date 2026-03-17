@@ -126,7 +126,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/basic_type_resolution.fbs",
         "line": 7,

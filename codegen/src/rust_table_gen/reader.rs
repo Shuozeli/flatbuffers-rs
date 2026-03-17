@@ -4,7 +4,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 
 use crate::code_writer::CodeWriter;
 use crate::type_map;
-use crate::CodeGenOptions;
+use crate::{CodeGenError, CodeGenOptions};
 
 use super::helpers;
 
@@ -46,15 +46,24 @@ pub(super) fn gen_impl_block(
     obj: &schema::Object,
     name: &str,
     current_ns: &str,
-) {
-    w.block(&format!("impl<'a> {name}<'a>"), |w| {
-        // VTable offset constants
-        for field in &obj.fields {
+) -> Result<(), CodeGenError> {
+    // Pre-compute VT offsets so we don't need Result inside the closure
+    let vt_offsets: Vec<(String, u32)> = obj
+        .fields
+        .iter()
+        .map(|field| {
             let fname = field.name.as_deref().unwrap_or("");
             let escaped = type_map::escape_keyword(fname);
             let upper = type_map::to_upper_snake_case(&escaped);
-            let slot = field_id(field);
+            let slot = field_id(field)?;
             let vt_offset = 4 + 2 * slot;
+            Ok((upper, vt_offset))
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
+
+    w.try_block(&format!("impl<'a> {name}<'a>"), |w| {
+        // VTable offset constants
+        for (upper, vt_offset) in &vt_offsets {
             w.line(&format!(
                 "pub const VT_{upper}: ::flatbuffers::VOffsetT = {vt_offset};"
             ));
@@ -68,32 +77,31 @@ pub(super) fn gen_impl_block(
                 w.line(&format!("{name} {{ _tab: table }}"));
             },
         );
-        gen_create_method(w, schema, obj, name, current_ns);
+        gen_create_method(w, obj, name);
         w.blank(); // C++ emits a double blank after create()
         w.blank();
 
         // Field accessors - key methods are emitted right after the key field
-        for (i, field) in obj.fields.iter().enumerate() {
-            gen_field_accessor(w, schema, obj, field, i, name, current_ns);
+        for field in &obj.fields {
+            gen_field_accessor(w, schema, field, name, current_ns)?;
             // Key comparison methods come right after the key field accessor
             if helpers::has_key_attribute(field) {
                 w.blank();
-                gen_key_methods(w, schema, field, name, current_ns);
+                gen_key_methods(w, schema, field, name, current_ns)?;
             }
         }
-    });
+        Ok(())
+    })
 }
 
 /// Generate an accessor method for a table field.
 fn gen_field_accessor(
     w: &mut CodeWriter,
     schema: &schema::Schema,
-    _obj: &schema::Object,
     field: &schema::Field,
-    _field_idx: usize,
     table_name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     let fname = field.name.as_deref().unwrap_or("");
     let escaped = type_map::escape_keyword(fname);
     let accessor_name = type_map::to_snake_case(&escaped);
@@ -102,8 +110,8 @@ fn gen_field_accessor(
     let bt = get_base_type(field.type_.as_ref());
 
     let is_required = helpers::is_field_required(field);
-    let is_optional_scalar = field.is_optional == Some(true);
-    let is_deprecated = field.is_deprecated == Some(true);
+    let is_optional_scalar = field.is_optional;
+    let is_deprecated = field.is_deprecated;
 
     if is_deprecated {
         w.line("#[deprecated]");
@@ -122,7 +130,7 @@ fn gen_field_accessor(
                 is_optional_scalar,
                 table_name,
                 current_ns,
-            );
+            )?;
         }
         BaseType::BASE_TYPE_STRING => {
             gen_string_accessor(w, field, &accessor_name, &upper, table_name, is_required);
@@ -136,7 +144,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
-            );
+            )?;
         }
         BaseType::BASE_TYPE_TABLE => {
             gen_table_field_accessor(
@@ -147,7 +155,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
-            );
+            )?;
         }
         BaseType::BASE_TYPE_VECTOR => {
             gen_vector_accessor(
@@ -158,7 +166,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
-            );
+            )?;
         }
         BaseType::BASE_TYPE_UNION => {
             gen_union_accessor(
@@ -169,12 +177,15 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
-            );
+            )?;
         }
         _ => {
-            panic!("BUG: unhandled BaseType {bt:?} for accessor '{accessor_name}' (schema should have been validated by analyzer)");
+            return Err(CodeGenError::Internal(format!(
+                "unhandled BaseType {bt:?} for accessor '{accessor_name}'"
+            )));
         }
     }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -188,10 +199,10 @@ fn gen_scalar_accessor(
     is_optional: bool,
     table_name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     // Check if this is an enum field (has index pointing to an enum)
     if has_enum_index(field) {
-        let enum_idx = field_type_index(field);
+        let enum_idx = field_type_index(field)?;
         let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
         let is_bitflags = type_map::is_bitflags_enum(schema, enum_idx);
 
@@ -258,6 +269,7 @@ fn gen_scalar_accessor(
         w.dedent();
         w.line("}");
     }
+    Ok(())
 }
 
 fn gen_string_accessor(
@@ -313,8 +325,8 @@ fn gen_struct_field_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
-) {
-    let struct_idx = field_type_index(field);
+) -> Result<(), CodeGenError> {
+    let struct_idx = field_type_index(field)?;
     let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
 
     w.line(&format!(
@@ -329,6 +341,7 @@ fn gen_struct_field_accessor(
     ));
     w.dedent();
     w.line("}");
+    Ok(())
 }
 
 fn gen_table_field_accessor(
@@ -339,8 +352,8 @@ fn gen_table_field_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
-) {
-    let table_idx = field_type_index(field);
+) -> Result<(), CodeGenError> {
+    let table_idx = field_type_index(field)?;
     let field_table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
 
     w.line(&format!(
@@ -355,6 +368,7 @@ fn gen_table_field_accessor(
     ));
     w.dedent();
     w.line("}");
+    Ok(())
 }
 
 fn gen_vector_accessor(
@@ -365,11 +379,11 @@ fn gen_vector_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     let element_bt = get_element_type(field.type_.as_ref());
     let has_default = field.default_string.is_some();
 
-    let vector_inner = helpers::vector_element_type(schema, field, element_bt, "'a", current_ns);
+    let vector_inner = helpers::vector_element_type(schema, field, element_bt, "'a", current_ns)?;
     let full_type =
         format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {vector_inner}>>");
 
@@ -421,6 +435,7 @@ fn gen_vector_accessor(
             w.line("}");
         }
     }
+    Ok(())
 }
 
 fn gen_union_accessor(
@@ -431,7 +446,7 @@ fn gen_union_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     // The union value field. The type field (u8 discriminant) is a separate field
     // handled as a scalar enum accessor.
     w.line(&format!(
@@ -445,7 +460,7 @@ fn gen_union_accessor(
     w.line("}");
 
     // Generate typed accessors for each union variant
-    let enum_idx = field_type_index(field);
+    let enum_idx = field_type_index(field)?;
     if enum_idx < schema.enums.len() {
         let union_enum = &schema.enums[enum_idx];
         let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
@@ -461,7 +476,7 @@ fn gen_union_accessor(
             let variant_bt = get_base_type(val.union_type.as_ref());
 
             if variant_bt == BaseType::BASE_TYPE_TABLE {
-                let table_idx = union_variant_type_index(val);
+                let table_idx = union_variant_type_index(val)?;
                 let table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
 
                 w.blank();
@@ -486,7 +501,7 @@ fn gen_union_accessor(
                 w.dedent();
                 w.line("}");
             } else if variant_bt == BaseType::BASE_TYPE_STRUCT {
-                let struct_idx = union_variant_type_index(val);
+                let struct_idx = union_variant_type_index(val)?;
                 let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
 
                 w.blank();
@@ -513,6 +528,7 @@ fn gen_union_accessor(
             }
         }
     }
+    Ok(())
 }
 
 /// Verifiable impl for the table.
@@ -522,7 +538,26 @@ pub(super) fn gen_verifiable_impl(
     obj: &schema::Object,
     name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
+    // Pre-compute verifier type strings so we don't need Result inside the closure
+    let verify_fields: Vec<Option<(String, String, bool)>> = obj
+        .fields
+        .iter()
+        .map(|field| {
+            let bt = get_base_type(field.type_.as_ref());
+            if bt == BaseType::BASE_TYPE_UNION {
+                return Ok(None);
+            }
+            let fname = field.name.as_deref().unwrap_or("");
+            let escaped = type_map::escape_keyword(fname);
+            let upper = type_map::to_upper_snake_case(&escaped);
+            let is_required = field.is_required
+                || (helpers::has_key_attribute(field) && bt == BaseType::BASE_TYPE_STRING);
+            let verify_type = helpers::verifier_type_str(schema, field, current_ns)?;
+            Ok(Some((upper, verify_type, is_required)))
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
+
     w.block(
         &format!("impl ::flatbuffers::Verifiable for {name}<'_>"),
         |w| {
@@ -535,21 +570,13 @@ pub(super) fn gen_verifiable_impl(
             w.line(") -> Result<(), ::flatbuffers::InvalidFlatbuffer> {");
             w.indent();
             w.line("v.visit_table(pos)?");
-            for field in &obj.fields {
-                let fname = field.name.as_deref().unwrap_or("");
-                let escaped = type_map::escape_keyword(fname);
-                let upper = type_map::to_upper_snake_case(&escaped);
-                let bt = get_base_type(field.type_.as_ref());
-                let is_required = field.is_required == Some(true)
-                    || (helpers::has_key_attribute(field) && bt == BaseType::BASE_TYPE_STRING);
-                // the type discriminant is verified as a scalar.
-                if bt == BaseType::BASE_TYPE_UNION {
-                    continue;
+            for (i, field) in obj.fields.iter().enumerate() {
+                if let Some((upper, verify_type, is_required)) = &verify_fields[i] {
+                    let fname = field.name.as_deref().unwrap_or("");
+                    w.line(&format!(
+                        " .visit_field::<{verify_type}>(\"{fname}\", Self::VT_{upper}, {is_required})?"
+                    ));
                 }
-                let verify_type = helpers::verifier_type_str(schema, field, current_ns);
-                w.line(&format!(
-                    " .visit_field::<{verify_type}>(\"{fname}\", Self::VT_{upper}, {is_required})?"
-                ));
             }
             w.line(" .finish();");
             w.line("Ok(())");
@@ -557,12 +584,12 @@ pub(super) fn gen_verifiable_impl(
             w.line("}");
         },
     );
+    Ok(())
 }
 
 /// Debug impl for the table.
 pub(super) fn gen_debug_impl(
     w: &mut CodeWriter,
-    _schema: &schema::Schema,
     obj: &schema::Object,
     name: &str,
     opts: &CodeGenOptions,
@@ -614,10 +641,8 @@ pub(super) fn gen_debug_impl(
 /// Generate the inline `create()` method inside the impl block (C++ flatc style).
 fn gen_create_method(
     w: &mut CodeWriter,
-    _schema: &schema::Schema,
     obj: &schema::Object,
     name: &str,
-    _current_ns: &str,
 ) {
     let needs_lifetime = obj.fields.iter().any(|f| {
         let bt = get_base_type(f.type_.as_ref());
@@ -677,7 +702,7 @@ fn gen_create_method(
         let fname = field.name.as_deref().unwrap_or("");
         let escaped = type_map::escape_keyword(fname);
         let accessor = type_map::to_snake_case(&escaped);
-        if field.is_optional == Some(true) {
+        if field.is_optional {
             w.line(&format!(
                 "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
             ));
@@ -698,7 +723,7 @@ fn gen_key_methods(
     field: &schema::Field,
     table_name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     let fname = field.name.as_deref().unwrap_or("");
     let escaped = type_map::escape_keyword(fname);
     let accessor = type_map::to_snake_case(&escaped);
@@ -709,13 +734,13 @@ fn gen_key_methods(
         ("& str".to_string(), true)
     } else if type_map::is_scalar(bt) {
         if has_enum_index(field) {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             (type_map::resolve_enum_name(schema, current_ns, idx), false)
         } else {
             (type_map::scalar_rust_type(bt).to_string(), false)
         }
     } else {
-        return; // Unsupported key type
+        return Ok(()); // Unsupported key type
     };
 
     // key_compare_less_than
@@ -743,4 +768,5 @@ fn gen_key_methods(
             }
         },
     );
+    Ok(())
 }

@@ -66,7 +66,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/deprecated_field_preservation.fbs",
         "line": 1,

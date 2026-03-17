@@ -1,3 +1,4 @@
+use flatc_rs_schema::buf_reader::BoundsError;
 use flatc_rs_schema::BaseType;
 
 #[derive(Debug, thiserror::Error)]
@@ -54,6 +55,9 @@ pub enum JsonError {
     #[error("struct field '{field_name}' is missing in JSON (structs require all fields)")]
     MissingStructField { field_name: String },
 
+    #[error("missing type index for {context}")]
+    MissingTypeIndex { context: String },
+
     #[error("number out of range for field '{field_name}' ({base_type}): {value}")]
     NumberOutOfRange {
         field_name: String,
@@ -76,19 +80,20 @@ pub fn json_type_name(v: &serde_json::Value) -> String {
 
 /// Return the byte size of a scalar BaseType.
 pub fn scalar_byte_size(bt: BaseType) -> usize {
-    match bt {
-        BaseType::BASE_TYPE_BOOL
-        | BaseType::BASE_TYPE_BYTE
-        | BaseType::BASE_TYPE_U_BYTE
-        | BaseType::BASE_TYPE_U_TYPE => 1,
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => 2,
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => 4,
-        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => 8,
-        _ => 0,
-    }
+    bt.scalar_byte_size()
 }
 
 /// Return true if the BaseType is a scalar (including bool).
 pub fn is_scalar(bt: BaseType) -> bool {
-    scalar_byte_size(bt) > 0
+    bt.is_scalar()
+}
+
+impl From<BoundsError> for JsonError {
+    fn from(e: BoundsError) -> Self {
+        JsonError::OutOfBounds {
+            offset: e.offset,
+            need: e.size,
+            buf_len: e.buf_len,
+        }
+    }
 }

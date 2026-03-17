@@ -1,3 +1,5 @@
+pub mod buf_reader;
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -46,6 +48,39 @@ impl BaseType {
         match self {
             BaseType::BASE_TYPE_STRUCT => 15, // Obj
             _ => self as u8,
+        }
+    }
+
+    /// Returns true if this is a scalar type (including bool and u_type).
+    pub fn is_scalar(self) -> bool {
+        matches!(
+            self,
+            Self::BASE_TYPE_BOOL
+                | Self::BASE_TYPE_BYTE
+                | Self::BASE_TYPE_U_BYTE
+                | Self::BASE_TYPE_SHORT
+                | Self::BASE_TYPE_U_SHORT
+                | Self::BASE_TYPE_INT
+                | Self::BASE_TYPE_U_INT
+                | Self::BASE_TYPE_LONG
+                | Self::BASE_TYPE_U_LONG
+                | Self::BASE_TYPE_FLOAT
+                | Self::BASE_TYPE_DOUBLE
+                | Self::BASE_TYPE_U_TYPE
+        )
+    }
+
+    /// Returns the byte size of a scalar type, or 0 for non-scalar types.
+    pub fn scalar_byte_size(self) -> usize {
+        match self {
+            Self::BASE_TYPE_BOOL
+            | Self::BASE_TYPE_BYTE
+            | Self::BASE_TYPE_U_BYTE
+            | Self::BASE_TYPE_U_TYPE => 1,
+            Self::BASE_TYPE_SHORT | Self::BASE_TYPE_U_SHORT => 2,
+            Self::BASE_TYPE_INT | Self::BASE_TYPE_U_INT | Self::BASE_TYPE_FLOAT => 4,
+            Self::BASE_TYPE_LONG | Self::BASE_TYPE_U_LONG | Self::BASE_TYPE_DOUBLE => 8,
+            _ => 0,
         }
     }
 
@@ -243,8 +278,8 @@ pub struct Enum {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub values: Vec<EnumVal>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_union: Option<bool>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_union: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underlying_type: Option<Type>,
@@ -298,17 +333,17 @@ pub struct Field {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_string: Option<String>,
 
-    #[serde(rename = "deprecated", skip_serializing_if = "Option::is_none")]
-    pub is_deprecated: Option<bool>,
+    #[serde(rename = "deprecated", default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_deprecated: bool,
 
-    #[serde(rename = "required", skip_serializing_if = "Option::is_none")]
-    pub is_required: Option<bool>,
+    #[serde(rename = "required", default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_required: bool,
 
-    #[serde(rename = "key", skip_serializing_if = "Option::is_none")]
-    pub is_key: Option<bool>,
+    #[serde(rename = "key", default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_key: bool,
 
-    #[serde(rename = "optional", skip_serializing_if = "Option::is_none")]
-    pub is_optional: Option<bool>,
+    #[serde(rename = "optional", default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_optional: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attributes: Option<Attributes>,
@@ -319,8 +354,8 @@ pub struct Field {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub padding: Option<u32>,
 
-    #[serde(rename = "offset64", skip_serializing_if = "Option::is_none")]
-    pub is_offset_64: Option<bool>,
+    #[serde(rename = "offset64", default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_offset_64: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span: Option<Span>,
@@ -344,8 +379,8 @@ pub struct Object {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<Field>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub is_struct: Option<bool>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_struct: bool,
 
     #[serde(rename = "minalign", skip_serializing_if = "Option::is_none")]
     pub min_align: Option<i32>,
@@ -526,6 +561,12 @@ pub struct Schema {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root_table: Option<Object>,
+
+    /// Index into `objects` for the root table. Preferred over `root_table`
+    /// because `root_table` is a deep clone that can go stale after layout
+    /// computation mutates the objects in-place.
+    #[serde(skip)]
+    pub root_table_index: Option<usize>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub services: Vec<Service>,

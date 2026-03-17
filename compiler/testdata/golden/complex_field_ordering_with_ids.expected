@@ -82,7 +82,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
         "line": 1,

@@ -22,18 +22,8 @@
 
 // @generated
 
-#![allow(
-    unused_imports,
-    dead_code,
-    clippy::all,
-    non_camel_case_types,
-    non_snake_case,
-    unused_variables,
-    unused_mut,
-    deprecated,
-    elided_lifetimes_in_paths,
-    mismatched_lifetime_syntaxes
-)]
+// Module-level lint suppressions are applied in lib.rs on the `pub mod reflection;` declaration.
+// Inner item-level #[allow] attributes below are from the original generated code.
 
 use core::cmp::Ordering;
 use core::mem;

@@ -94,7 +94,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "Com.Company.Product.Module"
       },

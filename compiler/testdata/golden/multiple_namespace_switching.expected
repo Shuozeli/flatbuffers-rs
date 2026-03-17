@@ -22,7 +22,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "First"
       },
@@ -54,7 +53,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "Second"
       },
@@ -87,7 +85,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "First"
       },

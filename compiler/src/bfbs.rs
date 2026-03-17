@@ -228,15 +228,21 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
     let file_ext = schema.file_ext.as_deref().map(|s| b.create_string(s));
 
     // --- Find root_table offset ---
-    let root_table_off: Option<TOff> = schema.root_table.as_ref().and_then(|rt| {
-        let rt_name = rt.name.as_deref().unwrap_or("");
-        schema
-            .objects
-            .iter()
-            .enumerate()
-            .find(|(_, obj)| obj.name.as_deref() == Some(rt_name))
-            .map(|(orig_idx, _)| obj_offs[obj_index_to_sorted[orig_idx]])
-    });
+    let root_table_off: Option<TOff> = schema
+        .root_table_index
+        .map(|idx| obj_offs[obj_index_to_sorted[idx]])
+        .or_else(|| {
+            // Fallback: match by name if root_table_index is not set
+            schema.root_table.as_ref().and_then(|rt| {
+                let rt_name = rt.name.as_deref().unwrap_or("");
+                schema
+                    .objects
+                    .iter()
+                    .enumerate()
+                    .find(|(_, obj)| obj.name.as_deref() == Some(rt_name))
+                    .map(|(orig_idx, _)| obj_offs[obj_index_to_sorted[orig_idx]])
+            })
+        });
 
     // --- Build Schema table ---
     let start = b.start_table();
@@ -407,7 +413,7 @@ fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum, maps: &IndexMaps<
     let start = b.start_table();
     b.push_slot_always(ENUM_NAME, name);
     b.push_slot_always(ENUM_VALUES, values_vec);
-    b.push_slot::<bool>(ENUM_IS_UNION, e.is_union.unwrap_or(false), false);
+    b.push_slot::<bool>(ENUM_IS_UNION, e.is_union, false);
     if let Some(ut) = underlying {
         b.push_slot_always(ENUM_UNDERLYING_TYPE, ut);
     }
@@ -448,20 +454,20 @@ fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field, maps: &Inde
     b.push_slot::<f64>(FIELD_DEFAULT_REAL, field.default_real.unwrap_or(0.0), 0.0);
     b.push_slot::<bool>(
         FIELD_DEPRECATED,
-        field.is_deprecated.unwrap_or(false),
+        field.is_deprecated,
         false,
     );
-    b.push_slot::<bool>(FIELD_REQUIRED, field.is_required.unwrap_or(false), false);
-    b.push_slot::<bool>(FIELD_KEY, field.is_key.unwrap_or(false), false);
+    b.push_slot::<bool>(FIELD_REQUIRED, field.is_required, false);
+    b.push_slot::<bool>(FIELD_KEY, field.is_key, false);
     if let Some(a) = attrs {
         b.push_slot_always(FIELD_ATTRIBUTES, a);
     }
     if let Some(d) = doc {
         b.push_slot_always(FIELD_DOCUMENTATION, d);
     }
-    b.push_slot::<bool>(FIELD_OPTIONAL, field.is_optional.unwrap_or(false), false);
+    b.push_slot::<bool>(FIELD_OPTIONAL, field.is_optional, false);
     b.push_slot::<u16>(FIELD_PADDING, field.padding.unwrap_or(0) as u16, 0);
-    b.push_slot::<bool>(FIELD_OFFSET64, field.is_offset_64.unwrap_or(false), false);
+    b.push_slot::<bool>(FIELD_OFFSET64, field.is_offset_64, false);
     b.end_table(start)
 }
 
@@ -490,7 +496,7 @@ fn write_object(b: &mut FlatBufferBuilder<'_>, obj: &schema::Object, maps: &Inde
     let start = b.start_table();
     b.push_slot_always(OBJECT_NAME, name);
     b.push_slot_always(OBJECT_FIELDS, fields_vec);
-    b.push_slot::<bool>(OBJECT_IS_STRUCT, obj.is_struct.unwrap_or(false), false);
+    b.push_slot::<bool>(OBJECT_IS_STRUCT, obj.is_struct, false);
     b.push_slot::<i32>(OBJECT_MINALIGN, obj.min_align.unwrap_or(0), 0);
     b.push_slot::<i32>(OBJECT_BYTESIZE, obj.byte_size.unwrap_or(0), 0);
     if let Some(a) = attrs {
@@ -745,30 +751,32 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
         }
     }
 
-    // root_table: find by name in out_objects
-    let root_table = root.root_table().map(|rt| {
-        let rt_name = rt.name();
-        // Find the matching object by fully qualified name
-        out_objects
-            .iter()
-            .find(|obj| {
+    // root_table: find by name in out_objects, and record the index
+    let (root_table, root_table_index) = match root.root_table() {
+        Some(rt) => {
+            let rt_name = rt.name();
+            let found = out_objects.iter().enumerate().find(|(_, obj)| {
                 let fq = fully_qualified_obj_name(obj);
                 fq == rt_name
-            })
-            .cloned()
-            .unwrap_or_else(|| {
-                // Fallback: create a minimal Object with just the name
-                let (ns, short) = split_fq_name(rt_name);
-                let mut obj = schema::Object::new();
-                obj.name = Some(short.to_string());
-                if let Some(ns_str) = ns {
-                    obj.namespace = Some(schema::Namespace {
-                        namespace: Some(ns_str.to_string()),
-                    });
+            });
+            match found {
+                Some((idx, obj)) => (Some(obj.clone()), Some(idx)),
+                None => {
+                    // Fallback: create a minimal Object with just the name
+                    let (ns, short) = split_fq_name(rt_name);
+                    let mut obj = schema::Object::new();
+                    obj.name = Some(short.to_string());
+                    if let Some(ns_str) = ns {
+                        obj.namespace = Some(schema::Namespace {
+                            namespace: Some(ns_str.to_string()),
+                        });
+                    }
+                    (Some(obj), None)
                 }
-                obj
-            })
-    });
+            }
+        }
+        None => (None, None),
+    };
 
     let advanced_features = schema::AdvancedFeatures(root.advanced_features().bits());
 
@@ -778,6 +786,7 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
         file_ident: root.file_ident().map(|s| s.to_string()),
         file_ext: root.file_ext().map(|s| s.to_string()),
         root_table,
+        root_table_index,
         services: out_services,
         advanced_features,
         fbs_files: out_fbs_files,
@@ -933,10 +942,10 @@ fn read_field(
             None
         },
         default_string: None,
-        is_deprecated: if field.deprecated() { Some(true) } else { None },
-        is_required: if field.required() { Some(true) } else { None },
-        is_key: if field.key() { Some(true) } else { None },
-        is_optional: if field.optional() { Some(true) } else { None },
+        is_deprecated: field.deprecated(),
+        is_required: field.required(),
+        is_key: field.key(),
+        is_optional: field.optional(),
         attributes: read_attributes(field.attributes()),
         documentation: read_documentation(field.documentation()),
         padding: if field.padding() != 0 {
@@ -944,7 +953,7 @@ fn read_field(
         } else {
             None
         },
-        is_offset_64: if field.offset64() { Some(true) } else { None },
+        is_offset_64: field.offset64(),
         span: None,
     })
 }
@@ -970,7 +979,7 @@ fn read_object(
     Ok(schema::Object {
         name: Some(short_name.to_string()),
         fields,
-        is_struct: if obj.is_struct() { Some(true) } else { None },
+        is_struct: obj.is_struct(),
         min_align: if minalign != 0 { Some(minalign) } else { None },
         byte_size: if bytesize != 0 { Some(bytesize) } else { None },
         attributes: read_attributes(obj.attributes()),
@@ -1017,7 +1026,7 @@ fn read_enum(e: &refl::Enum<'_>, is_struct_flags: &[bool]) -> Result<schema::Enu
     Ok(schema::Enum {
         name: Some(short_name.to_string()),
         values,
-        is_union: if e.is_union() { Some(true) } else { None },
+        is_union: e.is_union(),
         underlying_type: Some(underlying),
         attributes: read_attributes(e.attributes()),
         documentation: read_documentation(e.documentation()),
@@ -1117,6 +1126,7 @@ mod tests {
 
         schema.objects.push(obj.clone());
         schema.root_table = Some(obj);
+        schema.root_table_index = Some(0);
 
         let buf = serialize_schema(&schema);
         assert_eq!(&buf[4..8], b"BFBS");

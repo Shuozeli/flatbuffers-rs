@@ -62,7 +62,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "Game"
       },
@@ -129,7 +128,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "Game"
       },

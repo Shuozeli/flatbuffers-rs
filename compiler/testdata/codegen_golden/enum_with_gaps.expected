@@ -64,11 +64,11 @@ impl<'a> ::flatbuffers::Follow<'a> for Status {
 }
 
 impl ::flatbuffers::Push for Status {
-    type Output = Status;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i16>(dst, self.0) };
-    }
+  type Output = Status;
+  #[inline]
+  unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+    unsafe { ::flatbuffers::emplace_scalar::<i16>(dst, self.0) };
+  }
 }
 
 impl ::flatbuffers::EndianScalar for Status {

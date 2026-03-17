@@ -415,8 +415,10 @@ fn main() {
         let root_type_name = cli
             .root_type
             .as_deref()
+            .or(result.schema.root_table_index.and_then(|idx| {
+                result.schema.objects[idx].name.as_deref()
+            }))
             .or(result.schema.root_table.as_ref().and_then(|rt| {
-                // root_table is an Object -- extract its name
                 rt.name.as_deref()
             }))
             .unwrap_or_else(|| {
@@ -540,6 +542,10 @@ fn main() {
         let root_type_name = cli
             .root_type
             .as_deref()
+            .or(result
+                .schema
+                .root_table_index
+                .and_then(|idx| result.schema.objects[idx].name.as_deref()))
             .or(result
                 .schema
                 .root_table

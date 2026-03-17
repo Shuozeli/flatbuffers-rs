@@ -88,7 +88,7 @@ pub fn build_namespace_tree(
         } else {
             ns.split('.').collect()
         };
-        let entry = if obj.is_struct == Some(true) {
+        let entry = if obj.is_struct {
             TypeEntry::Struct(i)
         } else {
             TypeEntry::Table(i)

@@ -105,7 +105,7 @@ impl<'a> DataBuilder<'a> {
                 .unwrap_or(BaseType::BASE_TYPE_NONE);
 
             // Skip deprecated fields
-            if field.is_deprecated == Some(true) {
+            if field.is_deprecated {
                 continue;
             }
 
@@ -120,7 +120,7 @@ impl<'a> DataBuilder<'a> {
             }
 
             // Decide whether to include this field
-            let required = field.is_required == Some(true);
+            let required = field.is_required;
             if !required {
                 // At max depth, skip table/vector-of-table/union fields
                 if depth >= self.config.max_depth {
@@ -178,7 +178,7 @@ impl<'a> DataBuilder<'a> {
             let idx = idx as usize;
             if idx < self.schema.enums.len() {
                 let e = &self.schema.enums[idx];
-                if e.is_union != Some(true) && is_scalar(bt) {
+                if !e.is_union && is_scalar(bt) {
                     return Ok(Some(self.build_enum_value(idx)?));
                 }
             }
@@ -398,18 +398,5 @@ impl<'a> DataBuilder<'a> {
 }
 
 fn is_scalar(bt: BaseType) -> bool {
-    matches!(
-        bt,
-        BaseType::BASE_TYPE_BOOL
-            | BaseType::BASE_TYPE_BYTE
-            | BaseType::BASE_TYPE_U_BYTE
-            | BaseType::BASE_TYPE_SHORT
-            | BaseType::BASE_TYPE_U_SHORT
-            | BaseType::BASE_TYPE_INT
-            | BaseType::BASE_TYPE_U_INT
-            | BaseType::BASE_TYPE_LONG
-            | BaseType::BASE_TYPE_U_LONG
-            | BaseType::BASE_TYPE_FLOAT
-            | BaseType::BASE_TYPE_DOUBLE
-    )
+    bt.is_scalar()
 }

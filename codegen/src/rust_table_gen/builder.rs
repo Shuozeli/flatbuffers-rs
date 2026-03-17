@@ -4,6 +4,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 
 use crate::code_writer::CodeWriter;
 use crate::type_map;
+use crate::CodeGenError;
 
 use super::helpers;
 
@@ -14,7 +15,7 @@ pub(super) fn gen_builder(
     obj: &schema::Object,
     name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     // Builder struct
     w.block(
         &format!("pub struct {name}Builder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a>"),
@@ -25,12 +26,12 @@ pub(super) fn gen_builder(
     );
 
     // Builder impl (immediately follows struct, no blank line)
-    w.block(
+    w.try_block(
         &format!("impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {name}Builder<'a, 'b, A>"),
         |w| {
             // add_* methods for each field
-            for (i, field) in obj.fields.iter().enumerate() {
-                gen_builder_add_method(w, schema, field, name, i, current_ns);
+            for field in &obj.fields {
+                gen_builder_add_method(w, schema, field, name, current_ns)?;
             }
 
             // new()
@@ -58,7 +59,7 @@ pub(super) fn gen_builder(
                     for field in &obj.fields {
                         let fbt = get_base_type(field.type_.as_ref());
                         let is_key_string = helpers::has_key_attribute(field) && fbt == BaseType::BASE_TYPE_STRING;
-                        if field.is_required == Some(true) || is_key_string {
+                        if field.is_required || is_key_string {
                             let fname = field.name.as_deref().unwrap_or("");
                             let escaped = type_map::escape_keyword(fname);
                             let upper = type_map::to_upper_snake_case(&escaped);
@@ -70,8 +71,9 @@ pub(super) fn gen_builder(
                     w.line("::flatbuffers::WIPOffset::new(o.value())");
                 },
             );
+            Ok(())
         },
-    );
+    )
 }
 
 fn gen_builder_add_method(
@@ -79,9 +81,8 @@ fn gen_builder_add_method(
     schema: &schema::Schema,
     field: &schema::Field,
     table_name: &str,
-    _field_idx: usize,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     let fname = field.name.as_deref().unwrap_or("");
     let escaped = type_map::escape_keyword(fname);
     let accessor = type_map::to_snake_case(&escaped);
@@ -94,9 +95,9 @@ fn gen_builder_add_method(
     match bt {
         bt if type_map::is_scalar(bt) => {
             let (param_type, use_default) =
-                helpers::scalar_builder_type(schema, field, bt, current_ns);
+                helpers::scalar_builder_type(schema, field, bt, current_ns)?;
             if use_default {
-                let default = helpers::scalar_builder_default(schema, field, bt, current_ns);
+                let default = helpers::scalar_builder_default(schema, field, bt, current_ns)?;
                 w.line(&format!(
                     "pub fn add_{accessor}(&mut self, {accessor}: {param_type}) {{"
                 ));
@@ -128,7 +129,7 @@ fn gen_builder_add_method(
             w.line("}");
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let struct_idx = field_type_index(field);
+            let struct_idx = field_type_index(field)?;
             let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
             w.line(&format!(
                 "pub fn add_{accessor}(&mut self, {accessor}: &{struct_name}) {{"
@@ -141,7 +142,7 @@ fn gen_builder_add_method(
             w.line("}");
         }
         BaseType::BASE_TYPE_TABLE => {
-            let table_idx = field_type_index(field);
+            let table_idx = field_type_index(field)?;
             let table_name_ref = type_map::resolve_object_name(schema, current_ns, table_idx);
             w.line(&format!(
                 "pub fn add_{accessor}(&mut self, {accessor}: ::flatbuffers::WIPOffset<{table_name_ref}<'b >>) {{"
@@ -156,7 +157,7 @@ fn gen_builder_add_method(
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = get_element_type(field.type_.as_ref());
             let vec_inner =
-                helpers::vector_element_type(schema, field, element_bt, "'b", current_ns);
+                helpers::vector_element_type(schema, field, element_bt, "'b", current_ns)?;
             w.line(&format!(
                 "pub fn add_{accessor}(&mut self, {accessor}: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , {vec_inner}>>) {{"
             ));
@@ -179,9 +180,12 @@ fn gen_builder_add_method(
             w.line("}");
         }
         _ => {
-            panic!("BUG: unhandled BaseType {bt:?} for builder add_{accessor} (schema should have been validated by analyzer)");
+            return Err(CodeGenError::Internal(format!(
+                "unhandled BaseType {bt:?} for builder add_{accessor}"
+            )));
         }
     }
+    Ok(())
 }
 
 /// Generate the Args struct for convenience table creation.
@@ -191,7 +195,7 @@ pub(super) fn gen_args_struct(
     obj: &schema::Object,
     name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     let needs_lifetime = obj.fields.iter().any(|f| {
         let bt = get_base_type(f.type_.as_ref());
         matches!(
@@ -205,13 +209,24 @@ pub(super) fn gen_args_struct(
 
     let lifetime = if needs_lifetime { "<'a>" } else { "" };
 
+    // Pre-compute types and defaults so we don't need Result inside closures
+    let field_info: Vec<(String, String, String, bool)> = obj
+        .fields
+        .iter()
+        .map(|field| {
+            let fname = field.name.as_deref().unwrap_or("");
+            let escaped = type_map::escape_keyword(fname);
+            let accessor = type_map::to_snake_case(&escaped);
+            let arg_type = helpers::args_field_type(schema, field, current_ns)?;
+            let default = helpers::args_field_default(schema, field, current_ns)?;
+            let is_required = field.is_required || helpers::has_key_attribute(field);
+            Ok((accessor, arg_type, default, is_required))
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
+
     // C++ flatc uses 4-space indentation for struct fields (different from rest of code)
     w.line(&format!("pub struct {name}Args{lifetime} {{"));
-    for field in &obj.fields {
-        let fname = field.name.as_deref().unwrap_or("");
-        let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_snake_case(&escaped);
-        let arg_type = helpers::args_field_type(schema, field, current_ns);
+    for (accessor, arg_type, _, _) in &field_info {
         w.line(&format!("    pub {accessor}: {arg_type},"));
     }
     w.line("}");
@@ -222,14 +237,8 @@ pub(super) fn gen_args_struct(
         w.block("fn default() -> Self", |w| {
             w.line(&format!("{name}Args {{"));
             w.indent();
-            for field in &obj.fields {
-                let fname = field.name.as_deref().unwrap_or("");
-                let escaped = type_map::escape_keyword(fname);
-                let accessor = type_map::to_snake_case(&escaped);
-                let default = helpers::args_field_default(schema, field, current_ns);
-                let is_required =
-                    field.is_required == Some(true) || helpers::has_key_attribute(field);
-                if is_required {
+            for (accessor, _, default, is_required) in &field_info {
+                if *is_required {
                     w.line(&format!("{accessor}: {default}, // required field"));
                 } else {
                     w.line(&format!("{accessor}: {default},"));
@@ -239,15 +248,14 @@ pub(super) fn gen_args_struct(
             w.line("}");
         });
     });
+    Ok(())
 }
 
 /// Generate the standalone `create*()` function.
 pub(super) fn gen_create_fn(
     w: &mut CodeWriter,
-    _schema: &schema::Schema,
     obj: &schema::Object,
     name: &str,
-    _current_ns: &str,
 ) {
     let needs_lifetime = obj.fields.iter().any(|f| {
         let bt = get_base_type(f.type_.as_ref());
@@ -309,7 +317,7 @@ pub(super) fn gen_create_fn(
         let fname = field.name.as_deref().unwrap_or("");
         let escaped = type_map::escape_keyword(fname);
         let accessor = type_map::to_snake_case(&escaped);
-        if field.is_optional == Some(true) {
+        if field.is_optional {
             w.line(&format!(
                 "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
             ));

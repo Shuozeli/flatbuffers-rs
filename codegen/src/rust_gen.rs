@@ -6,7 +6,7 @@ use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::rust_table_gen;
 use super::struct_gen;
 use super::type_map;
-use super::CodeGenOptions;
+use super::{CodeGenError, CodeGenOptions};
 
 /// Main code generator. Holds a reference to the resolved schema and produces
 /// Rust source code compatible with the `flatbuffers` runtime crate.
@@ -26,11 +26,11 @@ impl<'a> RustGenerator<'a> {
     }
 
     /// Generate all Rust code and return the source string.
-    pub fn generate(mut self) -> String {
+    pub fn generate(mut self) -> Result<String, CodeGenError> {
         self.gen_header();
-        self.gen_body();
+        self.gen_body()?;
         self.gen_root_type_functions();
-        self.w.finish()
+        Ok(self.w.finish())
     }
 
     fn gen_header(&mut self) {
@@ -45,23 +45,24 @@ impl<'a> RustGenerator<'a> {
     }
 
     /// Group all types by namespace and emit nested `pub mod` blocks.
-    fn gen_body(&mut self) {
+    fn gen_body(&mut self) -> Result<(), CodeGenError> {
         let root = namespace_tree::build_namespace_tree(self.schema, &self._opts.gen_only_files);
 
         // Emit root-level types first
         if !root.types.is_empty() {
             self.w.blank();
-            self.gen_types(&root.types);
+            self.gen_types(&root.types)?;
         }
 
         // Emit child namespace modules
         for (name, child) in &root.children {
-            self.gen_namespace_node(name, child);
+            self.gen_namespace_node(name, child)?;
         }
+        Ok(())
     }
 
     /// Recursively emit a namespace node as nested `pub mod` blocks.
-    fn gen_namespace_node(&mut self, name: &str, node: &NamespaceNode) {
+    fn gen_namespace_node(&mut self, name: &str, node: &NamespaceNode) -> Result<(), CodeGenError> {
         let mod_name = type_map::to_snake_case(name);
         self.w.blank();
         self.w.line("#[allow(unused_imports, dead_code)]");
@@ -74,41 +75,46 @@ impl<'a> RustGenerator<'a> {
         // Types at this namespace level
         if !node.types.is_empty() {
             self.w.blank();
-            self.gen_types(&node.types);
+            self.gen_types(&node.types)?;
         }
 
         // Child namespaces
         for (child_name, child_node) in &node.children {
-            self.gen_namespace_node(child_name, child_node);
+            self.gen_namespace_node(child_name, child_node)?;
         }
 
         self.w.dedent();
         self.w.line(&format!("}} // {name}"));
+        Ok(())
     }
 
-    fn gen_types(&mut self, entries: &[TypeEntry]) {
+    fn gen_types(&mut self, entries: &[TypeEntry]) -> Result<(), CodeGenError> {
         for entry in entries {
             match entry {
                 TypeEntry::Enum(idx) => {
-                    enum_gen::generate(&mut self.w, self.schema, *idx, self._opts);
+                    enum_gen::generate(&mut self.w, self.schema, *idx, self._opts)?;
                     self.w.blank();
                 }
                 TypeEntry::Struct(idx) => {
-                    struct_gen::generate(&mut self.w, self.schema, *idx, self._opts);
+                    struct_gen::generate(&mut self.w, self.schema, *idx, self._opts)?;
                     self.w.blank();
                 }
                 TypeEntry::Table(idx) => {
-                    rust_table_gen::generate(&mut self.w, self.schema, *idx, self._opts);
+                    rust_table_gen::generate(&mut self.w, self.schema, *idx, self._opts)?;
                     self.w.blank();
                 }
             }
         }
+        Ok(())
     }
 
     fn gen_root_type_functions(&mut self) {
-        let root_table = match self.schema.root_table.as_ref() {
-            Some(rt) => rt,
-            None => return,
+        let root_table = match self.schema.root_table_index {
+            Some(idx) => &self.schema.objects[idx],
+            None => match self.schema.root_table.as_ref() {
+                Some(rt) => rt,
+                None => return,
+            },
         };
         let name = root_table.name.as_deref().unwrap_or("");
         if name.is_empty() {

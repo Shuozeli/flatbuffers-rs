@@ -61,7 +61,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/multiple_enums_same_file.fbs",
         "line": 5,

@@ -7,10 +7,10 @@ use flatc_rs_schema as schema;
 
 use super::code_writer::CodeWriter;
 use super::type_map;
-use super::{type_visibility, CodeGenOptions};
+use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Generate Rust code for the table at `schema.objects[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) {
+pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let obj = &schema.objects[index];
     let name = obj.name.as_deref().unwrap_or("");
     let vis = type_visibility(obj.attributes.as_ref(), opts);
@@ -21,20 +21,21 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
     w.blank();
     reader::gen_follow_impl(w, name);
     w.blank();
-    reader::gen_impl_block(w, schema, obj, name, current_ns);
+    reader::gen_impl_block(w, schema, obj, name, current_ns)?;
     w.blank();
-    reader::gen_verifiable_impl(w, schema, obj, name, current_ns);
-    builder::gen_args_struct(w, schema, obj, name, current_ns);
+    reader::gen_verifiable_impl(w, schema, obj, name, current_ns)?;
+    builder::gen_args_struct(w, schema, obj, name, current_ns)?;
     w.blank();
-    builder::gen_builder(w, schema, obj, name, current_ns);
+    builder::gen_builder(w, schema, obj, name, current_ns)?;
     w.blank();
-    reader::gen_debug_impl(w, schema, obj, name, opts);
+    reader::gen_debug_impl(w, obj, name, opts);
     w.blank();
-    builder::gen_create_fn(w, schema, obj, name, current_ns);
+    builder::gen_create_fn(w, obj, name);
 
     // Object API: owned T type with pack/unpack
     if opts.gen_object_api {
         w.blank();
-        object_api::gen_object_api(w, schema, obj, name, current_ns, opts);
+        object_api::gen_object_api(w, schema, obj, name, current_ns, opts)?;
     }
+    Ok(())
 }

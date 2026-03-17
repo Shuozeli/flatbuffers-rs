@@ -92,7 +92,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/struct_with_enum_field.fbs",
         "line": 9,

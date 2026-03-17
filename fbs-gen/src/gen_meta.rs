@@ -33,7 +33,7 @@ impl<C: Chooser> SchemaBuilder<C> {
         // file_identifier
         if self.config.use_file_ident && self.chooser.flip(self.config.prob_file_ident) {
             let ident: String = (0..4)
-                .map(|_| self.chooser.pick(b'A' as usize, b'Z' as usize) as u8 as char)
+                .map(|_| char::from(self.chooser.pick(b'A' as usize, b'Z' as usize) as u8))
                 .collect();
             writeln!(self.output, "file_identifier \"{ident}\";").unwrap();
         }

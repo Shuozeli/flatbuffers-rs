@@ -27,6 +27,12 @@ pub enum ParseError {
         column: usize,
         context: String,
     },
+
+    #[error("parse timeout exceeded (input may be too large or pathological)")]
+    ParseTimeout,
+
+    #[error("input too large: {size} bytes exceeds maximum of {max} bytes")]
+    InputTooLarge { size: usize, max: usize },
 }
 
 pub type Result<T> = std::result::Result<T, ParseError>;

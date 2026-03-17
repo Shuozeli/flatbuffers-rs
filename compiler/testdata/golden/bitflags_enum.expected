@@ -41,7 +41,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/bitflags_enum.fbs",
         "line": 7,

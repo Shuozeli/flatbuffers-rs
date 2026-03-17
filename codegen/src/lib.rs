@@ -30,96 +30,95 @@ pub enum CodeGenError {
 // After the analyzer validates the schema, these fields should always be present.
 // A failure here indicates a bug in the analyzer, not a user error.
 
-/// Get the type descriptor for a field. Panics with a descriptive message if missing.
-fn field_type(field: &schema::Field) -> &schema::Type {
-    field.type_.as_ref().unwrap_or_else(|| {
-        panic!(
-            "BUG: field '{}' has no type descriptor (schema should have been validated by analyzer)",
+/// Get the type descriptor for a field.
+fn field_type(field: &schema::Field) -> Result<&schema::Type, CodeGenError> {
+    field.type_.as_ref().ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "field '{}' has no type descriptor",
             field.name.as_deref().unwrap_or("<unknown>")
-        )
+        ))
     })
 }
 
-/// Get the enum/object index from a field's type. Panics with a descriptive message if missing.
-fn field_type_index(field: &schema::Field) -> usize {
-    let ty = field_type(field);
-    ty.index.unwrap_or_else(|| {
-        panic!(
-            "BUG: field '{}' type has no index (schema should have been validated by analyzer)",
+/// Get the enum/object index from a field's type.
+fn field_type_index(field: &schema::Field) -> Result<usize, CodeGenError> {
+    let ty = field_type(field)?;
+    ty.index.map(|i| i as usize).ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "field '{}' type has no index",
             field.name.as_deref().unwrap_or("<unknown>")
-        )
-    }) as usize
+        ))
+    })
 }
 
-/// Get the enum/object index from a Type descriptor. Panics with a descriptive message if missing.
-fn type_index(ty: &schema::Type, context: &str) -> usize {
-    ty.index.unwrap_or_else(|| {
-        panic!(
-            "BUG: type has no index in {context} (schema should have been validated by analyzer)"
-        )
-    }) as usize
+/// Get the enum/object index from a Type descriptor.
+fn type_index(ty: &schema::Type, context: &str) -> Result<usize, CodeGenError> {
+    ty.index.map(|i| i as usize).ok_or_else(|| {
+        CodeGenError::Internal(format!("type has no index in {context}"))
+    })
 }
 
-/// Get the type index for a union variant's type. Panics with a descriptive message if missing.
-fn union_variant_type_index(val: &schema::EnumVal) -> usize {
+/// Get the type index for a union variant's type.
+fn union_variant_type_index(val: &schema::EnumVal) -> Result<usize, CodeGenError> {
     val.union_type
         .as_ref()
         .and_then(|t| t.index)
-        .unwrap_or_else(|| {
-            panic!(
-                "BUG: union variant '{}' has no type index (schema should have been validated by analyzer)",
+        .map(|i| i as usize)
+        .ok_or_else(|| {
+            CodeGenError::Internal(format!(
+                "union variant '{}' has no type index",
                 val.name.as_deref().unwrap_or("<unknown>")
-            )
-        }) as usize
+            ))
+        })
 }
 
-/// Get the byte_size of an object (struct). Panics with a descriptive message if missing.
-fn obj_byte_size(obj: &schema::Object) -> usize {
-    obj.byte_size.unwrap_or_else(|| {
-        panic!(
-            "BUG: object '{}' has no byte_size (layout should have been computed by analyzer)",
+/// Get the byte_size of an object (struct).
+fn obj_byte_size(obj: &schema::Object) -> Result<usize, CodeGenError> {
+    obj.byte_size.map(|s| s as usize).ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "object '{}' has no byte_size",
             obj.name.as_deref().unwrap_or("<unknown>")
-        )
-    }) as usize
-}
-
-/// Get the min_align of an object (struct). Panics with a descriptive message if missing.
-fn obj_min_align(obj: &schema::Object) -> usize {
-    obj.min_align.unwrap_or_else(|| {
-        panic!(
-            "BUG: object '{}' has no min_align (layout should have been computed by analyzer)",
-            obj.name.as_deref().unwrap_or("<unknown>")
-        )
-    }) as usize
-}
-
-/// Get a struct field's byte offset. Panics with a descriptive message if missing.
-fn field_offset(field: &schema::Field) -> usize {
-    field.offset.unwrap_or_else(|| {
-        panic!(
-            "BUG: field '{}' has no offset (layout should have been computed by analyzer)",
-            field.name.as_deref().unwrap_or("<unknown>")
-        )
-    }) as usize
-}
-
-/// Get a table field's ID. Panics with a descriptive message if missing.
-fn field_id(field: &schema::Field) -> u32 {
-    field.id.unwrap_or_else(|| {
-        panic!(
-            "BUG: field '{}' has no id (should have been assigned by analyzer)",
-            field.name.as_deref().unwrap_or("<unknown>")
-        )
+        ))
     })
 }
 
-/// Get an enum value's integer discriminator. Panics with a descriptive message if missing.
-fn enum_val_value(val: &schema::EnumVal) -> i64 {
-    val.value.unwrap_or_else(|| {
-        panic!(
-            "BUG: enum value '{}' has no value (should have been assigned by analyzer)",
+/// Get the min_align of an object (struct).
+fn obj_min_align(obj: &schema::Object) -> Result<usize, CodeGenError> {
+    obj.min_align.map(|a| a as usize).ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "object '{}' has no min_align",
+            obj.name.as_deref().unwrap_or("<unknown>")
+        ))
+    })
+}
+
+/// Get a struct field's byte offset.
+fn field_offset(field: &schema::Field) -> Result<usize, CodeGenError> {
+    field.offset.map(|o| o as usize).ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "field '{}' has no offset",
+            field.name.as_deref().unwrap_or("<unknown>")
+        ))
+    })
+}
+
+/// Get a table field's ID.
+fn field_id(field: &schema::Field) -> Result<u32, CodeGenError> {
+    field.id.ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "field '{}' has no id",
+            field.name.as_deref().unwrap_or("<unknown>")
+        ))
+    })
+}
+
+/// Get an enum value's integer discriminator.
+fn enum_val_value(val: &schema::EnumVal) -> Result<i64, CodeGenError> {
+    val.value.ok_or_else(|| {
+        CodeGenError::Internal(format!(
+            "enum value '{}' has no value",
             val.name.as_deref().unwrap_or("<unknown>")
-        )
+        ))
     })
 }
 
@@ -192,17 +191,12 @@ fn should_generate(declaration_file: Option<&str>, filter: &Option<HashSet<Strin
 ///
 /// The generated code is compatible with the `flatbuffers` runtime crate and
 /// includes readers, builders, and trait implementations for all types.
-///
-/// Panics in the codegen (which indicate bugs in the analyzer, not user errors)
-/// are caught and converted to `CodeGenError::Internal`.
 pub fn generate_rust(
     schema: &schema::Schema,
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
-    catch_codegen_panic(|| {
-        let gen = RustGenerator::new(schema, opts);
-        gen.generate()
-    })
+    let gen = RustGenerator::new(schema, opts);
+    gen.generate()
 }
 
 /// Generate TypeScript source code from a fully resolved FlatBuffers schema.
@@ -210,8 +204,7 @@ pub fn generate_rust(
 /// The generated code is compatible with the `flatbuffers` npm package and
 /// includes reader classes, builder static methods, and Object API classes.
 ///
-/// Panics in the codegen (which indicate bugs in the analyzer, not user errors)
-/// are caught and converted to `CodeGenError::Internal`.
+/// Panics in the TS codegen are caught and converted to `CodeGenError::Internal`.
 pub fn generate_typescript(
     schema: &schema::Schema,
     opts: &TsCodeGenOptions,
@@ -223,6 +216,8 @@ pub fn generate_typescript(
 }
 
 /// Run a codegen closure, catching any panics and converting them to errors.
+/// Used as a safety net for the TypeScript codegen which has not yet been
+/// converted to use `Result` returns.
 fn catch_codegen_panic<F: FnOnce() -> String + panic::UnwindSafe>(
     f: F,
 ) -> Result<String, CodeGenError> {

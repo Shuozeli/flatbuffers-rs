@@ -44,7 +44,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/enum_default_value_resolution.fbs",
         "line": 3,

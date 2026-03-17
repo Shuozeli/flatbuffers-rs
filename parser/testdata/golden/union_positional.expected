@@ -19,7 +19,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "TestUnion"
       },
@@ -47,7 +46,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "TestUnion"
       },

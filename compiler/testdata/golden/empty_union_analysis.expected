@@ -32,7 +32,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/empty_union_analysis.fbs",
         "line": 3,

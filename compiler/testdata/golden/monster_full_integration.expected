@@ -256,7 +256,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/monster_full_integration.fbs",
         "line": 11,
@@ -303,7 +302,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/monster_full_integration.fbs",
         "line": 23,
@@ -576,7 +574,6 @@
         }
       }
     ],
-    "is_struct": false,
     "span": {
       "file": "testdata/golden/monster_full_integration.fbs",
       "line": 11,

@@ -44,7 +44,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/forward_type_reference.fbs",
         "line": 1,
@@ -91,7 +90,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/forward_type_reference.fbs",
         "line": 6,

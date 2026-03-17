@@ -60,11 +60,11 @@ impl<'a> ::flatbuffers::Follow<'a> for TestKW {
 }
 
 impl ::flatbuffers::Push for TestKW {
-    type Output = TestKW;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
-    }
+  type Output = TestKW;
+  #[inline]
+  unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+    unsafe { ::flatbuffers::emplace_scalar::<i8>(dst, self.0) };
+  }
 }
 
 impl ::flatbuffers::EndianScalar for TestKW {

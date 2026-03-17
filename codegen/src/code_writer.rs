@@ -49,6 +49,21 @@ impl CodeWriter {
         self.line("}");
     }
 
+    /// Like [`block`](Self::block) but the closure may return an error.
+    /// The closing `}` is emitted even on error (the partial output is still
+    /// well-formed structurally), but the error is propagated to the caller.
+    pub fn try_block<F, E>(&mut self, header: &str, f: F) -> Result<(), E>
+    where
+        F: FnOnce(&mut Self) -> Result<(), E>,
+    {
+        self.line(&format!("{header} {{"));
+        self.indent();
+        let result = f(self);
+        self.dedent();
+        self.line("}");
+        result
+    }
+
     /// Consume the writer and return the generated source code.
     /// Trailing blank lines are trimmed so the output ends with exactly one newline.
     pub fn finish(self) -> String {

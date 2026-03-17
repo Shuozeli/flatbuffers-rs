@@ -22,7 +22,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/nested_flatbuffer_field.fbs",
         "line": 1,
@@ -61,7 +60,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/nested_flatbuffer_field.fbs",
         "line": 2,

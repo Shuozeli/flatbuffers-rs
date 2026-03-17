@@ -127,7 +127,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/struct_with_fixed_array.fbs",
         "line": 10,

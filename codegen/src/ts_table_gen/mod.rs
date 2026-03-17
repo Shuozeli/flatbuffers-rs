@@ -22,15 +22,20 @@ pub fn generate(
     let name = obj.name.as_deref().unwrap_or("");
     let fqn = ts_type_map::build_fqn(obj);
 
-    // Check if this table is the root table (compare FQN to disambiguate same-named tables)
+    // Check if this table is the root table using the authoritative index
     let is_root = schema
-        .root_table
-        .as_ref()
-        .map(|rt| {
-            let rt_fqn = ts_type_map::build_fqn(rt);
-            rt_fqn == fqn
-        })
-        .unwrap_or(false);
+        .root_table_index
+        .map(|idx| idx == index)
+        .unwrap_or_else(|| {
+            schema
+                .root_table
+                .as_ref()
+                .map(|rt| {
+                    let rt_fqn = ts_type_map::build_fqn(rt);
+                    rt_fqn == fqn
+                })
+                .unwrap_or(false)
+        });
     let file_ident = schema.file_ident.as_deref().unwrap_or("");
 
     let implements = if gen_object_api {
@@ -89,7 +94,7 @@ pub fn generate(
 
         // Field accessors
         for field in &obj.fields {
-            if field.is_deprecated == Some(true) {
+            if field.is_deprecated {
                 continue;
             }
             ts_type_map::gen_doc_comment(w, field.documentation.as_ref());
@@ -100,7 +105,7 @@ pub fn generate(
         // Field mutators (for mutable fields, only with --gen-mutable)
         if opts.gen_mutable {
             for field in &obj.fields {
-                if field.is_deprecated == Some(true) {
+                if field.is_deprecated {
                     continue;
                 }
                 let bt = type_map::get_base_type(field.type_.as_ref());
@@ -116,7 +121,7 @@ pub fn generate(
         w.blank();
 
         for field in &obj.fields {
-            if field.is_deprecated == Some(true) {
+            if field.is_deprecated {
                 continue;
             }
             builder::gen_add_method(w, schema, obj, field, name);

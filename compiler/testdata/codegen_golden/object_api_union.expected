@@ -48,11 +48,11 @@ impl<'a> ::flatbuffers::Follow<'a> for Equipment {
 }
 
 impl ::flatbuffers::Push for Equipment {
-    type Output = Equipment;
-    #[inline]
-    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
-        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
-    }
+  type Output = Equipment;
+  #[inline]
+  unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+    unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+  }
 }
 
 impl ::flatbuffers::EndianScalar for Equipment {

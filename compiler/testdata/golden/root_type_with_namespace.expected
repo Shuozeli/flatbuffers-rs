@@ -40,7 +40,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "Game.Core"
       },
@@ -91,7 +90,6 @@
         }
       }
     ],
-    "is_struct": false,
     "namespace": {
       "namespace": "Game.Core"
     },

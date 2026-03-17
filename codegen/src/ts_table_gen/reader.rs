@@ -45,7 +45,7 @@ pub(super) fn gen_field_accessor(
         field.name.as_deref().unwrap_or(""),
     ));
     let bt = type_map::get_base_type(field.type_.as_ref());
-    let slot = field_id(field);
+    let slot = field_id(field).unwrap();
     let vt_offset = 4 + 2 * slot;
 
     match bt {
@@ -91,7 +91,7 @@ fn gen_scalar_accessor(
 ) {
     let ts_type = ts_type_map::scalar_ts_type(bt);
     let read_method = ts_type_map::bb_read_method(bt);
-    let is_optional = field.is_optional == Some(true);
+    let is_optional = field.is_optional;
 
     let default_val = if is_optional {
         "null".to_string()
@@ -127,7 +127,7 @@ fn gen_enum_accessor(
     field: &schema::Field,
     vt_offset: u32,
 ) {
-    let enum_idx = field_type_index(field);
+    let enum_idx = field_type_index(field).unwrap();
     let enum_def = &schema.enums[enum_idx];
     let enum_name = enum_def.name.as_deref().unwrap_or("number");
     let read_method = ts_type_map::bb_read_method(bt);
@@ -184,7 +184,7 @@ fn gen_struct_accessor(
     field: &schema::Field,
     vt_offset: u32,
 ) {
-    let idx = field_type_index(field);
+    let idx = field_type_index(field).unwrap();
     let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
 
     w.block(
@@ -207,7 +207,7 @@ fn gen_table_accessor(
     field: &schema::Field,
     vt_offset: u32,
 ) {
-    let idx = field_type_index(field);
+    let idx = field_type_index(field).unwrap();
     let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
 
     w.block(
@@ -323,7 +323,7 @@ fn gen_scalar_vector_accessor(
 
     // Check for enum element type
     let return_type = if type_map::has_enum_index(field) {
-        let enum_idx = field_type_index(field);
+        let enum_idx = field_type_index(field).unwrap();
         schema.enums[enum_idx]
             .name
             .as_deref()
@@ -385,7 +385,7 @@ fn gen_table_vector_accessor(
     field: &schema::Field,
     vt_offset: u32,
 ) {
-    let idx = field_type_index(field);
+    let idx = field_type_index(field).unwrap();
     let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
 
     w.block(
@@ -408,9 +408,9 @@ fn gen_struct_vector_accessor(
     field: &schema::Field,
     vt_offset: u32,
 ) {
-    let idx = field_type_index(field);
+    let idx = field_type_index(field).unwrap();
     let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
-    let struct_size = obj_byte_size(&schema.objects[idx]);
+    let struct_size = obj_byte_size(&schema.objects[idx]).unwrap();
 
     w.block(
         &format!("{fname}(index: number, obj?:{struct_name}):{struct_name}|null"),
@@ -449,7 +449,7 @@ pub(super) fn gen_field_mutator(
         field.name.as_deref().unwrap_or(""),
     ));
     let bt = type_map::get_base_type(field.type_.as_ref());
-    let slot = field_id(field);
+    let slot = field_id(field).unwrap();
     let vt_offset = 4 + 2 * slot;
 
     let ts_type = helpers::scalar_field_ts_type(schema, field, bt);

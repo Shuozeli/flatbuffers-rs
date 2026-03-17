@@ -12,7 +12,7 @@ pub(super) fn scalar_field_ts_type(
     bt: BaseType,
 ) -> String {
     if type_map::has_enum_index(field) {
-        let enum_idx = field_type_index(field);
+        let enum_idx = field_type_index(field).unwrap();
         schema.enums[enum_idx]
             .name
             .as_deref()
@@ -37,7 +37,7 @@ pub(super) fn scalar_default_value(
         ts_type_map::format_default_real_ts(val, bt)
     } else if type_map::has_enum_index(field) {
         // Enum default: check default_string first (e.g., "Blue"), format as EnumName.ValueName
-        let enum_idx = field_type_index(field);
+        let enum_idx = field_type_index(field).unwrap();
         let enum_def = &schema.enums[enum_idx];
         let enum_name = enum_def.name.as_deref().unwrap_or("unknown");
 
@@ -76,7 +76,7 @@ pub(super) fn object_api_field_type_and_default(
     field: &schema::Field,
 ) -> (String, String) {
     let bt = type_map::get_base_type(field.type_.as_ref());
-    let is_optional = field.is_optional == Some(true);
+    let is_optional = field.is_optional;
 
     match bt {
         bt if type_map::is_scalar(bt) => {
@@ -84,7 +84,7 @@ pub(super) fn object_api_field_type_and_default(
 
             // Check for enum type
             let type_name = if type_map::has_enum_index(field) {
-                let enum_idx = field_type_index(field);
+                let enum_idx = field_type_index(field).unwrap();
                 schema.enums[enum_idx]
                     .name
                     .as_deref()
@@ -115,12 +115,12 @@ pub(super) fn object_api_field_type_and_default(
             }
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field).unwrap();
             let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
             (format!("{struct_name}T|null"), "null".to_string())
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field).unwrap();
             let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
             (format!("{table_name}T|null"), "null".to_string())
         }
@@ -129,7 +129,7 @@ pub(super) fn object_api_field_type_and_default(
             let elem_type = match et {
                 et if type_map::is_scalar(et) => {
                     if type_map::has_enum_index(field) {
-                        let enum_idx = field_type_index(field);
+                        let enum_idx = field_type_index(field).unwrap();
                         schema.enums[enum_idx]
                             .name
                             .as_deref()
@@ -141,12 +141,12 @@ pub(super) fn object_api_field_type_and_default(
                 }
                 BaseType::BASE_TYPE_STRING => "string".to_string(),
                 BaseType::BASE_TYPE_TABLE => {
-                    let idx = field_type_index(field);
+                    let idx = field_type_index(field).unwrap();
                     let name = schema.objects[idx].name.as_deref().unwrap_or("");
                     format!("{name}T")
                 }
                 BaseType::BASE_TYPE_STRUCT => {
-                    let idx = field_type_index(field);
+                    let idx = field_type_index(field).unwrap();
                     let name = schema.objects[idx].name.as_deref().unwrap_or("");
                     format!("{name}T")
                 }
@@ -168,7 +168,7 @@ pub(super) fn object_api_field_type_and_default(
                         let vbt = type_map::get_base_type(v.union_type.as_ref());
                         match vbt {
                             BaseType::BASE_TYPE_TABLE => {
-                                let vi = union_variant_type_index(v);
+                                let vi = union_variant_type_index(v).unwrap();
                                 let name = schema
                                     .objects
                                     .get(vi)
@@ -178,7 +178,7 @@ pub(super) fn object_api_field_type_and_default(
                             }
                             BaseType::BASE_TYPE_STRING => Some("string".to_string()),
                             BaseType::BASE_TYPE_STRUCT => {
-                                let vi = union_variant_type_index(v);
+                                let vi = union_variant_type_index(v).unwrap();
                                 let name = schema
                                     .objects
                                     .get(vi)

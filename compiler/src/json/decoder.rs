@@ -3,6 +3,7 @@
 //! Reads the binary buffer directly using vtable/offset metadata from the schema,
 //! producing a `serde_json::Value` tree. No intermediate representation.
 
+use flatc_rs_schema::buf_reader::BufReader;
 use flatc_rs_schema::{BaseType, Enum, Field, Object, Schema, Type};
 use serde_json::{json, Map, Value};
 
@@ -52,135 +53,6 @@ pub fn binary_to_json(
 }
 
 // ---------------------------------------------------------------------------
-// Safe buffer reader
-// ---------------------------------------------------------------------------
-
-struct BufReader<'a> {
-    buf: &'a [u8],
-}
-
-impl<'a> BufReader<'a> {
-    fn new(buf: &'a [u8]) -> Self {
-        Self { buf }
-    }
-
-    fn len(&self) -> usize {
-        self.buf.len()
-    }
-
-    fn check_bounds(&self, offset: usize, size: usize) -> Result<(), JsonError> {
-        if offset
-            .checked_add(size)
-            .is_none_or(|end| end > self.buf.len())
-        {
-            return Err(JsonError::OutOfBounds {
-                offset,
-                need: size,
-                buf_len: self.buf.len(),
-            });
-        }
-        Ok(())
-    }
-
-    fn read_u8(&self, offset: usize) -> Result<u8, JsonError> {
-        self.check_bounds(offset, 1)?;
-        Ok(self.buf[offset])
-    }
-
-    fn read_i8(&self, offset: usize) -> Result<i8, JsonError> {
-        self.check_bounds(offset, 1)?;
-        Ok(self.buf[offset] as i8)
-    }
-
-    fn read_u16_le(&self, offset: usize) -> Result<u16, JsonError> {
-        self.check_bounds(offset, 2)?;
-        Ok(u16::from_le_bytes([self.buf[offset], self.buf[offset + 1]]))
-    }
-
-    fn read_i16_le(&self, offset: usize) -> Result<i16, JsonError> {
-        self.check_bounds(offset, 2)?;
-        Ok(i16::from_le_bytes([self.buf[offset], self.buf[offset + 1]]))
-    }
-
-    fn read_u32_le(&self, offset: usize) -> Result<u32, JsonError> {
-        self.check_bounds(offset, 4)?;
-        Ok(u32::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-        ]))
-    }
-
-    fn read_i32_le(&self, offset: usize) -> Result<i32, JsonError> {
-        self.check_bounds(offset, 4)?;
-        Ok(i32::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-        ]))
-    }
-
-    fn read_u64_le(&self, offset: usize) -> Result<u64, JsonError> {
-        self.check_bounds(offset, 8)?;
-        Ok(u64::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-            self.buf[offset + 4],
-            self.buf[offset + 5],
-            self.buf[offset + 6],
-            self.buf[offset + 7],
-        ]))
-    }
-
-    fn read_i64_le(&self, offset: usize) -> Result<i64, JsonError> {
-        self.check_bounds(offset, 8)?;
-        Ok(i64::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-            self.buf[offset + 4],
-            self.buf[offset + 5],
-            self.buf[offset + 6],
-            self.buf[offset + 7],
-        ]))
-    }
-
-    fn read_f32_le(&self, offset: usize) -> Result<f32, JsonError> {
-        self.check_bounds(offset, 4)?;
-        Ok(f32::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-        ]))
-    }
-
-    fn read_f64_le(&self, offset: usize) -> Result<f64, JsonError> {
-        self.check_bounds(offset, 8)?;
-        Ok(f64::from_le_bytes([
-            self.buf[offset],
-            self.buf[offset + 1],
-            self.buf[offset + 2],
-            self.buf[offset + 3],
-            self.buf[offset + 4],
-            self.buf[offset + 5],
-            self.buf[offset + 6],
-            self.buf[offset + 7],
-        ]))
-    }
-
-    fn read_bytes(&self, offset: usize, len: usize) -> Result<&'a [u8], JsonError> {
-        self.check_bounds(offset, len)?;
-        Ok(&self.buf[offset..offset + len])
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Decoder
 // ---------------------------------------------------------------------------
 
@@ -188,14 +60,27 @@ struct Decoder<'a> {
     reader: BufReader<'a>,
     schema: &'a Schema,
     opts: &'a JsonOptions,
+    object_index: std::collections::HashMap<&'a str, usize>,
 }
 
 impl<'a> Decoder<'a> {
     fn new(reader: BufReader<'a>, schema: &'a Schema, opts: &'a JsonOptions) -> Self {
+        let mut object_index = std::collections::HashMap::new();
+        for (i, obj) in schema.objects.iter().enumerate() {
+            if let Some(ref name) = obj.name {
+                object_index.entry(name.as_str()).or_insert(i);
+                if let Some(short) = name.rsplit('.').next() {
+                    if short != name.as_str() {
+                        object_index.entry(short).or_insert(i);
+                    }
+                }
+            }
+        }
         Self {
             reader,
             schema,
             opts,
+            object_index,
         }
     }
 
@@ -221,11 +106,15 @@ impl<'a> Decoder<'a> {
     // -------------------------------------------------------------------
 
     fn find_object_index(&self, name: &str) -> Result<usize, JsonError> {
-        // If the name matches the schema's root_table, prefer it
+        // If the name matches the schema's root_table, prefer using root_table_index
         // (handles name collisions like MyGame.Example2.Monster vs MyGame.Example.Monster)
-        if let Some(ref rt) = self.schema.root_table {
+        if let Some(idx) = self.schema.root_table_index {
+            if self.schema.objects[idx].name.as_deref() == Some(name) {
+                return Ok(idx);
+            }
+        } else if let Some(ref rt) = self.schema.root_table {
             if rt.name.as_deref() == Some(name) {
-                // Find this exact root_table object in the schema by matching field count
+                // Fallback: find by matching field count when index is not available
                 for (i, obj) in self.schema.objects.iter().enumerate() {
                     if obj.name.as_deref() == Some(name)
                         && obj.fields.len() == rt.fields.len()
@@ -237,26 +126,12 @@ impl<'a> Decoder<'a> {
             }
         }
 
-        // Exact match (first-found)
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if let Some(ref obj_name) = obj.name {
-                if obj_name == name {
-                    return Ok(i);
-                }
-            }
-        }
-        // Short name match (without namespace)
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if let Some(ref obj_name) = obj.name {
-                let short = obj_name.rsplit('.').next().unwrap_or(obj_name);
-                if short == name {
-                    return Ok(i);
-                }
-            }
-        }
-        Err(JsonError::RootTypeNotFound {
-            name: name.to_string(),
-        })
+        self.object_index
+            .get(name)
+            .copied()
+            .ok_or_else(|| JsonError::RootTypeNotFound {
+                name: name.to_string(),
+            })
     }
 
     fn get_object(&self, idx: usize) -> Result<&Object, JsonError> {
@@ -444,7 +319,7 @@ impl<'a> Decoder<'a> {
             // Union type discriminant -- output as enum name or integer
             BaseType::BASE_TYPE_U_TYPE => {
                 let v = self.reader.read_u8(offset)?;
-                let enum_idx = ty.index.unwrap_or(0) as usize;
+                let enum_idx = require_type_index(ty, fname)?;
                 Ok(Some(self.enum_value_to_json(v as i64, enum_idx)))
             }
 
@@ -462,14 +337,14 @@ impl<'a> Decoder<'a> {
             BaseType::BASE_TYPE_TABLE => {
                 let uoffset = self.reader.read_u32_le(offset)? as usize;
                 let table_start = offset + uoffset;
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, fname)?;
                 let val = self.decode_table(table_start, obj_idx, depth + 1)?;
                 Ok(Some(val))
             }
 
             // Struct (inline in the table)
             BaseType::BASE_TYPE_STRUCT => {
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, fname)?;
                 let val = self.decode_struct(offset, obj_idx, depth + 1)?;
                 Ok(Some(val))
             }
@@ -531,7 +406,7 @@ impl<'a> Decoder<'a> {
 
             match field_bt {
                 BaseType::BASE_TYPE_STRUCT => {
-                    let inner_idx = field_ty.index.unwrap_or(0) as usize;
+                    let inner_idx = require_type_index(field_ty, &fname)?;
                     let val = self.decode_struct(field_offset, inner_idx, depth + 1)?;
                     result.insert(fname, val);
                 }
@@ -579,7 +454,7 @@ impl<'a> Decoder<'a> {
                 }
             }
             BaseType::BASE_TYPE_STRUCT => {
-                let inner_idx = ty.index.unwrap_or(0) as usize;
+                let inner_idx = require_type_index(ty, "fixed_array element")?;
                 let obj = self.get_object(inner_idx)?;
                 let struct_size = obj.byte_size.unwrap_or(0) as usize;
                 for i in 0..fixed_len {
@@ -629,7 +504,7 @@ impl<'a> Decoder<'a> {
             }
 
             BaseType::BASE_TYPE_TABLE => {
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, "vector element")?;
                 for i in 0..count {
                     let elem_offset = data_start + i * 4;
                     let uoffset = self.reader.read_u32_le(elem_offset)? as usize;
@@ -640,7 +515,7 @@ impl<'a> Decoder<'a> {
             }
 
             BaseType::BASE_TYPE_STRUCT => {
-                let obj_idx = ty.index.unwrap_or(0) as usize;
+                let obj_idx = require_type_index(ty, "vector element")?;
                 let obj = self.get_object(obj_idx)?;
                 let struct_size = obj.byte_size.unwrap_or(0) as usize;
                 for i in 0..count {
@@ -671,7 +546,7 @@ impl<'a> Decoder<'a> {
             return Ok(Value::Null);
         }
 
-        let enum_idx = ty.index.unwrap_or(0) as usize;
+        let enum_idx = require_type_index(ty, "union")?;
         let enum_def = self.get_enum(enum_idx)?;
 
         let variant = enum_def
@@ -682,7 +557,7 @@ impl<'a> Decoder<'a> {
         if let Some(variant) = variant {
             if let Some(ref union_type) = variant.union_type {
                 let variant_bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_TABLE);
-                let variant_idx = union_type.index.unwrap_or(0) as usize;
+                let variant_idx = require_type_index(union_type, "union variant")?;
 
                 return match variant_bt {
                     BaseType::BASE_TYPE_TABLE => self.decode_table(offset, variant_idx, depth + 1),
@@ -827,7 +702,10 @@ impl<'a> Decoder<'a> {
             }
             BaseType::BASE_TYPE_U_TYPE => {
                 let v = field.default_integer.unwrap_or(0);
-                let enum_idx = ty.index.unwrap_or(0) as usize;
+                let enum_idx = ty
+                    .index
+                    .filter(|&i| i >= 0)
+                    .map(|i| i as usize)?;
                 Some(self.enum_value_to_json(v, enum_idx))
             }
             BaseType::BASE_TYPE_STRING => Some(Value::Null),
@@ -840,14 +718,21 @@ impl<'a> Decoder<'a> {
 // Free functions
 // ---------------------------------------------------------------------------
 
+/// Extract a non-negative type index from a `Type`, or return a `JsonError`.
+fn require_type_index(ty: &Type, context: &str) -> Result<usize, JsonError> {
+    ty.index
+        .filter(|&i| i >= 0)
+        .map(|i| i as usize)
+        .ok_or_else(|| JsonError::MissingTypeIndex {
+            context: context.to_string(),
+        })
+}
+
 /// Convert an f64 to a JSON value, preserving integer representation for whole numbers.
 fn float_to_json(v: f64) -> Value {
     if v.is_nan() || v.is_infinite() {
         // serde_json doesn't support NaN/Infinity natively, use null
         Value::Null
-    } else if v == (v as i64) as f64 && v.abs() < (1i64 << 53) as f64 {
-        // Whole number that fits in i64 -- use Number for clean output
-        json!(v)
     } else {
         json!(v)
     }

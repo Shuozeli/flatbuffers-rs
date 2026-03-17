@@ -30,6 +30,9 @@ pub enum AnalyzeError {
     #[error("circular struct dependency: {}", format_cycle(.0))]
     CircularStruct(Vec<String>),
 
+    #[error("struct nesting depth limit exceeded ({depth} levels) while computing layout for '{type_name}'")]
+    StructDepthLimitExceeded { depth: usize, type_name: String },
+
     #[error("{span:?}: root_type '{name}' must be a table, not a struct or enum")]
     RootTypeMustBeTable { name: String, span: Option<Span> },
 
@@ -221,6 +224,9 @@ pub enum AnalyzeError {
         public_type: String,
         private_type: String,
     },
+
+    #[error("schema size limit exceeded: {detail}")]
+    SchemaSizeLimitExceeded { detail: String },
 }
 
 fn format_cycle(names: &[String]) -> String {

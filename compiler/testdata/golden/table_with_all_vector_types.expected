@@ -195,7 +195,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/table_with_all_vector_types.fbs",
         "line": 4,

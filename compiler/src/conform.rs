@@ -49,12 +49,12 @@ pub fn check_conform(
 
         // Table/struct kind must not change
         if base_obj.is_struct != current_obj.is_struct {
-            let base_kind = if base_obj.is_struct == Some(true) {
+            let base_kind = if base_obj.is_struct {
                 "struct"
             } else {
                 "table"
             };
-            let curr_kind = if current_obj.is_struct == Some(true) {
+            let curr_kind = if current_obj.is_struct {
                 "struct"
             } else {
                 "table"

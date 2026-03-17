@@ -75,7 +75,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "A.B"
       },
@@ -108,7 +107,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "A"
       },

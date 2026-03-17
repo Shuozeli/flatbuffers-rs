@@ -213,7 +213,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/default_values_all_types.fbs",
         "line": 1,

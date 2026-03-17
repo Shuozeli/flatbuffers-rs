@@ -197,4 +197,6 @@ pub enum WalkError {
     ObjectIndexOutOfRange { index: usize, count: usize },
     #[error("enum index {index} out of range (have {count} enums)")]
     EnumIndexOutOfRange { index: usize, count: usize },
+    #[error("missing type index for {context}")]
+    MissingTypeIndex { context: String },
 }

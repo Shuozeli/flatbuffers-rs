@@ -156,7 +156,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "System.Attributes"
       },

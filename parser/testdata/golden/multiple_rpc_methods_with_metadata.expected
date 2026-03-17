@@ -19,7 +19,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "line": 1,
         "col": 1
@@ -44,7 +43,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "line": 2,
         "col": 1

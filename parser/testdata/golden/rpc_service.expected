@@ -2,7 +2,6 @@
   "objects": [
     {
       "name": "HelloRequest",
-      "is_struct": false,
       "namespace": {
         "namespace": "example"
       },
@@ -13,7 +12,6 @@
     },
     {
       "name": "HelloResponse",
-      "is_struct": false,
       "namespace": {
         "namespace": "example"
       },

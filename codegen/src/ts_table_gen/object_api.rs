@@ -16,7 +16,7 @@ pub(super) fn gen_unpack(
     let non_deprecated: Vec<_> = obj
         .fields
         .iter()
-        .filter(|f| f.is_deprecated != Some(true))
+        .filter(|f| !f.is_deprecated)
         .collect();
     w.block(&format!("unpack():{name}T"), |w| {
         w.line(&format!("return new {name}T("));
@@ -43,7 +43,7 @@ pub(super) fn gen_unpack_to(
 ) {
     w.block(&format!("unpackTo(_o:{name}T):void"), |w| {
         for field in &obj.fields {
-            if field.is_deprecated == Some(true) {
+            if field.is_deprecated {
                 continue;
             }
             let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
@@ -86,14 +86,14 @@ fn unpack_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
                     )
                 }
                 BaseType::BASE_TYPE_TABLE => {
-                    let idx = field_type_index(field);
+                    let idx = field_type_index(field).unwrap();
                     let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
                     format!(
                         "this.bb!.createObjList<{table_name}, {table_name}T>(this.{fname}.bind(this), this.{fname}Length())"
                     )
                 }
                 BaseType::BASE_TYPE_STRUCT => {
-                    let idx = field_type_index(field);
+                    let idx = field_type_index(field).unwrap();
                     let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
                     format!(
                         "this.bb!.createObjList<{struct_name}, {struct_name}T>(this.{fname}.bind(this), this.{fname}Length())"
@@ -133,7 +133,7 @@ pub(super) fn gen_object_api_class(
             let ctor_params: Vec<String> = obj
                 .fields
                 .iter()
-                .filter(|f| f.is_deprecated != Some(true))
+                .filter(|f| !f.is_deprecated)
                 .map(|f| {
                     let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(f.name.as_deref().unwrap_or("")));
                     let (ts_type, default) = helpers::object_api_field_type_and_default(schema, f);
@@ -161,7 +161,7 @@ pub(super) fn gen_object_api_class(
                 |w| {
                     // Pre-create strings and vectors
                     for field in &obj.fields {
-                        if field.is_deprecated == Some(true) {
+                        if field.is_deprecated {
                             continue;
                         }
                         let fname =
@@ -186,7 +186,7 @@ pub(super) fn gen_object_api_class(
 
                     // Add each field
                     for field in &obj.fields {
-                        if field.is_deprecated == Some(true) {
+                        if field.is_deprecated {
                             continue;
                         }
                         let fname =
@@ -197,7 +197,7 @@ pub(super) fn gen_object_api_class(
 
                         match bt {
                             bt if type_map::is_scalar(bt) => {
-                                let is_optional = field.is_optional == Some(true);
+                                let is_optional = field.is_optional;
                                 if is_optional {
                                     w.line(&format!("if (this.{fname} !== null)"));
                                     w.indent();

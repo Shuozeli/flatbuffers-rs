@@ -2,7 +2,6 @@
   "objects": [
     {
       "name": "EmptyTable",
-      "is_struct": false,
       "span": {
         "line": 1,
         "col": 1

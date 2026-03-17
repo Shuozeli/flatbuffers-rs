@@ -57,6 +57,9 @@ use flatc_rs_schema::{self as schema, Attributes, BaseType};
 pub fn analyze(output: ParseOutput) -> Result<schema::Schema> {
     let ParseOutput { mut schema, state } = output;
 
+    // G3.20: Validate schema size limits to prevent OOM on malicious input
+    validate_schema_size_limits(&schema)?;
+
     // 1. Build type index (also checks for duplicate names)
     let index = TypeIndex::build(&schema)?;
 
@@ -84,7 +87,62 @@ pub fn analyze(output: ParseOutput) -> Result<schema::Schema> {
     // 8. Compute struct layouts (includes circular struct detection via topological sort)
     struct_layout::compute_struct_layouts(&mut schema)?;
 
+    // 9. Refresh root_table from the indexed object so it reflects post-layout
+    //    offsets (the earlier clone was taken before layout computation).
+    if let Some(idx) = schema.root_table_index {
+        schema.root_table = Some(schema.objects[idx].clone());
+    }
+
     Ok(schema)
+}
+
+// ---------------------------------------------------------------------------
+// Schema size limits (G3.20)
+// ---------------------------------------------------------------------------
+
+const MAX_OBJECTS: usize = 10_000;
+const MAX_ENUMS: usize = 10_000;
+const MAX_TOTAL_FIELDS: usize = 100_000;
+const MAX_TOTAL_ENUM_VALUES: usize = 100_000;
+
+fn validate_schema_size_limits(schema: &schema::Schema) -> Result<()> {
+    if schema.objects.len() > MAX_OBJECTS {
+        return Err(AnalyzeError::SchemaSizeLimitExceeded {
+            detail: format!(
+                "{} objects exceeds limit of {MAX_OBJECTS}",
+                schema.objects.len()
+            ),
+        });
+    }
+
+    if schema.enums.len() > MAX_ENUMS {
+        return Err(AnalyzeError::SchemaSizeLimitExceeded {
+            detail: format!(
+                "{} enums exceeds limit of {MAX_ENUMS}",
+                schema.enums.len()
+            ),
+        });
+    }
+
+    let total_fields: usize = schema.objects.iter().map(|o| o.fields.len()).sum();
+    if total_fields > MAX_TOTAL_FIELDS {
+        return Err(AnalyzeError::SchemaSizeLimitExceeded {
+            detail: format!(
+                "{total_fields} total fields exceeds limit of {MAX_TOTAL_FIELDS}"
+            ),
+        });
+    }
+
+    let total_enum_values: usize = schema.enums.iter().map(|e| e.values.len()).sum();
+    if total_enum_values > MAX_TOTAL_ENUM_VALUES {
+        return Err(AnalyzeError::SchemaSizeLimitExceeded {
+            detail: format!(
+                "{total_enum_values} total enum values exceeds limit of {MAX_TOTAL_ENUM_VALUES}"
+            ),
+        });
+    }
+
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -103,12 +161,12 @@ impl TypeMetadata {
             obj_is_struct: schema
                 .objects
                 .iter()
-                .map(|o| o.is_struct == Some(true))
+                .map(|o| o.is_struct)
                 .collect(),
             enum_is_union: schema
                 .enums
                 .iter()
-                .map(|e| e.is_union == Some(true))
+                .map(|e| e.is_union)
                 .collect(),
             enum_underlying: schema
                 .enums
@@ -172,7 +230,7 @@ fn resolve_field_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result
 /// field IDs so the discriminant precedes its union value in the vtable.
 fn insert_union_type_fields(schema: &mut schema::Schema) {
     for obj_idx in 0..schema.objects.len() {
-        if schema.objects[obj_idx].is_struct == Some(true) {
+        if schema.objects[obj_idx].is_struct {
             continue; // structs can't have union fields
         }
 
@@ -362,7 +420,7 @@ fn scalar_size(bt: BaseType) -> Option<u32> {
 /// Assign sequential values to enum variants that don't have explicit values.
 fn assign_enum_values(schema: &mut schema::Schema) -> Result<()> {
     for enum_decl in &mut schema.enums {
-        if enum_decl.is_union == Some(true) {
+        if enum_decl.is_union {
             continue; // union values are already assigned during parsing
         }
 
@@ -416,7 +474,7 @@ fn resolve_union_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result
     let meta = TypeMetadata::from_schema(schema);
 
     for enum_idx in 0..schema.enums.len() {
-        if schema.enums[enum_idx].is_union != Some(true) {
+        if !schema.enums[enum_idx].is_union {
             continue;
         }
 
@@ -504,12 +562,13 @@ fn resolve_root_type(
     match type_ref {
         TypeRef::Object(idx) => {
             let obj = &schema.objects[idx];
-            if obj.is_struct == Some(true) {
+            if obj.is_struct {
                 return Err(AnalyzeError::RootTypeMustBeTable {
                     name: root_name,
                     span: state.root_type_span.clone(),
                 });
             }
+            schema.root_table_index = Some(idx);
             schema.root_table = Some(obj.clone());
         }
         TypeRef::Enum(_) => {
@@ -569,7 +628,7 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
                 match type_ref {
                     TypeRef::Object(idx) => {
                         let obj = &schema.objects[idx];
-                        if obj.is_struct == Some(true) {
+                        if obj.is_struct {
                             return Err(AnalyzeError::InvalidRpcType {
                                 service: svc_name.clone(),
                                 method: method_name.clone(),
@@ -611,7 +670,7 @@ fn resolve_rpc_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result<(
                 match type_ref {
                     TypeRef::Object(idx) => {
                         let obj = &schema.objects[idx];
-                        if obj.is_struct == Some(true) {
+                        if obj.is_struct {
                             return Err(AnalyzeError::InvalidRpcType {
                                 service: svc_name.clone(),
                                 method: method_name.clone(),
@@ -657,13 +716,13 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
         let enum_name = enum_def.name.as_deref().unwrap_or("");
 
         // Enum underlying type must be integer (not float/string/etc.)
-        if enum_def.is_union != Some(true) {
+        if !enum_def.is_union {
             validate_enum_underlying_type(enum_def)?;
         }
 
         // G3.3: Validate union NONE variant position and value (before duplicate
         // name check, so explicit NONE at wrong position is caught first)
-        if enum_def.is_union == Some(true) {
+        if enum_def.is_union {
             validate_union_none_variant(enum_def)?;
         }
 
@@ -671,12 +730,12 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
         validate_enum_value_names(enum_def)?;
 
         // Check enum values fit in underlying type
-        if enum_def.is_union != Some(true) {
+        if !enum_def.is_union {
             validate_enum_value_ranges(enum_def)?;
         }
 
         // Check bit_flags enum values are valid bit positions
-        if enum_def.is_union != Some(true) {
+        if !enum_def.is_union {
             let is_bitflags = enum_def
                 .attributes
                 .as_ref()
@@ -708,7 +767,7 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
 
     for obj in &schema.objects {
         let obj_name = obj.name.as_deref().unwrap_or("");
-        let is_struct = obj.is_struct == Some(true);
+        let is_struct = obj.is_struct;
 
         // Check for duplicate field names
         validate_duplicate_fields(obj)?;
@@ -803,7 +862,7 @@ fn validate_schema(schema: &schema::Schema, state: &ParserState) -> Result<()> {
                 }
 
                 // Struct fields cannot be deprecated
-                if field.is_deprecated == Some(true) {
+                if field.is_deprecated {
                     return Err(AnalyzeError::StructDeprecatedField {
                         struct_name: obj_name.to_string(),
                         field_name: fname.to_string(),
@@ -1155,7 +1214,7 @@ fn validate_key_attribute(obj: &schema::Object) -> Result<()> {
     let mut first_key: Option<&str> = None;
 
     for field in &obj.fields {
-        if field.is_key != Some(true) {
+        if !field.is_key {
             continue;
         }
         let fname = field.name.as_deref().unwrap_or("");
@@ -1199,7 +1258,7 @@ fn validate_key_attribute(obj: &schema::Object) -> Result<()> {
         }
 
         // Key field cannot be deprecated
-        if field.is_deprecated == Some(true) {
+        if field.is_deprecated {
             return Err(AnalyzeError::DeprecatedKeyField {
                 table_name: obj_name.to_string(),
                 field_name: fname.to_string(),
@@ -1258,7 +1317,7 @@ pub fn check_private_leak(schema: &schema::Schema) -> Result<()> {
                         // Check enum types via index
                         if let Some(idx) = ty.index {
                             if let Some(ref_enum) = schema.enums.get(idx as usize) {
-                                if !ref_enum.is_union.unwrap_or(false)
+                                if !ref_enum.is_union
                                     && !obj_is_private
                                     && has_private_attr(ref_enum.attributes.as_ref())
                                 {
@@ -1281,7 +1340,7 @@ pub fn check_private_leak(schema: &schema::Schema) -> Result<()> {
 
     // Check union variants
     for enum_def in &schema.enums {
-        if enum_def.is_union != Some(true) {
+        if !enum_def.is_union {
             continue;
         }
         let enum_name = enum_def.name.as_deref().unwrap_or("");

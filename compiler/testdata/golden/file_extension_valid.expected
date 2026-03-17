@@ -22,7 +22,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/file_extension_valid.fbs",
         "line": 4,
@@ -54,7 +53,6 @@
         }
       }
     ],
-    "is_struct": false,
     "span": {
       "file": "testdata/golden/file_extension_valid.fbs",
       "line": 4,

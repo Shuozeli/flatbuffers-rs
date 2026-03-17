@@ -19,7 +19,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "line": 3,
         "col": 1

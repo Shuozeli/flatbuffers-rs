@@ -240,7 +240,6 @@
           }
         }
       ],
-      "is_struct": false,
       "documentation": {
         "lines": [
           " The Monster table"
@@ -288,7 +287,6 @@
           }
         }
       ],
-      "is_struct": false,
       "namespace": {
         "namespace": "MyGame.Sample"
       },

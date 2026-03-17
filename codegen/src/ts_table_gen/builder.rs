@@ -31,12 +31,12 @@ pub(super) fn gen_add_method(
         field.name.as_deref().unwrap_or(""),
     ));
     let bt = type_map::get_base_type(field.type_.as_ref());
-    let slot = field_id(field);
+    let slot = field_id(field).unwrap();
 
     match bt {
         bt if type_map::is_scalar(bt) => {
             let add_method = ts_type_map::builder_add_field_method(bt);
-            let is_optional = field.is_optional == Some(true);
+            let is_optional = field.is_optional;
 
             // Use enum type name if this is an enum field
             let param_type = helpers::scalar_field_ts_type(schema, field, bt);
@@ -161,8 +161,8 @@ pub(super) fn gen_vector_helpers(
         }
         BaseType::BASE_TYPE_STRING | BaseType::BASE_TYPE_TABLE => (4, 4),
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
-            let struct_size = obj_byte_size(&schema.objects[idx]);
+            let idx = field_type_index(field).unwrap();
+            let struct_size = obj_byte_size(&schema.objects[idx]).unwrap();
             let struct_align = schema.objects[idx].min_align.unwrap_or(1) as usize;
             (struct_size, struct_align)
         }
@@ -186,8 +186,8 @@ pub(super) fn gen_end_method(w: &mut CodeWriter, obj: &schema::Object, name: &st
             w.line("const offset = builder.endObject();");
             // Add required field checks
             for field in &obj.fields {
-                if field.is_required == Some(true) {
-                    let slot = field_id(field);
+                if field.is_required {
+                    let slot = field_id(field).unwrap();
                     let vt_offset = 4 + 2 * slot;
                     let fname = field.name.as_deref().unwrap_or("");
                     w.line(&format!(
@@ -210,13 +210,13 @@ pub(super) fn gen_create_fn(
     let params: Vec<String> = obj
         .fields
         .iter()
-        .filter(|f| f.is_deprecated != Some(true))
+        .filter(|f| !f.is_deprecated)
         .map(|f| {
             let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
                 f.name.as_deref().unwrap_or(""),
             ));
             let bt = type_map::get_base_type(f.type_.as_ref());
-            let is_optional = f.is_optional == Some(true);
+            let is_optional = f.is_optional;
             let param_type = helpers::create_fn_param_type(schema, f, bt);
             if is_optional && type_map::is_scalar(bt) {
                 format!("{fname}:{param_type}|null")
@@ -245,7 +245,7 @@ pub(super) fn gen_create_fn(
         |w| {
             w.line(&format!("{name}.start{name}(builder);"));
             for field in &obj.fields {
-                if field.is_deprecated == Some(true) {
+                if field.is_deprecated {
                     continue;
                 }
                 let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
@@ -255,7 +255,7 @@ pub(super) fn gen_create_fn(
                     field.name.as_deref().unwrap_or(""),
                 ));
                 let bt = type_map::get_base_type(field.type_.as_ref());
-                let is_optional = field.is_optional == Some(true);
+                let is_optional = field.is_optional;
 
                 match bt {
                     bt if type_map::is_scalar(bt) => {

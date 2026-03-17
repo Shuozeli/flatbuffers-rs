@@ -46,21 +46,7 @@ pub fn scalar_rust_type(bt: BaseType) -> &'static str {
 
 /// Returns true if the BaseType is a scalar (including bool).
 pub fn is_scalar(bt: BaseType) -> bool {
-    matches!(
-        bt,
-        BaseType::BASE_TYPE_BOOL
-            | BaseType::BASE_TYPE_BYTE
-            | BaseType::BASE_TYPE_U_BYTE
-            | BaseType::BASE_TYPE_SHORT
-            | BaseType::BASE_TYPE_U_SHORT
-            | BaseType::BASE_TYPE_INT
-            | BaseType::BASE_TYPE_U_INT
-            | BaseType::BASE_TYPE_LONG
-            | BaseType::BASE_TYPE_U_LONG
-            | BaseType::BASE_TYPE_FLOAT
-            | BaseType::BASE_TYPE_DOUBLE
-            | BaseType::BASE_TYPE_U_TYPE
-    )
+    bt.is_scalar()
 }
 
 /// Returns true if the BaseType is a floating-point type.
@@ -76,12 +62,12 @@ pub fn to_snake_case(name: &str) -> String {
             if i > 0 {
                 // Don't insert underscore between consecutive uppercase letters
                 // e.g., "HPMax" -> "hp_max" not "h_p_max"
-                let prev = name.as_bytes()[i - 1] as char;
-                if prev.is_lowercase() || prev.is_ascii_digit() {
+                let prev = name.as_bytes()[i - 1];
+                if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
                     result.push('_');
-                } else if prev != '_' && i + 1 < name.len() {
-                    let next = name.as_bytes()[i + 1] as char;
-                    if next.is_lowercase() {
+                } else if prev != b'_' && i + 1 < name.len() {
+                    let next = name.as_bytes()[i + 1];
+                    if next.is_ascii_lowercase() {
                         result.push('_');
                     }
                 }

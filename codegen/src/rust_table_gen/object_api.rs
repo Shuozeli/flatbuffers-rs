@@ -4,7 +4,7 @@ use flatc_rs_schema::{self as schema, BaseType};
 
 use crate::code_writer::CodeWriter;
 use crate::type_map;
-use crate::{type_visibility, CodeGenOptions};
+use crate::{type_visibility, CodeGenError, CodeGenOptions};
 
 use super::helpers;
 
@@ -16,9 +16,27 @@ pub(super) fn gen_object_api(
     name: &str,
     current_ns: &str,
     opts: &CodeGenOptions,
-) {
+) -> Result<(), CodeGenError> {
     let vis = type_visibility(obj.attributes.as_ref(), opts);
     let t_name = format!("{name}T");
+
+    // Pre-compute owned types and defaults so we don't need Result inside closures
+    let field_info: Vec<Option<(String, String, String)>> = obj
+        .fields
+        .iter()
+        .map(|field| {
+            let bt = get_base_type(field.type_.as_ref());
+            if helpers::is_union_type_field(schema, field) {
+                return Ok(None);
+            }
+            let fname = type_map::to_snake_case(&type_map::escape_keyword(
+                field.name.as_deref().unwrap_or(""),
+            ));
+            let owned_type = table_owned_field_type(schema, field, bt, current_ns)?;
+            let default = table_owned_field_default(schema, field, bt, current_ns)?;
+            Ok(Some((fname, owned_type, default)))
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
 
     // --- Struct definition ---
     w.line("#[non_exhaustive]");
@@ -29,17 +47,10 @@ pub(super) fn gen_object_api(
     }
     w.line(&format!("#[derive({})]", derives.join(", ")));
     w.block(&format!("{vis} struct {t_name}"), |w| {
-        for field in &obj.fields {
-            let bt = get_base_type(field.type_.as_ref());
-            // Skip union type discriminator fields (they're handled by the union T enum)
-            if helpers::is_union_type_field(schema, field) {
-                continue;
+        for info in &field_info {
+            if let Some((fname, owned_type, _)) = info {
+                w.line(&format!("pub {fname}: {owned_type},"));
             }
-            let fname = type_map::to_snake_case(&type_map::escape_keyword(
-                field.name.as_deref().unwrap_or(""),
-            ));
-            let owned_type = table_owned_field_type(schema, field, bt, current_ns);
-            w.line(&format!("pub {fname}: {owned_type},"));
         }
     });
     w.blank();
@@ -49,16 +60,10 @@ pub(super) fn gen_object_api(
         w.block("fn default() -> Self", |w| {
             w.line("Self {");
             w.indent();
-            for field in &obj.fields {
-                let bt = get_base_type(field.type_.as_ref());
-                if helpers::is_union_type_field(schema, field) {
-                    continue;
+            for info in &field_info {
+                if let Some((fname, _, default)) = info {
+                    w.line(&format!("{fname}: {default},"));
                 }
-                let fname = type_map::to_snake_case(&type_map::escape_keyword(
-                    field.name.as_deref().unwrap_or(""),
-                ));
-                let default = table_owned_field_default(schema, field, bt, current_ns);
-                w.line(&format!("{fname}: {default},"));
             }
             w.dedent();
             w.line("}");
@@ -67,22 +72,23 @@ pub(super) fn gen_object_api(
     w.blank();
 
     // --- Pack method ---
-    w.block(&format!("impl {t_name}"), |w| {
-        w.block(
+    w.try_block(&format!("impl {t_name}"), |w| {
+        w.try_block(
             &format!("pub fn pack<'b, A: ::flatbuffers::Allocator + 'b>(\n    &self,\n    _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,\n  ) -> ::flatbuffers::WIPOffset<{name}<'b>>"),
             |w| {
-                gen_pack_body(w, schema, obj, name, current_ns);
+                gen_pack_body(w, schema, obj, name, current_ns)
             },
-        );
-    });
+        )
+    })?;
     w.blank();
 
     // --- Unpack method ---
-    w.block(&format!("impl {name}<'_>"), |w| {
-        w.block(&format!("pub fn unpack(&self) -> {t_name}"), |w| {
-            gen_unpack_body(w, schema, obj, &t_name, current_ns);
-        });
-    });
+    w.try_block(&format!("impl {name}<'_>"), |w| {
+        w.try_block(&format!("pub fn unpack(&self) -> {t_name}"), |w| {
+            gen_unpack_body(w, schema, obj, &t_name, current_ns)
+        })
+    })?;
+    Ok(())
 }
 
 /// Get the owned Rust type for a table field in the Object API.
@@ -91,54 +97,61 @@ fn table_owned_field_type(
     field: &schema::Field,
     bt: BaseType,
     current_ns: &str,
-) -> String {
-    let is_optional = field.is_optional == Some(true);
+) -> Result<String, CodeGenError> {
+    let is_optional = field.is_optional;
     match bt {
         bt if type_map::is_scalar(bt) => {
             let base = if has_enum_index(field) {
-                let idx = field_type_index(field);
+                let idx = field_type_index(field)?;
                 type_map::resolve_enum_name(schema, current_ns, idx)
             } else {
                 type_map::scalar_rust_type(bt).to_string()
             };
             if is_optional {
-                format!("Option<{base}>")
+                Ok(format!("Option<{base}>"))
             } else {
-                base
+                Ok(base)
             }
         }
         BaseType::BASE_TYPE_STRING => {
             if helpers::is_field_required(field) || field.default_string.is_some() {
-                "alloc::string::String".to_string()
+                Ok("alloc::string::String".to_string())
             } else {
-                "Option<alloc::string::String>".to_string()
+                Ok("Option<alloc::string::String>".to_string())
             }
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("Option<{sname}T>")
+            Ok(format!("Option<{sname}T>"))
         }
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("Option<alloc::boxed::Box<{tname}T>>")
+            Ok(format!("Option<alloc::boxed::Box<{tname}T>>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = get_element_type(field.type_.as_ref());
-            let inner = vector_owned_element_type(schema, field, element_bt, current_ns);
+            let inner = vector_owned_element_type(schema, field, element_bt, current_ns)?;
             if field.default_string.is_some() {
-                format!("alloc::vec::Vec<{inner}>")
+                Ok(format!("alloc::vec::Vec<{inner}>"))
             } else {
-                format!("Option<alloc::vec::Vec<{inner}>>")
+                Ok(format!("Option<alloc::vec::Vec<{inner}>>"))
             }
         }
         BaseType::BASE_TYPE_UNION => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let ename = type_map::resolve_enum_name(schema, current_ns, idx);
-            format!("{ename}T")
+            Ok(format!("{ename}T"))
         }
-        _ => "u8".to_string(),
+        other => {
+            eprintln!(
+                "warning: unknown base type {:?} for field '{}', defaulting to u8",
+                other,
+                field.name.as_deref().unwrap_or("<unknown>"),
+            );
+            Ok("u8".to_string())
+        }
     }
 }
 
@@ -148,29 +161,36 @@ fn vector_owned_element_type(
     field: &schema::Field,
     element_bt: BaseType,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     match element_bt {
         bt if type_map::is_scalar(bt) => {
             if has_enum_index(field) {
-                let enum_idx = field_type_index(field);
+                let enum_idx = field_type_index(field)?;
                 if enum_idx < schema.enums.len() {
-                    return type_map::resolve_enum_name(schema, current_ns, enum_idx);
+                    return Ok(type_map::resolve_enum_name(schema, current_ns, enum_idx));
                 }
             }
-            type_map::scalar_rust_type(bt).to_string()
+            Ok(type_map::scalar_rust_type(bt).to_string())
         }
-        BaseType::BASE_TYPE_STRING => "alloc::string::String".to_string(),
+        BaseType::BASE_TYPE_STRING => Ok("alloc::string::String".to_string()),
         BaseType::BASE_TYPE_TABLE => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("{tname}T")
+            Ok(format!("{tname}T"))
         }
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
-            format!("{sname}T")
+            Ok(format!("{sname}T"))
         }
-        _ => "u8".to_string(),
+        other => {
+            eprintln!(
+                "warning: unknown vector element base type {:?} for field '{}', defaulting to u8",
+                other,
+                field.name.as_deref().unwrap_or("<unknown>"),
+            );
+            Ok("u8".to_string())
+        }
     }
 }
 
@@ -180,37 +200,37 @@ fn table_owned_field_default(
     field: &schema::Field,
     bt: BaseType,
     current_ns: &str,
-) -> String {
+) -> Result<String, CodeGenError> {
     match bt {
         bt if type_map::is_scalar(bt) => {
-            if field.is_optional == Some(true) {
-                "None".to_string()
+            if field.is_optional {
+                Ok("None".to_string())
             } else {
                 helpers::scalar_builder_default(schema, field, bt, current_ns)
             }
         }
         BaseType::BASE_TYPE_STRING => {
             if helpers::is_field_required(field) {
-                "alloc::string::String::new()".to_string()
+                Ok("alloc::string::String::new()".to_string())
             } else if let Some(default_val) = &field.default_string {
-                format!("alloc::string::ToString::to_string(\"{}\")", default_val)
+                Ok(format!("alloc::string::ToString::to_string(\"{}\")", default_val))
             } else {
-                "None".to_string()
+                Ok("None".to_string())
             }
         }
         BaseType::BASE_TYPE_VECTOR => {
             if field.default_string.is_some() {
-                "Default::default()".to_string()
+                Ok("Default::default()".to_string())
             } else {
-                "None".to_string()
+                Ok("None".to_string())
             }
         }
         BaseType::BASE_TYPE_UNION => {
-            let idx = field_type_index(field);
+            let idx = field_type_index(field)?;
             let ename = type_map::resolve_enum_name(schema, current_ns, idx);
-            format!("{ename}T::NONE")
+            Ok(format!("{ename}T::NONE"))
         }
-        _ => "None".to_string(),
+        _ => Ok("None".to_string()),
     }
 }
 
@@ -221,7 +241,7 @@ fn gen_pack_body(
     obj: &schema::Object,
     name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     // Phase 1: Pre-build all non-scalar fields into local variables
     for field in &obj.fields {
         let bt = get_base_type(field.type_.as_ref());
@@ -262,7 +282,7 @@ fn gen_pack_body(
                 gen_pack_vector_field(w, schema, field, &fname, current_ns);
             }
             BaseType::BASE_TYPE_UNION => {
-                let idx = field_type_index(field);
+                let idx = field_type_index(field)?;
                 let ename = type_map::resolve_enum_name(schema, current_ns, idx);
                 let snake = type_map::to_snake_case(ename.split("::").last().unwrap_or(&ename));
                 w.line(&format!("let {fname}_type = self.{fname}.{snake}_type();"));
@@ -289,6 +309,7 @@ fn gen_pack_body(
     }
     w.dedent();
     w.line("})");
+    Ok(())
 }
 
 /// Generate pack code for a vector field.
@@ -391,7 +412,7 @@ fn gen_unpack_body(
     obj: &schema::Object,
     t_name: &str,
     current_ns: &str,
-) {
+) -> Result<(), CodeGenError> {
     for field in &obj.fields {
         let bt = get_base_type(field.type_.as_ref());
         if helpers::is_union_type_field(schema, field) {
@@ -435,7 +456,7 @@ fn gen_unpack_body(
                 gen_unpack_vector_field(w, schema, field, &fname, current_ns);
             }
             BaseType::BASE_TYPE_UNION => {
-                gen_unpack_union_field(w, schema, field, &fname, current_ns);
+                gen_unpack_union_field(w, schema, field, &fname, current_ns)?;
             }
             _ => {}
         }
@@ -455,6 +476,7 @@ fn gen_unpack_body(
     }
     w.dedent();
     w.line("}");
+    Ok(())
 }
 
 /// Generate unpack code for a vector field.
@@ -544,11 +566,11 @@ fn gen_unpack_union_field(
     field: &schema::Field,
     fname: &str,
     current_ns: &str,
-) {
-    let enum_idx = field_type_index(field);
+) -> Result<(), CodeGenError> {
+    let enum_idx = field_type_index(field)?;
     if enum_idx >= schema.enums.len() {
         w.line(&format!("let {fname} = Default::default();"));
-        return;
+        return Ok(());
     }
     let union_enum = &schema.enums[enum_idx];
     let ename = type_map::resolve_enum_name(schema, current_ns, enum_idx);
@@ -576,4 +598,5 @@ fn gen_unpack_union_field(
     w.line(&format!("_ => {ename}T::NONE,"));
     w.dedent();
     w.line("};");
+    Ok(())
 }

@@ -44,7 +44,6 @@
           }
         }
       ],
-      "is_struct": false,
       "span": {
         "file": "testdata/golden/vector_of_enums.fbs",
         "line": 3,

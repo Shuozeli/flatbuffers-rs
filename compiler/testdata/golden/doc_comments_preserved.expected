@@ -51,7 +51,6 @@
           }
         }
       ],
-      "is_struct": false,
       "documentation": {
         "lines": [
           " A monster in the game world.",

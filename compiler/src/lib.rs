@@ -4,15 +4,24 @@ pub mod compiler;
 pub mod conform;
 pub mod error;
 pub mod json;
+// Generated from reflection.fbs by the FlatBuffers compiler (C++ flatc).
+// Lint suppressions are needed because the generated code doesn't follow Rust conventions.
 #[allow(
     unused_imports,
     dead_code,
-    clippy::all,
     non_camel_case_types,
     non_snake_case,
+    non_upper_case_globals,
     unused_variables,
     unused_mut,
-    deprecated
+    deprecated,
+    elided_lifetimes_in_paths,
+    mismatched_lifetime_syntaxes,
+    clippy::duplicated_attributes,
+    clippy::extra_unused_lifetimes,
+    clippy::missing_safety_doc,
+    clippy::module_inception,
+    clippy::wrong_self_convention,
 )]
 pub mod reflection;
 pub mod struct_layout;
