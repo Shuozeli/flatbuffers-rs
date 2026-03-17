@@ -339,7 +339,12 @@ fn error_root_type_not_found() {
         root_type Monster;
     "#;
     let result = compile_single(fbs).unwrap();
-    let err = generate_json(&result.schema.as_legacy(), "NonExistent", 42, DataGenConfig::default());
+    let err = generate_json(
+        &result.schema.as_legacy(),
+        "NonExistent",
+        42,
+        DataGenConfig::default(),
+    );
     assert!(err.is_err());
     match err.unwrap_err() {
         DataGenError::RootTypeNotFound { name } => assert_eq!(name, "NonExistent"),
@@ -395,11 +400,7 @@ fn roundtrip_with_random_schemas() {
         };
 
         let legacy = compile_result.schema.as_legacy();
-        let root_type = match legacy
-            .root_table
-            .as_ref()
-            .and_then(|t| t.name.as_deref())
-        {
+        let root_type = match legacy.root_table.as_ref().and_then(|t| t.name.as_deref()) {
             Some(n) => n.to_string(),
             None => {
                 fail += 1;
@@ -407,12 +408,7 @@ fn roundtrip_with_random_schemas() {
             }
         };
 
-        let json = match generate_json(
-            &legacy,
-            &root_type,
-            seed,
-            data_config.clone(),
-        ) {
+        let json = match generate_json(&legacy, &root_type, seed, data_config.clone()) {
             Ok(j) => j,
             Err(e) => {
                 panic!("seed {seed}: data-gen failed:\nschema:\n{fbs_text}\nerror: {e}");

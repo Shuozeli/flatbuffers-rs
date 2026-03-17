@@ -43,22 +43,24 @@ pub(super) fn vector_element_type(
         BaseType::BASE_TYPE_STRING => {
             // C++ uses double space for &'b  str (builder lifetime) but single space for &'a str
             let space = if lifetime == "'b" { "  " } else { " " };
-            Ok(format!("::flatbuffers::ForwardsUOffset<&{lifetime}{space}str>"))
+            Ok(format!(
+                "::flatbuffers::ForwardsUOffset<&{lifetime}{space}str>"
+            ))
         }
         BaseType::BASE_TYPE_TABLE => {
             let idx = field_type_index(field)?;
             let tname = type_map::resolve_object_name(schema, current_ns, idx);
-            Ok(format!("::flatbuffers::ForwardsUOffset<{tname}<{lifetime}>>"))
+            Ok(format!(
+                "::flatbuffers::ForwardsUOffset<{tname}<{lifetime}>>"
+            ))
         }
         BaseType::BASE_TYPE_STRUCT => {
             let idx = field_type_index(field)?;
             Ok(type_map::resolve_object_name(schema, current_ns, idx))
         }
-        _ => {
-            Err(CodeGenError::Internal(format!(
-                "unhandled vector element type {element_bt:?}"
-            )))
-        }
+        _ => Err(CodeGenError::Internal(format!(
+            "unhandled vector element type {element_bt:?}"
+        ))),
     }
 }
 
@@ -92,7 +94,9 @@ pub(super) fn verifier_type_str(
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = get_element_type(&field.type_);
             let inner = vector_element_type(schema, field, element_bt, "'_", current_ns)?;
-            Ok(format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>"))
+            Ok(format!(
+                "::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>"
+            ))
         }
         BaseType::BASE_TYPE_UNION => {
             Ok("::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'_>>".to_string())
@@ -202,7 +206,9 @@ pub(super) fn args_field_type(
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = get_element_type(&field.type_);
             let inner = vector_element_type(schema, field, element_bt, "'a", current_ns)?;
-            Ok(format!("Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, {inner}>>>"))
+            Ok(format!(
+                "Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, {inner}>>>"
+            ))
         }
         BaseType::BASE_TYPE_UNION => {
             Ok("Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>".to_string())

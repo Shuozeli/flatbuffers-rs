@@ -474,7 +474,9 @@ fn gen_union_accessor(
             // Sanitize FQN for enum constant reference and accessor name
             let const_name = type_map::escape_keyword(&type_map::sanitize_union_const_name(vname));
             let variant_snake = type_map::to_snake_case(&const_name);
-            let variant_bt = val.union_type.as_ref()
+            let variant_bt = val
+                .union_type
+                .as_ref()
                 .map(|t| t.base_type)
                 .unwrap_or(BaseType::BASE_TYPE_NONE);
 
@@ -642,11 +644,7 @@ pub(super) fn gen_debug_impl(
 }
 
 /// Generate the inline `create()` method inside the impl block (C++ flatc style).
-fn gen_create_method(
-    w: &mut CodeWriter,
-    obj: &ResolvedObject,
-    name: &str,
-) {
+fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let needs_lifetime = obj.fields.iter().any(|f| {
         let bt = get_base_type(&f.type_);
         matches!(

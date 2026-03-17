@@ -14,11 +14,7 @@ pub(super) fn gen_unpack(
     obj: &ResolvedObject,
     name: &str,
 ) {
-    let non_deprecated: Vec<_> = obj
-        .fields
-        .iter()
-        .filter(|f| !f.is_deprecated)
-        .collect();
+    let non_deprecated: Vec<_> = obj.fields.iter().filter(|f| !f.is_deprecated).collect();
     w.block(&format!("unpack():{name}T"), |w| {
         w.line(&format!("return new {name}T("));
         w.indent();
@@ -237,12 +233,7 @@ pub(super) fn gen_object_api_class(
     );
 }
 
-fn gen_pack_vector(
-    w: &mut CodeWriter,
-    field: &ResolvedField,
-    fname: &str,
-    table_name: &str,
-) {
+fn gen_pack_vector(w: &mut CodeWriter, field: &ResolvedField, fname: &str, table_name: &str) {
     let et = type_map::get_element_type(&field.type_);
     let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
 

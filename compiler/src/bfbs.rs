@@ -39,8 +39,8 @@
 use flatbuffers::{FlatBufferBuilder, TableFinishedWIPOffset, WIPOffset};
 use flatc_rs_schema as schema;
 use flatc_rs_schema::resolved::{
-    ResolvedEnum, ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedRpcCall,
-    ResolvedSchema, ResolvedService, ResolvedType,
+    ResolvedEnum, ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedRpcCall, ResolvedSchema,
+    ResolvedService, ResolvedType,
 };
 
 use crate::reflection::reflection as refl;
@@ -272,7 +272,11 @@ pub fn serialize_schema(schema: &ResolvedSchema) -> Vec<u8> {
 // Resolved type writers (for serialization from ResolvedSchema)
 // ---------------------------------------------------------------------------
 
-fn write_resolved_type(b: &mut FlatBufferBuilder<'_>, ty: &ResolvedType, maps: &IndexMaps<'_>) -> TOff {
+fn write_resolved_type(
+    b: &mut FlatBufferBuilder<'_>,
+    ty: &ResolvedType,
+    maps: &IndexMaps<'_>,
+) -> TOff {
     let bt = ty.base_type;
     let et = ty.element_type.unwrap_or(schema::BaseType::BASE_TYPE_NONE);
 
@@ -297,31 +301,29 @@ fn write_resolved_type(b: &mut FlatBufferBuilder<'_>, ty: &ResolvedType, maps: &
                 }
                 schema::BaseType::BASE_TYPE_VECTOR
                 | schema::BaseType::BASE_TYPE_ARRAY
-                | schema::BaseType::BASE_TYPE_VECTOR64 => {
-                    match et {
-                        schema::BaseType::BASE_TYPE_TABLE | schema::BaseType::BASE_TYPE_STRUCT => {
-                            if i < maps.obj_index_to_sorted.len() {
-                                maps.obj_index_to_sorted[i] as i32
-                            } else {
-                                idx
-                            }
-                        }
-                        schema::BaseType::BASE_TYPE_UNION => {
-                            if i < maps.enum_index_to_sorted.len() {
-                                maps.enum_index_to_sorted[i] as i32
-                            } else {
-                                idx
-                            }
-                        }
-                        _ => {
-                            if i < maps.enum_index_to_sorted.len() {
-                                maps.enum_index_to_sorted[i] as i32
-                            } else {
-                                idx
-                            }
+                | schema::BaseType::BASE_TYPE_VECTOR64 => match et {
+                    schema::BaseType::BASE_TYPE_TABLE | schema::BaseType::BASE_TYPE_STRUCT => {
+                        if i < maps.obj_index_to_sorted.len() {
+                            maps.obj_index_to_sorted[i] as i32
+                        } else {
+                            idx
                         }
                     }
-                }
+                    schema::BaseType::BASE_TYPE_UNION => {
+                        if i < maps.enum_index_to_sorted.len() {
+                            maps.enum_index_to_sorted[i] as i32
+                        } else {
+                            idx
+                        }
+                    }
+                    _ => {
+                        if i < maps.enum_index_to_sorted.len() {
+                            maps.enum_index_to_sorted[i] as i32
+                        } else {
+                            idx
+                        }
+                    }
+                },
                 _ => {
                     if i < maps.enum_index_to_sorted.len() {
                         maps.enum_index_to_sorted[i] as i32
@@ -351,7 +353,10 @@ fn write_resolved_enum_val(
     maps: &IndexMaps<'_>,
 ) -> TOff {
     let name = b.create_string(&ev.name);
-    let union_type = ev.union_type.as_ref().map(|t| write_resolved_type(b, t, maps));
+    let union_type = ev
+        .union_type
+        .as_ref()
+        .map(|t| write_resolved_type(b, t, maps));
     let doc = ev.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
     let attrs = ev.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
 
@@ -370,7 +375,11 @@ fn write_resolved_enum_val(
     b.end_table(start)
 }
 
-fn write_resolved_enum(b: &mut FlatBufferBuilder<'_>, e: &ResolvedEnum, maps: &IndexMaps<'_>) -> TOff {
+fn write_resolved_enum(
+    b: &mut FlatBufferBuilder<'_>,
+    e: &ResolvedEnum,
+    maps: &IndexMaps<'_>,
+) -> TOff {
     let fq_name = fq_resolved_enum_name(e);
     let name = b.create_string(&fq_name);
 
@@ -404,7 +413,11 @@ fn write_resolved_enum(b: &mut FlatBufferBuilder<'_>, e: &ResolvedEnum, maps: &I
     b.end_table(start)
 }
 
-fn write_resolved_field(b: &mut FlatBufferBuilder<'_>, field: &ResolvedField, maps: &IndexMaps<'_>) -> TOff {
+fn write_resolved_field(
+    b: &mut FlatBufferBuilder<'_>,
+    field: &ResolvedField,
+    maps: &IndexMaps<'_>,
+) -> TOff {
     let name = b.create_string(&field.name);
     let field_type = write_resolved_type(b, &field.type_, maps);
     let attrs = field
@@ -438,7 +451,11 @@ fn write_resolved_field(b: &mut FlatBufferBuilder<'_>, field: &ResolvedField, ma
     b.end_table(start)
 }
 
-fn write_resolved_object(b: &mut FlatBufferBuilder<'_>, obj: &ResolvedObject, maps: &IndexMaps<'_>) -> TOff {
+fn write_resolved_object(
+    b: &mut FlatBufferBuilder<'_>,
+    obj: &ResolvedObject,
+    maps: &IndexMaps<'_>,
+) -> TOff {
     let fq_name = fq_resolved_obj_name(obj);
     let name = b.create_string(&fq_name);
 

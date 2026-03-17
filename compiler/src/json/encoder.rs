@@ -1,6 +1,8 @@
 //! Encode a JSON value into a FlatBuffers binary using a compiled Schema.
 
-use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::resolved::{
+    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+};
 use flatc_rs_schema::BaseType;
 use serde_json::Value;
 
@@ -196,11 +198,8 @@ impl<'a> Encoder<'a> {
 
         // Check for unknown JSON fields (unless --unknown-json is set)
         if !self.opts.unknown_json {
-            let schema_field_names: std::collections::HashSet<&str> = obj
-                .fields
-                .iter()
-                .map(|f| f.name.as_str())
-                .collect();
+            let schema_field_names: std::collections::HashSet<&str> =
+                obj.fields.iter().map(|f| f.name.as_str()).collect();
             // Also include companion _type fields for unions
             let union_type_names: Vec<String> = obj
                 .fields
@@ -343,8 +342,7 @@ impl<'a> Encoder<'a> {
 
                 BaseType::BASE_TYPE_STRUCT => {
                     let inner_idx = require_type_index(ty, fname)?;
-                    let bytes =
-                        self.encode_struct_inline(json_val, inner_idx, fname, depth + 1)?;
+                    let bytes = self.encode_struct_inline(json_val, inner_idx, fname, depth + 1)?;
                     self.buf[field_pos..field_pos + bytes.len()].copy_from_slice(&bytes);
                 }
 
@@ -656,9 +654,7 @@ impl<'a> Encoder<'a> {
                 actual: json_type_name(json_val),
             })?;
 
-        let elem_bt = ty
-            .element_type
-            .unwrap_or(BaseType::BASE_TYPE_U_BYTE);
+        let elem_bt = ty.element_type.unwrap_or(BaseType::BASE_TYPE_U_BYTE);
 
         match elem_bt {
             bt if is_scalar(bt) => {
@@ -778,7 +774,7 @@ impl<'a> Encoder<'a> {
         };
 
         let union_type = match variant.union_type {
-            Some(ref t) => t.clone(),
+            Some(ref t) => *t,
             None => return Ok(self.buf.len()),
         };
 
@@ -892,10 +888,7 @@ fn field_inline_size(bt: BaseType, ty: &ResolvedType, schema: &ResolvedSchema) -
         | BaseType::BASE_TYPE_UNION => (4, 4),
 
         BaseType::BASE_TYPE_STRUCT => {
-            let idx = ty
-                .index
-                .filter(|&i| i >= 0)
-                .map(|i| i as usize);
+            let idx = ty.index.filter(|&i| i >= 0).map(|i| i as usize);
             match idx.and_then(|i| schema.objects.get(i)) {
                 Some(obj) => {
                     let size = obj.byte_size.unwrap_or(0) as usize;

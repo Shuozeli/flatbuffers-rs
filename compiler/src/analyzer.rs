@@ -120,19 +120,14 @@ fn validate_schema_size_limits(schema: &schema::Schema) -> Result<()> {
 
     if schema.enums.len() > MAX_ENUMS {
         return Err(AnalyzeError::SchemaSizeLimitExceeded {
-            detail: format!(
-                "{} enums exceeds limit of {MAX_ENUMS}",
-                schema.enums.len()
-            ),
+            detail: format!("{} enums exceeds limit of {MAX_ENUMS}", schema.enums.len()),
         });
     }
 
     let total_fields: usize = schema.objects.iter().map(|o| o.fields.len()).sum();
     if total_fields > MAX_TOTAL_FIELDS {
         return Err(AnalyzeError::SchemaSizeLimitExceeded {
-            detail: format!(
-                "{total_fields} total fields exceeds limit of {MAX_TOTAL_FIELDS}"
-            ),
+            detail: format!("{total_fields} total fields exceeds limit of {MAX_TOTAL_FIELDS}"),
         });
     }
 
@@ -161,16 +156,8 @@ struct TypeMetadata {
 impl TypeMetadata {
     fn from_schema(schema: &schema::Schema) -> Self {
         Self {
-            obj_is_struct: schema
-                .objects
-                .iter()
-                .map(|o| o.is_struct)
-                .collect(),
-            enum_is_union: schema
-                .enums
-                .iter()
-                .map(|e| e.is_union)
-                .collect(),
+            obj_is_struct: schema.objects.iter().map(|o| o.is_struct).collect(),
+            enum_is_union: schema.enums.iter().map(|e| e.is_union).collect(),
             enum_underlying: schema
                 .enums
                 .iter()
@@ -1302,8 +1289,7 @@ pub fn check_private_leak(schema: &ResolvedSchema) -> Result<()> {
                 BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
                     if let Some(idx) = ty.index {
                         if let Some(ref_obj) = schema.objects.get(idx as usize) {
-                            if !obj_is_private && has_private_attr(ref_obj.attributes.as_ref())
-                            {
+                            if !obj_is_private && has_private_attr(ref_obj.attributes.as_ref()) {
                                 return Err(AnalyzeError::PrivateLeak {
                                     public_type: obj_name.to_string(),
                                     private_type: ref_obj.name.clone(),

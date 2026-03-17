@@ -46,10 +46,8 @@ pub(super) fn gen_object_api(
     }
     w.line(&format!("#[derive({})]", derives.join(", ")));
     w.block(&format!("{vis} struct {t_name}"), |w| {
-        for info in &field_info {
-            if let Some((fname, owned_type, _)) = info {
-                w.line(&format!("pub {fname}: {owned_type},"));
-            }
+        for (fname, owned_type, _) in field_info.iter().flatten() {
+            w.line(&format!("pub {fname}: {owned_type},"));
         }
     });
     w.blank();
@@ -59,10 +57,8 @@ pub(super) fn gen_object_api(
         w.block("fn default() -> Self", |w| {
             w.line("Self {");
             w.indent();
-            for info in &field_info {
-                if let Some((fname, _, default)) = info {
-                    w.line(&format!("{fname}: {default},"));
-                }
+            for (fname, _, default) in field_info.iter().flatten() {
+                w.line(&format!("{fname}: {default},"));
             }
             w.dedent();
             w.line("}");
@@ -146,8 +142,7 @@ fn table_owned_field_type(
         other => {
             eprintln!(
                 "warning: unknown base type {:?} for field '{}', defaulting to u8",
-                other,
-                &field.name,
+                other, &field.name,
             );
             Ok("u8".to_string())
         }
@@ -185,8 +180,7 @@ fn vector_owned_element_type(
         other => {
             eprintln!(
                 "warning: unknown vector element base type {:?} for field '{}', defaulting to u8",
-                other,
-                &field.name,
+                other, &field.name,
             );
             Ok("u8".to_string())
         }
@@ -212,7 +206,10 @@ fn table_owned_field_default(
             if helpers::is_field_required(field) {
                 Ok("alloc::string::String::new()".to_string())
             } else if let Some(default_val) = &field.default_string {
-                Ok(format!("alloc::string::ToString::to_string(\"{}\")", default_val))
+                Ok(format!(
+                    "alloc::string::ToString::to_string(\"{}\")",
+                    default_val
+                ))
             } else {
                 Ok("None".to_string())
             }
@@ -308,11 +305,7 @@ fn gen_pack_body(
 }
 
 /// Generate pack code for a vector field.
-fn gen_pack_vector_field(
-    w: &mut CodeWriter,
-    field: &ResolvedField,
-    fname: &str,
-) {
+fn gen_pack_vector_field(w: &mut CodeWriter, field: &ResolvedField, fname: &str) {
     let has_default = field.default_string.is_some();
     let element_bt = get_element_type(&field.type_);
 
@@ -469,11 +462,7 @@ fn gen_unpack_body(
 }
 
 /// Generate unpack code for a vector field.
-fn gen_unpack_vector_field(
-    w: &mut CodeWriter,
-    field: &ResolvedField,
-    fname: &str,
-) {
+fn gen_unpack_vector_field(w: &mut CodeWriter, field: &ResolvedField, fname: &str) {
     let has_default = field.default_string.is_some();
     let element_bt = get_element_type(&field.type_);
 
@@ -574,7 +563,9 @@ fn gen_unpack_union_field(
         let const_name = type_map::escape_keyword(&type_map::sanitize_union_const_name(vname));
         let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
         let variant_snake = type_map::to_snake_case(&const_name);
-        let variant_bt = val.union_type.as_ref()
+        let variant_bt = val
+            .union_type
+            .as_ref()
             .map(|t| t.base_type)
             .unwrap_or(BaseType::BASE_TYPE_NONE);
 

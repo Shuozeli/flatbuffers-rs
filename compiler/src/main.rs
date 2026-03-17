@@ -419,9 +419,9 @@ fn main() {
         let root_type_name = cli
             .root_type
             .as_deref()
-            .or(schema.root_table_index.and_then(|idx| {
-                Some(schema.objects[idx].name.as_str())
-            }))
+            .or(schema
+                .root_table_index
+                .map(|idx| schema.objects[idx].name.as_str()))
             .unwrap_or_else(|| {
                 eprintln!("error: no root_type in schema and --root-type not specified");
                 process::exit(1);
@@ -450,14 +450,13 @@ fn main() {
                         process::exit(1);
                     }
                 };
-                let json_val =
-                    match binary_to_json(&buf, schema, &root_type_name, &json_opts) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            eprintln!("error: failed to decode {}: {e}", data_file.display());
-                            process::exit(1);
-                        }
-                    };
+                let json_val = match binary_to_json(&buf, schema, &root_type_name, &json_opts) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("error: failed to decode {}: {e}", data_file.display());
+                        process::exit(1);
+                    }
+                };
 
                 let json_str = if cli.strict_json {
                     serde_json::to_string(&json_val)
@@ -498,18 +497,14 @@ fn main() {
                         process::exit(1);
                     }
                 };
-                let bin = match json_to_binary_with_opts(
-                    &json_val,
-                    schema,
-                    &root_type_name,
-                    &enc_opts,
-                ) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        eprintln!("error: failed to encode {}: {e}", data_file.display());
-                        process::exit(1);
-                    }
-                };
+                let bin =
+                    match json_to_binary_with_opts(&json_val, schema, &root_type_name, &enc_opts) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            eprintln!("error: failed to encode {}: {e}", data_file.display());
+                            process::exit(1);
+                        }
+                    };
 
                 let stem = data_file
                     .file_stem()
@@ -545,7 +540,7 @@ fn main() {
             .as_deref()
             .or(schema
                 .root_table_index
-                .and_then(|idx| Some(schema.objects[idx].name.as_str())))
+                .map(|idx| schema.objects[idx].name.as_str()))
             .unwrap_or_else(|| {
                 eprintln!("error: no root_type in schema and --root-type not specified");
                 process::exit(1);

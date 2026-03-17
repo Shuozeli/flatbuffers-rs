@@ -253,11 +253,7 @@ pub(super) fn gen_args_struct(
 }
 
 /// Generate the standalone `create*()` function.
-pub(super) fn gen_create_fn(
-    w: &mut CodeWriter,
-    obj: &ResolvedObject,
-    name: &str,
-) {
+pub(super) fn gen_create_fn(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let needs_lifetime = obj.fields.iter().any(|f| {
         let bt = get_base_type(&f.type_);
         matches!(

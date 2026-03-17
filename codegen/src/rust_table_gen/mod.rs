@@ -10,7 +10,12 @@ use super::type_map;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Generate Rust code for the table at `schema.objects[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+pub fn generate(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    index: usize,
+    opts: &CodeGenOptions,
+) -> Result<(), CodeGenError> {
     let obj = &schema.objects[index];
     let name = &obj.name;
     let vis = type_visibility(obj.attributes.as_ref(), opts);

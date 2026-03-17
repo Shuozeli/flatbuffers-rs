@@ -282,7 +282,13 @@ fn value_string_for_region(
             let bytes = &binary[start..start + size.min(16)];
             let s: String = bytes
                 .iter()
-                .map(|&b| if b.is_ascii_graphic() || b == b' ' { b as char } else { '.' })
+                .map(|&b| {
+                    if b.is_ascii_graphic() || b == b' ' {
+                        b as char
+                    } else {
+                        '.'
+                    }
+                })
                 .collect();
             s
         }

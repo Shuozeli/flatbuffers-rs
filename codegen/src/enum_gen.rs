@@ -15,7 +15,12 @@ fn has_attribute(enum_def: &ResolvedEnum, key: &str) -> bool {
 }
 
 /// Generate Rust code for the enum at `schema.enums[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+pub fn generate(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    index: usize,
+    opts: &CodeGenOptions,
+) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let is_bitflags = has_attribute(enum_def, "bit_flags");
 
@@ -34,7 +39,11 @@ pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts:
 }
 
 /// Generate a bitflags enum using the `bitflags!` macro.
-fn generate_bitflags(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+fn generate_bitflags(
+    w: &mut CodeWriter,
+    enum_def: &ResolvedEnum,
+    opts: &CodeGenOptions,
+) -> Result<(), CodeGenError> {
     let name = &enum_def.name;
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let underlying_bt = enum_def.underlying_type.base_type;
@@ -129,11 +138,14 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGen
     w.block(&format!("impl ::flatbuffers::Push for {name}"), |w| {
         w.line(&format!("type Output = {name};"));
         w.line("#[inline]");
-        w.block("unsafe fn push(&self, dst: &mut [u8], _written_len: usize)", |w| {
-            w.line(&format!(
-                "unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.bits()) }};"
-            ));
-        });
+        w.block(
+            "unsafe fn push(&self, dst: &mut [u8], _written_len: usize)",
+            |w| {
+                w.line(&format!(
+                    "unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.bits()) }};"
+                ));
+            },
+        );
     });
     w.blank();
 
@@ -176,7 +188,11 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGen
 }
 
 /// Generate a regular (non-bitflags) enum.
-fn generate_regular(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+fn generate_regular(
+    w: &mut CodeWriter,
+    enum_def: &ResolvedEnum,
+    opts: &CodeGenOptions,
+) -> Result<(), CodeGenError> {
     let name = &enum_def.name;
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let is_union = enum_def.is_union;
@@ -185,11 +201,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenO
     let rust_type = type_map::scalar_rust_type(underlying_bt);
 
     // Pre-compute all enum values
-    let val_values: Vec<i64> = enum_def
-        .values
-        .iter()
-        .map(|v| v.value)
-        .collect();
+    let val_values: Vec<i64> = enum_def.values.iter().map(|v| v.value).collect();
 
     // Deprecated global constants (non-union enums only, matching C++ flatc)
     if !is_union && !enum_def.values.is_empty() {
@@ -254,8 +266,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenO
                 .values
                 .iter()
                 .map(|v| {
-                    let sanitized =
-                        type_map::sanitize_union_const_name(&v.name);
+                    let sanitized = type_map::sanitize_union_const_name(&v.name);
                     let esc = type_map::escape_keyword(&sanitized);
                     format!("Self::{esc}")
                 })
@@ -384,11 +395,14 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenO
     w.block(&format!("impl ::flatbuffers::Push for {name}"), |w| {
         w.line(&format!("type Output = {name};"));
         w.line("#[inline]");
-        w.block("unsafe fn push(&self, dst: &mut [u8], _written_len: usize)", |w| {
-            w.line(&format!(
-                "unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.0) }};"
-            ));
-        });
+        w.block(
+            "unsafe fn push(&self, dst: &mut [u8], _written_len: usize)",
+            |w| {
+                w.line(&format!(
+                    "unsafe {{ ::flatbuffers::emplace_scalar::<{rust_type}>(dst, self.0) }};"
+                ));
+            },
+        );
     });
     w.blank();
 
@@ -463,7 +477,9 @@ fn gen_union_object_api(
             if vname == "NONE" {
                 return Ok(None);
             }
-            let variant_bt = val.union_type.as_ref()
+            let variant_bt = val
+                .union_type
+                .as_ref()
                 .map(|t| t.base_type)
                 .unwrap_or(BaseType::BASE_TYPE_NONE);
             if variant_bt == BaseType::BASE_TYPE_TABLE {

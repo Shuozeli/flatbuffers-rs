@@ -1,4 +1,6 @@
-use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::resolved::{
+    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+};
 use flatc_rs_schema::BaseType;
 
 /// Extract BaseType from a ResolvedType.
@@ -19,9 +21,7 @@ pub fn get_index(ty: &ResolvedType) -> Option<i32> {
 /// Returns true if a field's type has a non-negative index, indicating it
 /// references an enum (or union) definition in `schema.enums`.
 pub fn has_enum_index(field: &ResolvedField) -> bool {
-    field.type_.index
-        .map(|i| i >= 0)
-        .unwrap_or(false)
+    field.type_.index.map(|i| i >= 0).unwrap_or(false)
 }
 
 /// Returns the Rust type name for a scalar BaseType.
@@ -224,11 +224,7 @@ pub fn enum_namespace(e: &ResolvedEnum) -> &str {
 }
 
 /// Resolve a qualified object (table/struct) name relative to the current namespace.
-pub fn resolve_object_name(
-    schema: &ResolvedSchema,
-    current_ns: &str,
-    obj_idx: usize,
-) -> String {
+pub fn resolve_object_name(schema: &ResolvedSchema, current_ns: &str, obj_idx: usize) -> String {
     let obj = &schema.objects[obj_idx];
     let name = &obj.name;
     let target_ns = object_namespace(obj);
@@ -247,11 +243,7 @@ pub fn is_bitflags_enum(schema: &ResolvedSchema, enum_idx: usize) -> bool {
 }
 
 /// Resolve a qualified enum name relative to the current namespace.
-pub fn resolve_enum_name(
-    schema: &ResolvedSchema,
-    current_ns: &str,
-    enum_idx: usize,
-) -> String {
+pub fn resolve_enum_name(schema: &ResolvedSchema, current_ns: &str, enum_idx: usize) -> String {
     let e = &schema.enums[enum_idx];
     let name = &e.name;
     let target_ns = enum_namespace(e);

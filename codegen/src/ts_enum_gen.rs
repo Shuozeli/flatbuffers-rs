@@ -86,7 +86,9 @@ fn union_variant_types(schema: &ResolvedSchema, enum_def: &ResolvedEnum) -> Vec<
         if vname == "NONE" {
             continue;
         }
-        let variant_bt = val.union_type.as_ref()
+        let variant_bt = val
+            .union_type
+            .as_ref()
             .map(|t| t.base_type)
             .unwrap_or(BaseType::BASE_TYPE_NONE);
         match variant_bt {
@@ -223,7 +225,9 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &ResolvedSchema, index: usiz
         if vname == "NONE" {
             continue;
         }
-        let variant_bt = val.union_type.as_ref()
+        let variant_bt = val
+            .union_type
+            .as_ref()
             .map(|t| t.base_type)
             .unwrap_or(BaseType::BASE_TYPE_NONE);
         match variant_bt {

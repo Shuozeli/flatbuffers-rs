@@ -1,7 +1,7 @@
-/// A safe buffer reader for FlatBuffers binary data.
-///
-/// All read methods return `Result<T, BoundsError>`. Callers convert
-/// `BoundsError` into their own error type via the `From` trait and `?`.
+//! A safe buffer reader for FlatBuffers binary data.
+//!
+//! All read methods return `Result<T, BoundsError>`. Callers convert
+//! `BoundsError` into their own error type via the `From` trait and `?`.
 
 /// Error returned when a read would exceed the buffer bounds.
 #[derive(Debug, Clone)]

@@ -342,6 +342,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn float_default_special_values() {
         assert_eq!(
             format_default_real_ts(f64::INFINITY, BaseType::BASE_TYPE_FLOAT),
@@ -356,7 +357,7 @@ mod tests {
             "NaN"
         );
         assert_eq!(
-            format_default_real_ts(3.14, BaseType::BASE_TYPE_DOUBLE),
+            format_default_real_ts(3.14_f64, BaseType::BASE_TYPE_DOUBLE),
             "3.14"
         );
         assert_eq!(

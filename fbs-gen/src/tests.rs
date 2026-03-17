@@ -758,8 +758,7 @@ fn no_duplicate_type_names() {
         let mut names: Vec<String> = Vec::new();
         for line in out.lines() {
             for prefix in &["enum ", "struct ", "table ", "union "] {
-                if line.starts_with(prefix) {
-                    let rest = &line[prefix.len()..];
+                if let Some(rest) = line.strip_prefix(prefix) {
                     let name = rest
                         .split(|c: char| !c.is_alphanumeric())
                         .next()
@@ -848,7 +847,6 @@ fn generates_table_references() {
                 let colon = trimmed.find(':').unwrap();
                 let semi = trimmed.find(';').unwrap_or(trimmed.len());
                 let ftype = trimmed[colon + 1..semi]
-                    .trim()
                     .split_whitespace()
                     .next()
                     .unwrap_or("");

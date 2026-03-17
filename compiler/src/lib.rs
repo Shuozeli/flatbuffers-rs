@@ -21,7 +21,7 @@ pub mod json;
     clippy::extra_unused_lifetimes,
     clippy::missing_safety_doc,
     clippy::module_inception,
-    clippy::wrong_self_convention,
+    clippy::wrong_self_convention
 )]
 pub mod reflection;
 pub mod struct_layout;

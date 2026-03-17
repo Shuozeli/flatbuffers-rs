@@ -129,11 +129,7 @@ fn compile_circular_include() {
 
     // Both tables should be in the merged schema
     assert_eq!(schema.objects.len(), 2);
-    let names: Vec<&str> = schema
-        .objects
-        .iter()
-        .map(|o| o.name.as_str())
-        .collect();
+    let names: Vec<&str> = schema.objects.iter().map(|o| o.name.as_str()).collect();
     assert!(names.contains(&"TableA"));
     assert!(names.contains(&"TableB"));
 }
@@ -159,11 +155,7 @@ fn compile_duplicate_include_deduplication() {
     let schema = &result.schema;
 
     // Vec2 should appear only once (deduplication)
-    let vec2_count = schema
-        .objects
-        .iter()
-        .filter(|o| o.name == "Vec2")
-        .count();
+    let vec2_count = schema.objects.iter().filter(|o| o.name == "Vec2").count();
     assert_eq!(vec2_count, 1);
 }
 
@@ -232,11 +224,7 @@ root_type Monster;
     let schema = &result.schema;
 
     // Find Monster table
-    let monster = schema
-        .objects
-        .iter()
-        .find(|o| o.name == "Monster")
-        .unwrap();
+    let monster = schema.objects.iter().find(|o| o.name == "Monster").unwrap();
 
     // pos should be resolved to STRUCT
     let pos_type = &monster.fields[0].type_;
@@ -248,10 +236,7 @@ root_type Monster;
 
     // equipped_type companion field should be U_TYPE (auto-inserted for unions)
     let equipped_type_field = &monster.fields[2].type_;
-    assert_eq!(
-        equipped_type_field.base_type,
-        BaseType::BASE_TYPE_U_TYPE
-    );
+    assert_eq!(equipped_type_field.base_type, BaseType::BASE_TYPE_U_TYPE);
     assert_eq!(monster.fields[2].name, "equipped_type");
 
     // equipped should be resolved to UNION

@@ -334,16 +334,28 @@ pub struct Field {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_string: Option<String>,
 
-    #[serde(rename = "deprecated", default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(
+        rename = "deprecated",
+        default,
+        skip_serializing_if = "std::ops::Not::not"
+    )]
     pub is_deprecated: bool,
 
-    #[serde(rename = "required", default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(
+        rename = "required",
+        default,
+        skip_serializing_if = "std::ops::Not::not"
+    )]
     pub is_required: bool,
 
     #[serde(rename = "key", default, skip_serializing_if = "std::ops::Not::not")]
     pub is_key: bool,
 
-    #[serde(rename = "optional", default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(
+        rename = "optional",
+        default,
+        skip_serializing_if = "std::ops::Not::not"
+    )]
     pub is_optional: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -355,7 +367,11 @@ pub struct Field {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub padding: Option<u32>,
 
-    #[serde(rename = "offset64", default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(
+        rename = "offset64",
+        default,
+        skip_serializing_if = "std::ops::Not::not"
+    )]
     pub is_offset_64: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -252,10 +252,7 @@ fn visit_struct(
             .as_deref()
             .unwrap_or("<unnamed>")
             .to_string();
-        return Err(AnalyzeError::StructDepthLimitExceeded {
-            depth,
-            type_name,
-        });
+        return Err(AnalyzeError::StructDepthLimitExceeded { depth, type_name });
     }
 
     let obj = &schema.objects[idx];

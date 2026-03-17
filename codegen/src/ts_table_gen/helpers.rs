@@ -154,7 +154,9 @@ pub(super) fn object_api_field_type_and_default(
                     .iter()
                     .filter(|v| v.name != "NONE")
                     .filter_map(|v| {
-                        let vbt = v.union_type.as_ref()
+                        let vbt = v
+                            .union_type
+                            .as_ref()
                             .map(|t| t.base_type)
                             .unwrap_or(BaseType::BASE_TYPE_NONE);
                         match vbt {

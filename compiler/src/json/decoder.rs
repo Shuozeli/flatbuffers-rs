@@ -4,7 +4,9 @@
 //! producing a `serde_json::Value` tree. No intermediate representation.
 
 use flatc_rs_schema::buf_reader::BufReader;
-use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::resolved::{
+    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+};
 use flatc_rs_schema::BaseType;
 use serde_json::{json, Map, Value};
 
@@ -447,7 +449,12 @@ impl<'a> Decoder<'a> {
     // Vector decoding
     // -------------------------------------------------------------------
 
-    fn decode_vector(&self, vec_start: usize, ty: &ResolvedType, depth: usize) -> Result<Value, JsonError> {
+    fn decode_vector(
+        &self,
+        vec_start: usize,
+        ty: &ResolvedType,
+        depth: usize,
+    ) -> Result<Value, JsonError> {
         let count = self.reader.read_u32_le(vec_start)? as usize;
         let data_start = vec_start + 4;
 
@@ -647,7 +654,12 @@ impl<'a> Decoder<'a> {
     }
 
     /// Produce a default JSON value for a field type.
-    fn default_value(&self, field: &ResolvedField, bt: BaseType, ty: &ResolvedType) -> Option<Value> {
+    fn default_value(
+        &self,
+        field: &ResolvedField,
+        bt: BaseType,
+        ty: &ResolvedType,
+    ) -> Option<Value> {
         // Use the field's default_integer / default_real if available,
         // otherwise use the type's zero value.
         match bt {
@@ -672,10 +684,7 @@ impl<'a> Decoder<'a> {
             }
             BaseType::BASE_TYPE_U_TYPE => {
                 let v = field.default_integer.unwrap_or(0);
-                let enum_idx = ty
-                    .index
-                    .filter(|&i| i >= 0)
-                    .map(|i| i as usize)?;
+                let enum_idx = ty.index.filter(|&i| i >= 0).map(|i| i as usize)?;
                 Some(self.enum_value_to_json(v, enum_idx))
             }
             BaseType::BASE_TYPE_STRING => Some(Value::Null),

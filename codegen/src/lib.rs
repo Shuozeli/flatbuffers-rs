@@ -35,19 +35,18 @@ pub enum CodeGenError {
 
 /// Get the enum/object index from a field's type.
 fn field_type_index(field: &ResolvedField) -> Result<usize, CodeGenError> {
-    field.type_.index.map(|i| i as usize).ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "field '{}' type has no index",
-            &field.name
-        ))
-    })
+    field
+        .type_
+        .index
+        .map(|i| i as usize)
+        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' type has no index", &field.name)))
 }
 
 /// Get the enum/object index from a Type descriptor.
 fn type_index(ty: &ResolvedType, context: &str) -> Result<usize, CodeGenError> {
-    ty.index.map(|i| i as usize).ok_or_else(|| {
-        CodeGenError::Internal(format!("type has no index in {context}"))
-    })
+    ty.index
+        .map(|i| i as usize)
+        .ok_or_else(|| CodeGenError::Internal(format!("type has no index in {context}")))
 }
 
 /// Get the type index for a union variant's type.
@@ -57,51 +56,37 @@ fn union_variant_type_index(val: &ResolvedEnumVal) -> Result<usize, CodeGenError
         .and_then(|t| t.index)
         .map(|i| i as usize)
         .ok_or_else(|| {
-            CodeGenError::Internal(format!(
-                "union variant '{}' has no type index",
-                &val.name
-            ))
+            CodeGenError::Internal(format!("union variant '{}' has no type index", &val.name))
         })
 }
 
 /// Get the byte_size of an object (struct).
 fn obj_byte_size(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
-    obj.byte_size.map(|s| s as usize).ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "object '{}' has no byte_size",
-            &obj.name
-        ))
-    })
+    obj.byte_size
+        .map(|s| s as usize)
+        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no byte_size", &obj.name)))
 }
 
 /// Get the min_align of an object (struct).
 fn obj_min_align(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
-    obj.min_align.map(|a| a as usize).ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "object '{}' has no min_align",
-            &obj.name
-        ))
-    })
+    obj.min_align
+        .map(|a| a as usize)
+        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no min_align", &obj.name)))
 }
 
 /// Get a struct field's byte offset.
 fn field_offset(field: &ResolvedField) -> Result<usize, CodeGenError> {
-    field.offset.map(|o| o as usize).ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "field '{}' has no offset",
-            &field.name
-        ))
-    })
+    field
+        .offset
+        .map(|o| o as usize)
+        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no offset", &field.name)))
 }
 
 /// Get a table field's ID.
 fn field_id(field: &ResolvedField) -> Result<u32, CodeGenError> {
-    field.id.ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "field '{}' has no id",
-            &field.name
-        ))
-    })
+    field
+        .id
+        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no id", &field.name)))
 }
 
 /// Options for Rust code generation.

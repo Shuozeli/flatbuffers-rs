@@ -8,7 +8,12 @@ use super::type_map;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Generate Rust code for the struct at `schema.objects[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+pub fn generate(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    index: usize,
+    opts: &CodeGenOptions,
+) -> Result<(), CodeGenError> {
     let obj = &schema.objects[index];
     let name = &obj.name;
     let byte_size = obj_byte_size(obj)?;
@@ -181,7 +186,11 @@ pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts:
 }
 
 /// Generate the `new(...)` constructor.
-fn gen_constructor(w: &mut CodeWriter, schema: &ResolvedSchema, obj: &ResolvedObject) -> Result<(), CodeGenError> {
+fn gen_constructor(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
+) -> Result<(), CodeGenError> {
     if obj.fields.is_empty() {
         return Ok(());
     }
@@ -219,7 +228,11 @@ fn gen_constructor(w: &mut CodeWriter, schema: &ResolvedSchema, obj: &ResolvedOb
 }
 
 /// Generate a getter for a struct field.
-fn gen_field_getter(w: &mut CodeWriter, schema: &ResolvedSchema, field: &ResolvedField) -> Result<(), CodeGenError> {
+fn gen_field_getter(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+) -> Result<(), CodeGenError> {
     let fname = escape_keyword(&type_map::to_snake_case(&field.name));
     let offset = field_offset(field)?;
 
@@ -314,7 +327,11 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &ResolvedSchema, field: &Resolve
 }
 
 /// Generate a setter for a struct field.
-fn gen_field_setter(w: &mut CodeWriter, schema: &ResolvedSchema, field: &ResolvedField) -> Result<(), CodeGenError> {
+fn gen_field_setter(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+) -> Result<(), CodeGenError> {
     let fname = escape_keyword(&type_map::to_snake_case(&field.name));
     let offset = field_offset(field)?;
 
@@ -451,15 +468,15 @@ fn field_rust_type(schema: &ResolvedSchema, field: &ResolvedField) -> Result<Str
 }
 
 /// Get the element Rust type name and fixed length for an array field.
-fn array_element_info(schema: &ResolvedSchema, field: &ResolvedField) -> Result<(String, usize), CodeGenError> {
+fn array_element_info(
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+) -> Result<(String, usize), CodeGenError> {
     let ty = &field.type_;
     let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
-    let fixed_len = ty
-        .fixed_length
-        .ok_or_else(|| CodeGenError::Internal(format!(
-            "array field '{}' has no fixed_length",
-            &field.name
-        )))? as usize;
+    let fixed_len = ty.fixed_length.ok_or_else(|| {
+        CodeGenError::Internal(format!("array field '{}' has no fixed_length", &field.name))
+    })? as usize;
 
     let elem_type_str = if et == BaseType::BASE_TYPE_STRUCT {
         let idx = type_index(ty, "array element struct lookup")?;
@@ -518,7 +535,10 @@ fn gen_object_api(
 
     // Skip if it has array fields (complex; defer to future work)
     if has_array_fields(obj) {
-        eprintln!("warning: Object API not generated for struct '{}' (contains array fields)", name);
+        eprintln!(
+            "warning: Object API not generated for struct '{}' (contains array fields)",
+            name
+        );
         return Ok(());
     }
 
@@ -593,7 +613,11 @@ fn gen_object_api(
 }
 
 /// Get the owned Rust type for a struct field in the Object API.
-fn struct_owned_field_type(schema: &ResolvedSchema, field: &ResolvedField, bt: BaseType) -> Result<String, CodeGenError> {
+fn struct_owned_field_type(
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+    bt: BaseType,
+) -> Result<String, CodeGenError> {
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field)?;
         let struct_name = &schema.objects[idx].name;

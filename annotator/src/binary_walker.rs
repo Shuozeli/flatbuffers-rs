@@ -2,7 +2,9 @@ use std::collections::HashSet;
 use std::ops::Range;
 
 use flatc_rs_schema::buf_reader::{BoundsError, BufReader};
-use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::resolved::{
+    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+};
 use flatc_rs_schema::BaseType;
 
 use crate::region::{AnnotatedRegion, RegionType, WalkError};

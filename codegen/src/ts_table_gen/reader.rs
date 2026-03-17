@@ -230,7 +230,9 @@ fn gen_union_accessor(
     vt_offset: u32,
 ) {
     // Check if the union has string variants - use __union_with_string in that case
-    let has_string = field.type_.index
+    let has_string = field
+        .type_
+        .index
         .and_then(|idx| {
             if idx >= 0 {
                 Some(&schema.enums[idx as usize])
@@ -241,7 +243,9 @@ fn gen_union_accessor(
         .map(|enum_def| {
             enum_def.values.iter().any(|val| {
                 val.name != "NONE"
-                    && val.union_type.as_ref()
+                    && val
+                        .union_type
+                        .as_ref()
                         .map(|t| t.base_type)
                         .unwrap_or(BaseType::BASE_TYPE_NONE)
                         == BaseType::BASE_TYPE_STRING

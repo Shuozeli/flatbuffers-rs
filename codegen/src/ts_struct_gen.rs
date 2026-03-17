@@ -254,11 +254,7 @@ fn gen_static_create(
 }
 
 /// Generate a field write in the static create method (structs are written in reverse).
-fn gen_struct_field_write(
-    w: &mut CodeWriter,
-    schema: &ResolvedSchema,
-    field: &ResolvedField,
-) {
+fn gen_struct_field_write(w: &mut CodeWriter, schema: &ResolvedSchema, field: &ResolvedField) {
     let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
     let bt = type_map::get_base_type(&field.type_);
 
@@ -385,7 +381,8 @@ fn gen_object_api_class(
                 .fields
                 .iter()
                 .map(|f| {
-                    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&f.name));
+                    let fname =
+                        ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&f.name));
                     let bt = type_map::get_base_type(&f.type_);
                     let (ts_type, default) = object_api_field_type_and_default(schema, f, bt);
                     format!("public {fname}:{ts_type} = {default}")

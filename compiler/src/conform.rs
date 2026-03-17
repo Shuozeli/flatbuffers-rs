@@ -3,7 +3,7 @@
 //! Validates that a "current" schema is a backwards-compatible evolution of a
 //! "base" schema. Used in CI/CD to prevent breaking changes.
 
-use flatc_rs_schema::resolved::{ResolvedSchema, ResolvedObject, ResolvedEnum, ResolvedType};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedObject, ResolvedSchema, ResolvedType};
 
 /// A single conformance violation.
 #[derive(Debug, Clone)]
@@ -33,10 +33,7 @@ pub fn check_conform(
             continue;
         }
 
-        let current_obj = current
-            .objects
-            .iter()
-            .find(|o| o.name == *base_name);
+        let current_obj = current.objects.iter().find(|o| o.name == *base_name);
         let current_obj = match current_obj {
             Some(o) => o,
             None => {
@@ -76,10 +73,7 @@ pub fn check_conform(
             continue;
         }
 
-        let current_enum = current
-            .enums
-            .iter()
-            .find(|e| e.name == *base_name);
+        let current_enum = current.enums.iter().find(|e| e.name == *base_name);
         let current_enum = match current_enum {
             Some(e) => e,
             None => {
@@ -121,10 +115,7 @@ fn check_object_fields(
             continue;
         }
 
-        let current_field = current_obj
-            .fields
-            .iter()
-            .find(|f| f.name == *fname);
+        let current_field = current_obj.fields.iter().find(|f| f.name == *fname);
         let current_field = match current_field {
             Some(f) => f,
             None => {
@@ -184,10 +175,7 @@ fn check_enum_values(
             continue;
         }
 
-        let current_val = current_enum
-            .values
-            .iter()
-            .find(|v| v.name == *vname);
+        let current_val = current_enum.values.iter().find(|v| v.name == *vname);
         let current_val = match current_val {
             Some(v) => v,
             None => {

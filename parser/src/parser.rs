@@ -1217,8 +1217,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_parse_float() {
-        assert_eq!(parse_float("3.14"), Ok(3.14));
+        assert_eq!(parse_float("3.14"), Ok(3.14_f64));
         assert_eq!(parse_float("1e10"), Ok(1e10));
         assert!(parse_float("nan").unwrap().is_nan());
         assert_eq!(parse_float("inf"), Ok(f64::INFINITY));

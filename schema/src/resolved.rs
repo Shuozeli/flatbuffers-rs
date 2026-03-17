@@ -166,11 +166,7 @@ pub struct ResolvedSchema {
 // Conversion helpers
 // ---------------------------------------------------------------------------
 
-fn require<T>(
-    value: Option<T>,
-    field: &'static str,
-    context: &str,
-) -> Result<T, ResolveError> {
+fn require<T>(value: Option<T>, field: &'static str, context: &str) -> Result<T, ResolveError> {
     value.ok_or_else(|| ResolveError {
         field,
         context: context.to_string(),
@@ -395,11 +391,15 @@ impl ResolvedSchema {
     /// parsing artifacts like `RpcCall.request`/`response` stub objects are
     /// not restored; callers should use index-based lookups instead.
     pub fn as_legacy(&self) -> super::Schema {
-        let objects = self.objects.iter().map(|o| {
-            super::Object {
+        let objects = self
+            .objects
+            .iter()
+            .map(|o| super::Object {
                 name: Some(o.name.clone()),
-                fields: o.fields.iter().map(|f| {
-                    super::Field {
+                fields: o
+                    .fields
+                    .iter()
+                    .map(|f| super::Field {
                         name: Some(f.name.clone()),
                         type_: Some(super::Type {
                             base_type: Some(f.type_.base_type),
@@ -425,8 +425,8 @@ impl ResolvedSchema {
                         padding: f.padding,
                         is_offset_64: f.is_offset_64,
                         span: f.span.clone(),
-                    }
-                }).collect(),
+                    })
+                    .collect(),
                 is_struct: o.is_struct,
                 min_align: o.min_align,
                 byte_size: o.byte_size,
@@ -435,14 +435,18 @@ impl ResolvedSchema {
                 declaration_file: o.declaration_file.clone(),
                 namespace: o.namespace.clone(),
                 span: o.span.clone(),
-            }
-        }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
-        let enums = self.enums.iter().map(|e| {
-            super::Enum {
+        let enums = self
+            .enums
+            .iter()
+            .map(|e| super::Enum {
                 name: Some(e.name.clone()),
-                values: e.values.iter().map(|v| {
-                    super::EnumVal {
+                values: e
+                    .values
+                    .iter()
+                    .map(|v| super::EnumVal {
                         name: Some(v.name.clone()),
                         value: Some(v.value),
                         union_type: v.union_type.as_ref().map(|t| super::Type {
@@ -458,8 +462,8 @@ impl ResolvedSchema {
                         documentation: v.documentation.clone(),
                         attributes: v.attributes.clone(),
                         span: v.span.clone(),
-                    }
-                }).collect(),
+                    })
+                    .collect(),
                 is_union: e.is_union,
                 underlying_type: Some(super::Type {
                     base_type: Some(e.underlying_type.base_type),
@@ -476,14 +480,18 @@ impl ResolvedSchema {
                 declaration_file: e.declaration_file.clone(),
                 namespace: e.namespace.clone(),
                 span: e.span.clone(),
-            }
-        }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
-        let services = self.services.iter().map(|s| {
-            super::Service {
+        let services = self
+            .services
+            .iter()
+            .map(|s| super::Service {
                 name: Some(s.name.clone()),
-                calls: s.calls.iter().map(|c| {
-                    super::RpcCall {
+                calls: s
+                    .calls
+                    .iter()
+                    .map(|c| super::RpcCall {
                         name: Some(c.name.clone()),
                         request_index: Some(c.request_index as i32),
                         response_index: Some(c.response_index as i32),
@@ -492,15 +500,15 @@ impl ResolvedSchema {
                         attributes: c.attributes.clone(),
                         documentation: c.documentation.clone(),
                         span: c.span.clone(),
-                    }
-                }).collect(),
+                    })
+                    .collect(),
                 attributes: s.attributes.clone(),
                 documentation: s.documentation.clone(),
                 declaration_file: s.declaration_file.clone(),
                 namespace: s.namespace.clone(),
                 span: s.span.clone(),
-            }
-        }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         let root_table = self.root_table_index.map(|idx| objects[idx].clone());
 

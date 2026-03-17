@@ -241,8 +241,10 @@ pub(super) fn gen_create_fn(
                 if field.is_deprecated {
                     continue;
                 }
-                let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
-                let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
+                let fname =
+                    ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
+                let pascal =
+                    ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
                 let bt = type_map::get_base_type(&field.type_);
                 let is_optional = field.is_optional;
 

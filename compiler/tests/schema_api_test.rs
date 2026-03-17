@@ -3,8 +3,8 @@
 //! services, and type resolution.
 
 use flatc_rs_compiler::compile_single;
-use flatc_rs_schema::BaseType;
 use flatc_rs_schema::resolved::ResolvedSchema;
+use flatc_rs_schema::BaseType;
 
 fn analyze(src: &str) -> ResolvedSchema {
     compile_single(src).unwrap().schema
@@ -28,12 +28,7 @@ fn field_ids_explicit() {
     let s = analyze("table T { a:int (id: 2); b:string (id: 0); c:float (id: 1); }");
     let t = &s.objects[0];
     // Fields are reordered by id after analysis
-    let by_name = |name: &str| {
-        t.fields
-            .iter()
-            .find(|f| f.name == name)
-            .unwrap()
-    };
+    let by_name = |name: &str| t.fields.iter().find(|f| f.name == name).unwrap();
     assert_eq!(by_name("a").id, Some(2));
     assert_eq!(by_name("b").id, Some(0));
     assert_eq!(by_name("c").id, Some(1));
@@ -314,7 +309,7 @@ fn enum_bitflags() {
     assert_eq!(e.values[0].value, 0); // bit position 0
     assert_eq!(e.values[1].value, 1); // bit position 1
     assert_eq!(e.values[2].value, 2); // bit position 2
-                                            // Verify bit_flags attribute is present
+                                      // Verify bit_flags attribute is present
     let attrs = e.attributes.as_ref().unwrap();
     assert!(attrs
         .entries
@@ -364,24 +359,14 @@ fn union_companion_type_field() {
          union U { A }\n\
          table Root { equipped:U; }",
     );
-    let root = s
-        .objects
-        .iter()
-        .find(|o| o.name == "Root")
-        .unwrap();
+    let root = s.objects.iter().find(|o| o.name == "Root").unwrap();
 
     // Companion _type field is auto-inserted before the union field
     assert_eq!(root.fields.len(), 2);
     assert_eq!(root.fields[0].name.as_str(), "equipped_type");
-    assert_eq!(
-        root.fields[0].type_.base_type,
-        BaseType::BASE_TYPE_U_TYPE
-    );
+    assert_eq!(root.fields[0].type_.base_type, BaseType::BASE_TYPE_U_TYPE);
     assert_eq!(root.fields[1].name.as_str(), "equipped");
-    assert_eq!(
-        root.fields[1].type_.base_type,
-        BaseType::BASE_TYPE_UNION
-    );
+    assert_eq!(root.fields[1].type_.base_type, BaseType::BASE_TYPE_UNION);
 }
 
 // ---------------------------------------------------------------------------
@@ -529,19 +514,11 @@ fn cross_namespace_type_resolution() {
         "namespace A;\nstruct Vec2 { x:float; y:float; }\n\
          namespace B;\ntable T { pos:A.Vec2; }",
     );
-    let t = s
-        .objects
-        .iter()
-        .find(|o| o.name == "T")
-        .unwrap();
+    let t = s.objects.iter().find(|o| o.name == "T").unwrap();
     let ty = t.fields[0].type_;
     assert_eq!(ty.base_type, BaseType::BASE_TYPE_STRUCT);
     // index should point to Vec2
-    let vec2_idx = s
-        .objects
-        .iter()
-        .position(|o| o.name == "Vec2")
-        .unwrap();
+    let vec2_idx = s.objects.iter().position(|o| o.name == "Vec2").unwrap();
     assert_eq!(ty.index, Some(vec2_idx as i32));
 }
 
@@ -678,11 +655,7 @@ fn table_with_all_scalar_types() {
     );
     let t = &s.objects[0];
     assert_eq!(t.fields.len(), 11);
-    let types: Vec<BaseType> = t
-        .fields
-        .iter()
-        .map(|f| f.type_.base_type)
-        .collect();
+    let types: Vec<BaseType> = t.fields.iter().map(|f| f.type_.base_type).collect();
     assert_eq!(
         types,
         vec![
