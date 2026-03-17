@@ -305,6 +305,8 @@ fn main() {
         }
     };
 
+    let schema = &result.schema;
+
     // -- Conform check --
     if let Some(ref conform_file) = cli.conform {
         let conform_opts = CompilerOptions {
@@ -324,7 +326,7 @@ fn main() {
                 process::exit(1);
             }
         };
-        if let Err(errors) = check_conform(&result.schema, &base_result.schema) {
+        if let Err(errors) = check_conform(schema, &base_result.schema) {
             for err in &errors {
                 eprintln!("error: {err}");
             }
@@ -335,7 +337,7 @@ fn main() {
 
     // -- Private leak check --
     if cli.no_leak_private_annotation {
-        if let Err(e) = check_private_leak(&result.schema) {
+        if let Err(e) = check_private_leak(schema) {
             eprintln!("error: {e}");
             process::exit(1);
         }
@@ -345,7 +347,9 @@ fn main() {
     let output_dir = cli.output_path.as_deref().unwrap_or(Path::new("."));
 
     if cli.dump_schema {
-        match serde_json::to_string_pretty(&result.schema) {
+        // For dump_schema, serialize the legacy schema for backward compat
+        let legacy_schema = schema.as_legacy();
+        match serde_json::to_string_pretty(&legacy_schema) {
             Ok(json) => println!("{json}"),
             Err(e) => {
                 eprintln!("error: failed to serialize schema: {e}");
@@ -357,7 +361,7 @@ fn main() {
     if cli.binary_schema {
         // Apply --bfbs-filenames path rewriting if set
         let schema_for_bfbs = if let Some(ref bfbs_root) = cli.bfbs_filenames {
-            let mut schema = result.schema.clone();
+            let mut schema = schema.clone();
             let bfbs_root = fs::canonicalize(bfbs_root).unwrap_or_else(|_| bfbs_root.clone());
             let root_str = bfbs_root.to_string_lossy();
             for obj in &mut schema.objects {
@@ -380,7 +384,7 @@ fn main() {
             }
             schema
         } else {
-            result.schema.clone()
+            schema.clone()
         };
         let bfbs = serialize_schema(&schema_for_bfbs);
         for input_file in &cli.files {
@@ -415,11 +419,8 @@ fn main() {
         let root_type_name = cli
             .root_type
             .as_deref()
-            .or(result.schema.root_table_index.and_then(|idx| {
-                result.schema.objects[idx].name.as_deref()
-            }))
-            .or(result.schema.root_table.as_ref().and_then(|rt| {
-                rt.name.as_deref()
+            .or(schema.root_table_index.and_then(|idx| {
+                Some(schema.objects[idx].name.as_str())
             }))
             .unwrap_or_else(|| {
                 eprintln!("error: no root_type in schema and --root-type not specified");
@@ -450,7 +451,7 @@ fn main() {
                     }
                 };
                 let json_val =
-                    match binary_to_json(&buf, &result.schema, &root_type_name, &json_opts) {
+                    match binary_to_json(&buf, schema, &root_type_name, &json_opts) {
                         Ok(v) => v,
                         Err(e) => {
                             eprintln!("error: failed to decode {}: {e}", data_file.display());
@@ -499,7 +500,7 @@ fn main() {
                 };
                 let bin = match json_to_binary_with_opts(
                     &json_val,
-                    &result.schema,
+                    schema,
                     &root_type_name,
                     &enc_opts,
                 ) {
@@ -542,15 +543,9 @@ fn main() {
         let root_type_name = cli
             .root_type
             .as_deref()
-            .or(result
-                .schema
+            .or(schema
                 .root_table_index
-                .and_then(|idx| result.schema.objects[idx].name.as_deref()))
-            .or(result
-                .schema
-                .root_table
-                .as_ref()
-                .and_then(|rt| rt.name.as_deref()))
+                .and_then(|idx| Some(schema.objects[idx].name.as_str())))
             .unwrap_or_else(|| {
                 eprintln!("error: no root_type in schema and --root-type not specified");
                 process::exit(1);
@@ -585,7 +580,7 @@ fn main() {
 
             let afb = match flatc_rs_annotator::annotate_binary(
                 &buf,
-                &result.schema,
+                schema,
                 &root_type_name,
                 &schema_name,
                 &binary_name,
@@ -613,10 +608,6 @@ fn main() {
     }
 
     // Build the declaration_file filter for --gen-all behavior.
-    // When --gen-all is NOT set, only generate code for types from the
-    // direct input files. Canonicalize paths to match how the compiler
-    // records declaration_file.
-    // G3.12: Propagate canonicalize errors instead of silently dropping files
     let gen_only_files: Option<HashSet<String>> = if cli.gen_all {
         None
     } else {
@@ -635,8 +626,6 @@ fn main() {
         Some(files)
     };
 
-    // C++ flatc generates one output file per input .fbs file when not
-    // using --rust-module-root-file. We match that behavior.
     for input_file in &cli.files {
         if cli.rust {
             let rust_opts = CodeGenOptions {

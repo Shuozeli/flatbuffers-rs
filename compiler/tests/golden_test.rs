@@ -11,7 +11,7 @@ fn run_single_golden(name: &str) {
             Err(e) => return format!("PARSE ERROR: {e}\n"),
         };
         match analyze(parse_output) {
-            Ok(schema) => serde_json::to_string_pretty(&schema).unwrap(),
+            Ok(schema) => serde_json::to_string_pretty(&schema.as_legacy()).unwrap(),
             Err(e) => format!("ANALYZE ERROR: {e}\n"),
         }
     };

@@ -9,25 +9,25 @@ use flatc_rs_compiler::compile_single;
 
 fn compile_and_generate(fbs: &str, seed: u64) -> String {
     let result = compile_single(fbs).expect("schema should compile");
-    let root_type = result
-        .schema
+    let legacy = result.schema.as_legacy();
+    let root_type = legacy
         .root_table
         .as_ref()
         .and_then(|t| t.name.as_deref())
         .expect("schema should have root_type");
-    generate_json(&result.schema, root_type, seed, DataGenConfig::default())
+    generate_json(&legacy, root_type, seed, DataGenConfig::default())
         .expect("generate_json should succeed")
 }
 
 fn compile_and_generate_config(fbs: &str, seed: u64, config: DataGenConfig) -> String {
     let result = compile_single(fbs).expect("schema should compile");
-    let root_type = result
-        .schema
+    let legacy = result.schema.as_legacy();
+    let root_type = legacy
         .root_table
         .as_ref()
         .and_then(|t| t.name.as_deref())
         .expect("schema should have root_type");
-    generate_json(&result.schema, root_type, seed, config).expect("generate_json should succeed")
+    generate_json(&legacy, root_type, seed, config).expect("generate_json should succeed")
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +339,7 @@ fn error_root_type_not_found() {
         root_type Monster;
     "#;
     let result = compile_single(fbs).unwrap();
-    let err = generate_json(&result.schema, "NonExistent", 42, DataGenConfig::default());
+    let err = generate_json(&result.schema.as_legacy(), "NonExistent", 42, DataGenConfig::default());
     assert!(err.is_err());
     match err.unwrap_err() {
         DataGenError::RootTypeNotFound { name } => assert_eq!(name, "NonExistent"),
@@ -394,8 +394,8 @@ fn roundtrip_with_random_schemas() {
             }
         };
 
-        let root_type = match compile_result
-            .schema
+        let legacy = compile_result.schema.as_legacy();
+        let root_type = match legacy
             .root_table
             .as_ref()
             .and_then(|t| t.name.as_deref())
@@ -408,7 +408,7 @@ fn roundtrip_with_random_schemas() {
         };
 
         let json = match generate_json(
-            &compile_result.schema,
+            &legacy,
             &root_type,
             seed,
             data_config.clone(),

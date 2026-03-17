@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_force_align.fbs",
-              "line": 2,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_force_align.fbs",
-              "line": 3,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -43,12 +33,7 @@
           "name": "z",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_force_align.fbs",
-              "line": 4,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 8,
           "padding": 4,
@@ -84,12 +69,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/struct_force_align.fbs",
-              "line": 8,
-              "col": 12
-            }
+            "index": 0
           },
           "id": 0,
           "span": {

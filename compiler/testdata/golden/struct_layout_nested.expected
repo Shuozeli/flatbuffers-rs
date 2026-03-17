@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_layout_nested.fbs",
-              "line": 2,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_layout_nested.fbs",
-              "line": 3,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -56,12 +46,7 @@
           "name": "a",
           "type": {
             "base_type": "BASE_TYPE_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/struct_layout_nested.fbs",
-              "line": 7,
-              "col": 5
-            }
+            "base_size": 1
           },
           "offset": 0,
           "padding": 3,
@@ -76,12 +61,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/struct_layout_nested.fbs",
-              "line": 8,
-              "col": 9
-            }
+            "index": 0
           },
           "offset": 4,
           "span": {
@@ -94,12 +74,7 @@
           "name": "b",
           "type": {
             "base_type": "BASE_TYPE_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/struct_layout_nested.fbs",
-              "line": 9,
-              "col": 5
-            }
+            "base_size": 1
           },
           "offset": 12,
           "padding": 3,

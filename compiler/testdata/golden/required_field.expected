@@ -7,12 +7,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/required_field.fbs",
-              "line": 2,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 0,
           "required": true,
@@ -33,12 +28,7 @@
           "name": "age",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/required_field.fbs",
-              "line": 3,
-              "col": 7
-            }
+            "base_size": 4
           },
           "id": 1,
           "span": {
@@ -51,12 +41,7 @@
           "name": "email",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/required_field.fbs",
-              "line": 4,
-              "col": 9
-            }
+            "base_size": 4
           },
           "id": 2,
           "span": {

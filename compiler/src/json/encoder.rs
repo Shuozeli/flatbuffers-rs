@@ -1,6 +1,7 @@
 //! Encode a JSON value into a FlatBuffers binary using a compiled Schema.
 
-use flatc_rs_schema::{BaseType, Enum, Field, Object, Schema, Type};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::BaseType;
 use serde_json::Value;
 
 use super::error::{is_scalar, json_type_name, scalar_byte_size, JsonError};
@@ -26,7 +27,7 @@ pub struct EncoderOptions {
 /// `root_type` is the name of the root table type.
 pub fn json_to_binary(
     json: &Value,
-    schema: &Schema,
+    schema: &ResolvedSchema,
     root_type: &str,
 ) -> Result<Vec<u8>, JsonError> {
     json_to_binary_with_opts(json, schema, root_type, &EncoderOptions::default())
@@ -35,7 +36,7 @@ pub fn json_to_binary(
 /// Encode a JSON value into a FlatBuffers binary with options.
 pub fn json_to_binary_with_opts(
     json: &Value,
-    schema: &Schema,
+    schema: &ResolvedSchema,
     root_type: &str,
     opts: &EncoderOptions,
 ) -> Result<Vec<u8>, JsonError> {
@@ -48,22 +49,21 @@ pub fn json_to_binary_with_opts(
 // ---------------------------------------------------------------------------
 
 struct Encoder<'a> {
-    schema: &'a Schema,
+    schema: &'a ResolvedSchema,
     opts: &'a EncoderOptions,
     buf: Vec<u8>,
     object_index: std::collections::HashMap<&'a str, usize>,
 }
 
 impl<'a> Encoder<'a> {
-    fn new(schema: &'a Schema, opts: &'a EncoderOptions) -> Self {
+    fn new(schema: &'a ResolvedSchema, opts: &'a EncoderOptions) -> Self {
         let mut object_index = std::collections::HashMap::new();
         for (i, obj) in schema.objects.iter().enumerate() {
-            if let Some(ref name) = obj.name {
-                object_index.entry(name.as_str()).or_insert(i);
-                if let Some(short) = name.rsplit('.').next() {
-                    if short != name.as_str() {
-                        object_index.entry(short).or_insert(i);
-                    }
+            let name = obj.name.as_str();
+            object_index.entry(name).or_insert(i);
+            if let Some(short) = name.rsplit('.').next() {
+                if short != name {
+                    object_index.entry(short).or_insert(i);
                 }
             }
         }
@@ -104,22 +104,9 @@ impl<'a> Encoder<'a> {
 
     fn find_object_index(&self, name: &str) -> Result<usize, JsonError> {
         // If the name matches the schema's root_table, prefer using root_table_index
-        // (handles name collisions like MyGame.Example2.Monster vs MyGame.Example.Monster)
         if let Some(idx) = self.schema.root_table_index {
-            if self.schema.objects[idx].name.as_deref() == Some(name) {
+            if self.schema.objects[idx].name == name {
                 return Ok(idx);
-            }
-        } else if let Some(ref rt) = self.schema.root_table {
-            if rt.name.as_deref() == Some(name) {
-                // Fallback: find by matching field count when index is not available
-                for (i, obj) in self.schema.objects.iter().enumerate() {
-                    if obj.name.as_deref() == Some(name)
-                        && obj.fields.len() == rt.fields.len()
-                        && obj.is_struct == rt.is_struct
-                    {
-                        return Ok(i);
-                    }
-                }
             }
         }
 
@@ -131,7 +118,7 @@ impl<'a> Encoder<'a> {
             })
     }
 
-    fn get_object(&self, idx: usize) -> Result<&Object, JsonError> {
+    fn get_object(&self, idx: usize) -> Result<&ResolvedObject, JsonError> {
         self.schema
             .objects
             .get(idx)
@@ -141,7 +128,7 @@ impl<'a> Encoder<'a> {
             })
     }
 
-    fn get_enum(&self, idx: usize) -> Result<&Enum, JsonError> {
+    fn get_enum(&self, idx: usize) -> Result<&ResolvedEnum, JsonError> {
         self.schema
             .enums
             .get(idx)
@@ -149,14 +136,6 @@ impl<'a> Encoder<'a> {
                 index: idx,
                 count: self.schema.enums.len(),
             })
-    }
-
-    fn obj_name(obj: &Object) -> String {
-        obj.name.clone().unwrap_or_else(|| "?".to_string())
-    }
-
-    fn field_name(field: &Field) -> String {
-        field.name.clone().unwrap_or_else(|| "?".to_string())
     }
 
     // -------------------------------------------------------------------
@@ -208,7 +187,7 @@ impl<'a> Encoder<'a> {
         }
 
         let obj = self.get_object(obj_idx)?.clone();
-        let type_name = Self::obj_name(&obj);
+        let type_name = obj.name.clone();
 
         let json_obj = json.as_object().ok_or_else(|| JsonError::ExpectedObject {
             type_name: type_name.clone(),
@@ -220,16 +199,14 @@ impl<'a> Encoder<'a> {
             let schema_field_names: std::collections::HashSet<&str> = obj
                 .fields
                 .iter()
-                .filter_map(|f| f.name.as_deref())
+                .map(|f| f.name.as_str())
                 .collect();
             // Also include companion _type fields for unions
             let union_type_names: Vec<String> = obj
                 .fields
                 .iter()
-                .filter(|f| {
-                    f.type_.as_ref().and_then(|t| t.base_type) == Some(BaseType::BASE_TYPE_UNION)
-                })
-                .filter_map(|f| f.name.as_deref().map(|n| format!("{n}_type")))
+                .filter(|f| f.type_.base_type == BaseType::BASE_TYPE_UNION)
+                .map(|f| format!("{}_type", f.name))
                 .collect();
             for key in json_obj.keys() {
                 if !schema_field_names.contains(key.as_str())
@@ -244,7 +221,7 @@ impl<'a> Encoder<'a> {
         }
 
         // Sort fields by id for vtable construction
-        let mut fields: Vec<Field> = obj.fields.clone();
+        let mut fields: Vec<ResolvedField> = obj.fields.clone();
         fields.sort_by_key(|f| f.id.unwrap_or(0));
 
         let max_field_id = fields
@@ -256,7 +233,7 @@ impl<'a> Encoder<'a> {
 
         // Determine which fields are present in JSON and compute table layout
         struct FieldSlot {
-            field: Field,
+            field: ResolvedField,
             field_id: usize,
             present: bool,
             size: usize,
@@ -266,13 +243,11 @@ impl<'a> Encoder<'a> {
         let mut slots: Vec<FieldSlot> = Vec::new();
         for field in &fields {
             let field_id = field.id.unwrap_or(0) as usize;
-            let fname = Self::field_name(field);
-            let ty = field.type_.as_ref();
-            let bt = ty
-                .and_then(|t| t.base_type)
-                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            let fname = &field.name;
+            let ty = &field.type_;
+            let bt = ty.base_type;
 
-            let present = json_obj.contains_key(&fname);
+            let present = json_obj.contains_key(fname);
             let (size, alignment) = field_inline_size(bt, ty, self.schema);
 
             slots.push(FieldSlot {
@@ -325,7 +300,7 @@ impl<'a> Encoder<'a> {
         self.write_i32_le(soffset);
 
         // Write inline field data (with placeholders for offset types)
-        let mut deferred: Vec<(usize, Field)> = Vec::new();
+        let mut deferred: Vec<(usize, ResolvedField)> = Vec::new();
 
         // Pre-allocate table data area
         let table_data_start = table_pos;
@@ -338,12 +313,10 @@ impl<'a> Encoder<'a> {
                 continue;
             }
 
-            let fname = Self::field_name(&slot.field);
-            let json_val = &json_obj[&fname];
-            let ty = slot.field.type_.as_ref();
-            let bt = ty
-                .and_then(|t| t.base_type)
-                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            let fname = &slot.field.name;
+            let json_val = &json_obj[fname];
+            let ty = &slot.field.type_;
+            let bt = ty.base_type;
             let field_pos = table_data_start + field_offsets_in_table[slot.field_id] as usize;
 
             match bt {
@@ -358,20 +331,20 @@ impl<'a> Encoder<'a> {
                 | BaseType::BASE_TYPE_U_LONG
                 | BaseType::BASE_TYPE_FLOAT
                 | BaseType::BASE_TYPE_DOUBLE => {
-                    let bytes = self.encode_scalar_value(json_val, bt, ty, &fname)?;
+                    let bytes = self.encode_scalar_value(json_val, bt, ty, fname)?;
                     self.buf[field_pos..field_pos + bytes.len()].copy_from_slice(&bytes);
                 }
 
                 BaseType::BASE_TYPE_U_TYPE => {
-                    let enum_idx = require_opt_type_index(ty, &fname)?;
-                    let val = self.resolve_enum_value(json_val, enum_idx, &fname)?;
+                    let enum_idx = require_type_index(ty, fname)?;
+                    let val = self.resolve_enum_value(json_val, enum_idx, fname)?;
                     self.buf[field_pos] = val as u8;
                 }
 
                 BaseType::BASE_TYPE_STRUCT => {
-                    let inner_idx = require_opt_type_index(ty, &fname)?;
+                    let inner_idx = require_type_index(ty, fname)?;
                     let bytes =
-                        self.encode_struct_inline(json_val, inner_idx, &fname, depth + 1)?;
+                        self.encode_struct_inline(json_val, inner_idx, fname, depth + 1)?;
                     self.buf[field_pos..field_pos + bytes.len()].copy_from_slice(&bytes);
                 }
 
@@ -388,12 +361,10 @@ impl<'a> Encoder<'a> {
 
         // Serialize deferred children and patch uoffsets
         for (field_id, field) in &deferred {
-            let fname = Self::field_name(field);
-            let json_val = &json_obj[&fname];
-            let ty = field.type_.as_ref();
-            let bt = ty
-                .and_then(|t| t.base_type)
-                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            let fname = &field.name;
+            let json_val = &json_obj[fname];
+            let ty = &field.type_;
+            let bt = ty.base_type;
             let field_pos = table_data_start + field_offsets_in_table[*field_id] as usize;
 
             match bt {
@@ -408,20 +379,20 @@ impl<'a> Encoder<'a> {
                 }
 
                 BaseType::BASE_TYPE_TABLE => {
-                    let inner_idx = require_opt_type_index(ty, &fname)?;
+                    let inner_idx = require_type_index(ty, fname)?;
                     let target = self.encode_table(json_val, inner_idx, depth + 1)?;
                     let uoffset = (target - field_pos) as u32;
                     self.patch_u32_le(field_pos, uoffset);
                 }
 
                 BaseType::BASE_TYPE_VECTOR => {
-                    let target = self.encode_vector(json_val, ty, &fname, depth + 1)?;
+                    let target = self.encode_vector(json_val, ty, fname, depth + 1)?;
                     let uoffset = (target - field_pos) as u32;
                     self.patch_u32_le(field_pos, uoffset);
                 }
 
                 BaseType::BASE_TYPE_UNION => {
-                    let enum_idx = require_opt_type_index(ty, &fname)?;
+                    let enum_idx = require_type_index(ty, fname)?;
                     let type_field_name = format!("{fname}_type");
                     let disc_val = json_obj.get(&type_field_name).ok_or_else(|| {
                         JsonError::MissingUnionType {
@@ -436,7 +407,7 @@ impl<'a> Encoder<'a> {
                             json_val,
                             enum_idx,
                             discriminant as u8,
-                            &fname,
+                            fname,
                             depth + 1,
                         )?;
                         let uoffset = (target - field_pos) as u32;
@@ -459,11 +430,11 @@ impl<'a> Encoder<'a> {
         &self,
         json_val: &Value,
         bt: BaseType,
-        ty: Option<&Type>,
+        ty: &ResolvedType,
         field_name: &str,
     ) -> Result<Vec<u8>, JsonError> {
         // Check if this is an enum type
-        let enum_idx = ty.and_then(|t| t.index);
+        let enum_idx = ty.index;
         if let Some(idx) = enum_idx {
             if (idx as usize) < self.schema.enums.len() {
                 if let Value::String(_) = json_val {
@@ -569,15 +540,13 @@ impl<'a> Encoder<'a> {
         field_name: &str,
     ) -> Result<i64, JsonError> {
         let enum_def = self.get_enum(enum_idx)?;
-        let enum_name = enum_def.name.clone().unwrap_or_else(|| "?".to_string());
+        let enum_name = enum_def.name.clone();
 
         match json_val {
             Value::String(s) => {
                 for ev in &enum_def.values {
-                    if let Some(ref name) = ev.name {
-                        if name == s {
-                            return Ok(ev.value.unwrap_or(0));
-                        }
+                    if ev.name == *s {
+                        return Ok(ev.value);
                     }
                 }
                 Err(JsonError::UnknownEnumValue {
@@ -624,7 +593,7 @@ impl<'a> Encoder<'a> {
         }
 
         let obj = self.get_object(obj_idx)?;
-        let type_name = Self::obj_name(obj);
+        let type_name = obj.name.clone();
         let byte_size = obj.byte_size.unwrap_or(0) as usize;
         let fields = obj.fields.clone();
 
@@ -638,30 +607,28 @@ impl<'a> Encoder<'a> {
         let mut data = vec![0u8; byte_size];
 
         for field in &fields {
-            let fname = Self::field_name(field);
+            let fname = &field.name;
             let field_offset = field.offset.unwrap_or(0) as usize;
-            let ty = field.type_.as_ref();
-            let bt = ty
-                .and_then(|t| t.base_type)
-                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            let ty = &field.type_;
+            let bt = ty.base_type;
 
             let json_field_val =
                 json_obj
-                    .get(&fname)
+                    .get(fname.as_str())
                     .ok_or_else(|| JsonError::MissingStructField {
                         field_name: fname.clone(),
                     })?;
 
             match bt {
                 BaseType::BASE_TYPE_STRUCT => {
-                    let inner_idx = require_opt_type_index(ty, &fname)?;
+                    let inner_idx = require_type_index(ty, fname)?;
                     let inner_bytes =
-                        self.encode_struct_inline(json_field_val, inner_idx, &fname, depth + 1)?;
+                        self.encode_struct_inline(json_field_val, inner_idx, fname, depth + 1)?;
                     let end = (field_offset + inner_bytes.len()).min(byte_size);
                     data[field_offset..end].copy_from_slice(&inner_bytes[..end - field_offset]);
                 }
                 _ => {
-                    let bytes = self.encode_scalar_value(json_field_val, bt, ty, &fname)?;
+                    let bytes = self.encode_scalar_value(json_field_val, bt, ty, fname)?;
                     let end = (field_offset + bytes.len()).min(byte_size);
                     data[field_offset..end].copy_from_slice(&bytes[..end - field_offset]);
                 }
@@ -678,7 +645,7 @@ impl<'a> Encoder<'a> {
     fn encode_vector(
         &mut self,
         json_val: &Value,
-        ty: Option<&Type>,
+        ty: &ResolvedType,
         field_name: &str,
         depth: usize,
     ) -> Result<usize, JsonError> {
@@ -690,7 +657,7 @@ impl<'a> Encoder<'a> {
             })?;
 
         let elem_bt = ty
-            .and_then(|t| t.element_type)
+            .element_type
             .unwrap_or(BaseType::BASE_TYPE_U_BYTE);
 
         match elem_bt {
@@ -734,7 +701,7 @@ impl<'a> Encoder<'a> {
             }
 
             BaseType::BASE_TYPE_TABLE => {
-                let inner_idx = require_opt_type_index(ty, field_name)?;
+                let inner_idx = require_type_index(ty, field_name)?;
                 self.align(4);
                 let pos = self.buf.len();
                 self.write_u32_le(arr.len() as u32);
@@ -755,7 +722,7 @@ impl<'a> Encoder<'a> {
             }
 
             BaseType::BASE_TYPE_STRUCT => {
-                let inner_idx = require_opt_type_index(ty, field_name)?;
+                let inner_idx = require_type_index(ty, field_name)?;
                 let obj = self.get_object(inner_idx)?;
                 let struct_align = obj.min_align.unwrap_or(1) as usize;
                 let data_align = struct_align.max(4);
@@ -803,7 +770,7 @@ impl<'a> Encoder<'a> {
         let variant = enum_def
             .values
             .iter()
-            .find(|v| v.value == Some(discriminant as i64));
+            .find(|v| v.value == discriminant as i64);
 
         let variant = match variant {
             Some(v) => v.clone(),
@@ -815,7 +782,7 @@ impl<'a> Encoder<'a> {
             None => return Ok(self.buf.len()),
         };
 
-        let variant_bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+        let variant_bt = union_type.base_type;
 
         match variant_bt {
             BaseType::BASE_TYPE_TABLE => {
@@ -838,19 +805,9 @@ impl<'a> Encoder<'a> {
 // Helper functions
 // ---------------------------------------------------------------------------
 
-/// Extract a non-negative type index from a `Type`, or return a `JsonError`.
-fn require_type_index(ty: &Type, context: &str) -> Result<usize, JsonError> {
+/// Extract a non-negative type index from a `ResolvedType`, or return a `JsonError`.
+fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, JsonError> {
     ty.index
-        .filter(|&i| i >= 0)
-        .map(|i| i as usize)
-        .ok_or_else(|| JsonError::MissingTypeIndex {
-            context: context.to_string(),
-        })
-}
-
-/// Extract a non-negative type index from an `Option<&Type>`, or return a `JsonError`.
-fn require_opt_type_index(ty: Option<&Type>, context: &str) -> Result<usize, JsonError> {
-    ty.and_then(|t| t.index)
         .filter(|&i| i >= 0)
         .map(|i| i as usize)
         .ok_or_else(|| JsonError::MissingTypeIndex {
@@ -914,7 +871,7 @@ fn json_as_f64(v: &Value, field_name: &str, bt: BaseType) -> Result<f64, JsonErr
 }
 
 /// Compute the inline size and alignment of a field within table data.
-fn field_inline_size(bt: BaseType, ty: Option<&Type>, schema: &Schema) -> (usize, usize) {
+fn field_inline_size(bt: BaseType, ty: &ResolvedType, schema: &ResolvedSchema) -> (usize, usize) {
     match bt {
         BaseType::BASE_TYPE_BOOL
         | BaseType::BASE_TYPE_BYTE
@@ -936,7 +893,7 @@ fn field_inline_size(bt: BaseType, ty: Option<&Type>, schema: &Schema) -> (usize
 
         BaseType::BASE_TYPE_STRUCT => {
             let idx = ty
-                .and_then(|t| t.index)
+                .index
                 .filter(|&i| i >= 0)
                 .map(|i| i as usize);
             match idx.and_then(|i| schema.objects.get(i)) {

@@ -8,12 +8,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/enum_default_value_resolution.fbs",
-              "line": 4,
-              "col": 10
-            }
+            "index": 0
           },
           "id": 0,
           "default_string": "Blue",
@@ -28,12 +23,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/enum_default_value_resolution.fbs",
-              "line": 5,
-              "col": 14
-            }
+            "index": 0
           },
           "id": 1,
           "default_string": "Green",

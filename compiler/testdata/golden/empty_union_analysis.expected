@@ -17,12 +17,7 @@
           "type": {
             "base_type": "BASE_TYPE_UNION",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/empty_union_analysis.fbs",
-              "line": 4,
-              "col": 8
-            }
+            "index": 0
           },
           "id": 1,
           "span": {

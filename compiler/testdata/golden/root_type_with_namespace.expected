@@ -7,12 +7,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/root_type_with_namespace.fbs",
-              "line": 4,
-              "col": 9
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "score",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/root_type_with_namespace.fbs",
-              "line": 5,
-              "col": 10
-            }
+            "base_size": 4
           },
           "id": 1,
           "span": {
@@ -57,12 +47,7 @@
         "name": "name",
         "type": {
           "base_type": "BASE_TYPE_STRING",
-          "base_size": 4,
-          "span": {
-            "file": "testdata/golden/root_type_with_namespace.fbs",
-            "line": 4,
-            "col": 9
-          }
+          "base_size": 4
         },
         "id": 0,
         "span": {
@@ -75,12 +60,7 @@
         "name": "score",
         "type": {
           "base_type": "BASE_TYPE_INT",
-          "base_size": 4,
-          "span": {
-            "file": "testdata/golden/root_type_with_namespace.fbs",
-            "line": 5,
-            "col": 10
-          }
+          "base_size": 4
         },
         "id": 1,
         "span": {

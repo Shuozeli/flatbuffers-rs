@@ -7,12 +7,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/deprecated_field_preservation.fbs",
-              "line": 2,
-              "col": 9
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "old_hp",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/deprecated_field_preservation.fbs",
-              "line": 3,
-              "col": 11
-            }
+            "base_size": 4
           },
           "id": 1,
           "deprecated": true,
@@ -51,12 +41,7 @@
           "name": "new_hp",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/deprecated_field_preservation.fbs",
-              "line": 4,
-              "col": 11
-            }
+            "base_size": 2
           },
           "id": 2,
           "span": {

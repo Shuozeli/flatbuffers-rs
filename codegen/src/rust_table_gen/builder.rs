@@ -1,6 +1,7 @@
 use crate::field_type_index;
 use crate::type_map::{get_base_type, get_element_type};
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use crate::code_writer::CodeWriter;
 use crate::type_map;
@@ -11,8 +12,8 @@ use super::helpers;
 /// Generate the builder struct.
 pub(super) fn gen_builder(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
     name: &str,
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
@@ -57,10 +58,10 @@ pub(super) fn gen_builder(
                     w.line("let o = self.fbb_.end_table(self.start_);");
                     // Required field assertions (explicit required or string key fields)
                     for field in &obj.fields {
-                        let fbt = get_base_type(field.type_.as_ref());
+                        let fbt = get_base_type(&field.type_);
                         let is_key_string = helpers::has_key_attribute(field) && fbt == BaseType::BASE_TYPE_STRING;
                         if field.is_required || is_key_string {
-                            let fname = field.name.as_deref().unwrap_or("");
+                            let fname = &field.name;
                             let escaped = type_map::escape_keyword(fname);
                             let upper = type_map::to_upper_snake_case(&escaped);
                             w.line(&format!(
@@ -78,17 +79,17 @@ pub(super) fn gen_builder(
 
 fn gen_builder_add_method(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     table_name: &str,
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
-    let fname = field.name.as_deref().unwrap_or("");
+    let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
     let accessor = type_map::to_snake_case(&escaped);
     let upper = type_map::to_upper_snake_case(&escaped);
 
-    let bt = get_base_type(field.type_.as_ref());
+    let bt = get_base_type(&field.type_);
 
     w.line("#[inline]");
 
@@ -155,7 +156,7 @@ fn gen_builder_add_method(
             w.line("}");
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let element_bt = get_element_type(field.type_.as_ref());
+            let element_bt = get_element_type(&field.type_);
             let vec_inner =
                 helpers::vector_element_type(schema, field, element_bt, "'b", current_ns)?;
             w.line(&format!(
@@ -191,13 +192,13 @@ fn gen_builder_add_method(
 /// Generate the Args struct for convenience table creation.
 pub(super) fn gen_args_struct(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
     name: &str,
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
     let needs_lifetime = obj.fields.iter().any(|f| {
-        let bt = get_base_type(f.type_.as_ref());
+        let bt = get_base_type(&f.type_);
         matches!(
             bt,
             BaseType::BASE_TYPE_STRING
@@ -214,7 +215,7 @@ pub(super) fn gen_args_struct(
         .fields
         .iter()
         .map(|field| {
-            let fname = field.name.as_deref().unwrap_or("");
+            let fname = &field.name;
             let escaped = type_map::escape_keyword(fname);
             let accessor = type_map::to_snake_case(&escaped);
             let arg_type = helpers::args_field_type(schema, field, current_ns)?;
@@ -254,11 +255,11 @@ pub(super) fn gen_args_struct(
 /// Generate the standalone `create*()` function.
 pub(super) fn gen_create_fn(
     w: &mut CodeWriter,
-    obj: &schema::Object,
+    obj: &ResolvedObject,
     name: &str,
 ) {
     let needs_lifetime = obj.fields.iter().any(|f| {
-        let bt = get_base_type(f.type_.as_ref());
+        let bt = get_base_type(&f.type_);
         matches!(
             bt,
             BaseType::BASE_TYPE_STRING
@@ -284,11 +285,11 @@ pub(super) fn gen_create_fn(
 
     // Add fields - non-scalars first (they have larger offsets), then scalars
     // This matches the C++ codegen ordering for better vtable packing
-    let mut non_scalar_fields: Vec<(usize, &schema::Field)> = Vec::new();
-    let mut scalar_fields: Vec<(usize, &schema::Field)> = Vec::new();
+    let mut non_scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
+    let mut scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
 
     for (i, field) in obj.fields.iter().enumerate() {
-        let bt = get_base_type(field.type_.as_ref());
+        let bt = get_base_type(&field.type_);
         if type_map::is_scalar(bt) {
             scalar_fields.push((i, field));
         } else {
@@ -298,7 +299,7 @@ pub(super) fn gen_create_fn(
 
     // Non-scalar fields: reversed order, wrap in if let Some
     for (_, field) in non_scalar_fields.iter().rev() {
-        let fname = field.name.as_deref().unwrap_or("");
+        let fname = &field.name;
         let escaped = type_map::escape_keyword(fname);
         let accessor = type_map::to_snake_case(&escaped);
         w.line(&format!(
@@ -308,13 +309,13 @@ pub(super) fn gen_create_fn(
 
     // Scalar fields: sort by alignment size desc then index desc (matches C++ ordering)
     scalar_fields.sort_by(|a, b| {
-        let sz_a = helpers::scalar_alignment_size(get_base_type(a.1.type_.as_ref()));
-        let sz_b = helpers::scalar_alignment_size(get_base_type(b.1.type_.as_ref()));
+        let sz_a = helpers::scalar_alignment_size(get_base_type(&a.1.type_));
+        let sz_b = helpers::scalar_alignment_size(get_base_type(&b.1.type_));
         sz_b.cmp(&sz_a).then(b.0.cmp(&a.0))
     });
 
     for (_, field) in &scalar_fields {
-        let fname = field.name.as_deref().unwrap_or("");
+        let fname = &field.name;
         let escaped = type_map::escape_keyword(fname);
         let accessor = type_map::to_snake_case(&escaped);
         if field.is_optional {

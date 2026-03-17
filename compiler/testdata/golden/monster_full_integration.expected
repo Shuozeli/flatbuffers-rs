@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 6,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 7,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -43,12 +33,7 @@
           "name": "z",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 8,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 8,
           "span": {
@@ -75,12 +60,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 12,
-              "col": 7
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -93,12 +73,7 @@
           "name": "mana",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 13,
-              "col": 8
-            }
+            "base_size": 2
           },
           "id": 1,
           "default_integer": 150,
@@ -112,12 +87,7 @@
           "name": "hp",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 14,
-              "col": 6
-            }
+            "base_size": 2
           },
           "id": 2,
           "default_integer": 100,
@@ -131,12 +101,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 15,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 3,
           "span": {
@@ -151,12 +116,7 @@
             "base_type": "BASE_TYPE_VECTOR",
             "base_size": 4,
             "element_size": 1,
-            "element": "BASE_TYPE_U_BYTE",
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 16,
-              "col": 13
-            }
+            "element": "BASE_TYPE_U_BYTE"
           },
           "id": 4,
           "span": {
@@ -170,12 +130,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 17,
-              "col": 9
-            }
+            "index": 0
           },
           "id": 5,
           "default_string": "Blue",
@@ -192,12 +147,7 @@
             "base_size": 4,
             "element_size": 4,
             "element": "BASE_TYPE_TABLE",
-            "index": 2,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 18,
-              "col": 11
-            }
+            "index": 2
           },
           "id": 6,
           "span": {
@@ -220,12 +170,7 @@
           "type": {
             "base_type": "BASE_TYPE_UNION",
             "base_size": 4,
-            "index": 1,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 19,
-              "col": 12
-            }
+            "index": 1
           },
           "id": 8,
           "span": {
@@ -241,12 +186,7 @@
             "base_size": 4,
             "element_size": 4,
             "element": "BASE_TYPE_STRUCT",
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 20,
-              "col": 8
-            }
+            "index": 0
           },
           "id": 9,
           "span": {
@@ -269,12 +209,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 24,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -287,12 +222,7 @@
           "name": "damage",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/monster_full_integration.fbs",
-              "line": 25,
-              "col": 10
-            }
+            "base_size": 2
           },
           "id": 1,
           "span": {
@@ -393,12 +323,7 @@
         "type": {
           "base_type": "BASE_TYPE_STRUCT",
           "base_size": 4,
-          "index": 0,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 12,
-            "col": 7
-          }
+          "index": 0
         },
         "id": 0,
         "span": {
@@ -411,12 +336,7 @@
         "name": "mana",
         "type": {
           "base_type": "BASE_TYPE_SHORT",
-          "base_size": 2,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 13,
-            "col": 8
-          }
+          "base_size": 2
         },
         "id": 1,
         "default_integer": 150,
@@ -430,12 +350,7 @@
         "name": "hp",
         "type": {
           "base_type": "BASE_TYPE_SHORT",
-          "base_size": 2,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 14,
-            "col": 6
-          }
+          "base_size": 2
         },
         "id": 2,
         "default_integer": 100,
@@ -449,12 +364,7 @@
         "name": "name",
         "type": {
           "base_type": "BASE_TYPE_STRING",
-          "base_size": 4,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 15,
-            "col": 8
-          }
+          "base_size": 4
         },
         "id": 3,
         "span": {
@@ -469,12 +379,7 @@
           "base_type": "BASE_TYPE_VECTOR",
           "base_size": 4,
           "element_size": 1,
-          "element": "BASE_TYPE_U_BYTE",
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 16,
-            "col": 13
-          }
+          "element": "BASE_TYPE_U_BYTE"
         },
         "id": 4,
         "span": {
@@ -488,12 +393,7 @@
         "type": {
           "base_type": "BASE_TYPE_BYTE",
           "base_size": 1,
-          "index": 0,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 17,
-            "col": 9
-          }
+          "index": 0
         },
         "id": 5,
         "default_string": "Blue",
@@ -510,12 +410,7 @@
           "base_size": 4,
           "element_size": 4,
           "element": "BASE_TYPE_TABLE",
-          "index": 2,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 18,
-            "col": 11
-          }
+          "index": 2
         },
         "id": 6,
         "span": {
@@ -538,12 +433,7 @@
         "type": {
           "base_type": "BASE_TYPE_UNION",
           "base_size": 4,
-          "index": 1,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 19,
-            "col": 12
-          }
+          "index": 1
         },
         "id": 8,
         "span": {
@@ -559,12 +449,7 @@
           "base_size": 4,
           "element_size": 4,
           "element": "BASE_TYPE_STRUCT",
-          "index": 0,
-          "span": {
-            "file": "testdata/golden/monster_full_integration.fbs",
-            "line": 20,
-            "col": 8
-          }
+          "index": 0
         },
         "id": 9,
         "span": {

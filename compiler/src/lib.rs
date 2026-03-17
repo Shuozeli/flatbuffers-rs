@@ -38,3 +38,4 @@ pub use compiler::{compile, compile_single, CompilationResult, CompilerError, Co
 pub use error::AnalyzeError;
 pub use flatc_rs_parser as parser;
 pub use flatc_rs_schema as schema;
+pub use flatc_rs_schema::resolved::ResolvedSchema;

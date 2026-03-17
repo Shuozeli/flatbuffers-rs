@@ -3,7 +3,7 @@
 //! Validates that a "current" schema is a backwards-compatible evolution of a
 //! "base" schema. Used in CI/CD to prevent breaking changes.
 
-use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::{ResolvedSchema, ResolvedObject, ResolvedEnum, ResolvedType};
 
 /// A single conformance violation.
 #[derive(Debug, Clone)]
@@ -21,14 +21,14 @@ impl std::fmt::Display for ConformError {
 ///
 /// Returns Ok(()) if compatible, or a list of violations.
 pub fn check_conform(
-    current: &schema::Schema,
-    base: &schema::Schema,
+    current: &ResolvedSchema,
+    base: &ResolvedSchema,
 ) -> Result<(), Vec<ConformError>> {
     let mut errors = Vec::new();
 
     // Check each object (table/struct) in the base schema
     for base_obj in &base.objects {
-        let base_name = base_obj.name.as_deref().unwrap_or("");
+        let base_name = &base_obj.name;
         if base_name.is_empty() {
             continue;
         }
@@ -36,7 +36,7 @@ pub fn check_conform(
         let current_obj = current
             .objects
             .iter()
-            .find(|o| o.name.as_deref() == Some(base_name));
+            .find(|o| o.name == *base_name);
         let current_obj = match current_obj {
             Some(o) => o,
             None => {
@@ -71,7 +71,7 @@ pub fn check_conform(
 
     // Check each enum in the base schema
     for base_enum in &base.enums {
-        let base_name = base_enum.name.as_deref().unwrap_or("");
+        let base_name = &base_enum.name;
         if base_name.is_empty() {
             continue;
         }
@@ -79,7 +79,7 @@ pub fn check_conform(
         let current_enum = current
             .enums
             .iter()
-            .find(|e| e.name.as_deref() == Some(base_name));
+            .find(|e| e.name == *base_name);
         let current_enum = match current_enum {
             Some(e) => e,
             None => {
@@ -112,11 +112,11 @@ pub fn check_conform(
 fn check_object_fields(
     errors: &mut Vec<ConformError>,
     type_name: &str,
-    base_obj: &schema::Object,
-    current_obj: &schema::Object,
+    base_obj: &ResolvedObject,
+    current_obj: &ResolvedObject,
 ) {
     for base_field in &base_obj.fields {
-        let fname = base_field.name.as_deref().unwrap_or("");
+        let fname = &base_field.name;
         if fname.is_empty() {
             continue;
         }
@@ -124,7 +124,7 @@ fn check_object_fields(
         let current_field = current_obj
             .fields
             .iter()
-            .find(|f| f.name.as_deref() == Some(fname));
+            .find(|f| f.name == *fname);
         let current_field = match current_field {
             Some(f) => f,
             None => {
@@ -146,7 +146,7 @@ fn check_object_fields(
         }
 
         // Field type must not change
-        if !types_compatible(base_field.type_.as_ref(), current_field.type_.as_ref()) {
+        if !types_compatible(&base_field.type_, &current_field.type_) {
             errors.push(ConformError {
                 message: format!("field '{type_name}.{fname}' changed type"),
             });
@@ -175,11 +175,11 @@ fn check_object_fields(
 fn check_enum_values(
     errors: &mut Vec<ConformError>,
     enum_name: &str,
-    base_enum: &schema::Enum,
-    current_enum: &schema::Enum,
+    base_enum: &ResolvedEnum,
+    current_enum: &ResolvedEnum,
 ) {
     for base_val in &base_enum.values {
-        let vname = base_val.name.as_deref().unwrap_or("");
+        let vname = &base_val.name;
         if vname.is_empty() {
             continue;
         }
@@ -187,7 +187,7 @@ fn check_enum_values(
         let current_val = current_enum
             .values
             .iter()
-            .find(|v| v.name.as_deref() == Some(vname));
+            .find(|v| v.name == *vname);
         let current_val = match current_val {
             Some(v) => v,
             None => {
@@ -202,7 +202,7 @@ fn check_enum_values(
         if base_val.value != current_val.value {
             errors.push(ConformError {
                 message: format!(
-                    "enum value '{enum_name}.{vname}' changed from {:?} to {:?}",
+                    "enum value '{enum_name}.{vname}' changed from {} to {}",
                     base_val.value, current_val.value
                 ),
             });
@@ -210,15 +210,9 @@ fn check_enum_values(
     }
 }
 
-/// Check if two Type descriptors are compatible.
-fn types_compatible(a: Option<&schema::Type>, b: Option<&schema::Type>) -> bool {
-    match (a, b) {
-        (None, None) => true,
-        (Some(a), Some(b)) => {
-            a.base_type == b.base_type && a.element_type == b.element_type && a.index == b.index
-        }
-        _ => false,
-    }
+/// Check if two ResolvedType descriptors are compatible.
+fn types_compatible(a: &ResolvedType, b: &ResolvedType) -> bool {
+    a.base_type == b.base_type && a.element_type == b.element_type && a.index == b.index
 }
 
 #[cfg(test)]
@@ -226,7 +220,7 @@ mod tests {
     use super::*;
     use crate::compile_single;
 
-    fn compile(src: &str) -> schema::Schema {
+    fn compile(src: &str) -> ResolvedSchema {
         compile_single(src).unwrap().schema
     }
 

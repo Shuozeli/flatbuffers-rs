@@ -4,8 +4,9 @@
 
 use flatc_rs_compiler::compile_single;
 use flatc_rs_schema::BaseType;
+use flatc_rs_schema::resolved::ResolvedSchema;
 
-fn analyze(src: &str) -> flatc_rs_schema::Schema {
+fn analyze(src: &str) -> ResolvedSchema {
     compile_single(src).unwrap().schema
 }
 
@@ -30,7 +31,7 @@ fn field_ids_explicit() {
     let by_name = |name: &str| {
         t.fields
             .iter()
-            .find(|f| f.name.as_deref() == Some(name))
+            .find(|f| f.name == name)
             .unwrap()
     };
     assert_eq!(by_name("a").id, Some(2));
@@ -120,39 +121,39 @@ fn field_optional_scalar() {
 #[test]
 fn type_scalar_int() {
     let s = analyze("table T { x:int; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_INT));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_INT);
     assert_eq!(ty.base_size, Some(4));
 }
 
 #[test]
 fn type_string() {
     let s = analyze("table T { name:string; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_STRING));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_STRING);
 }
 
 #[test]
 fn type_vector_of_scalars() {
     let s = analyze("table T { data:[int]; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_VECTOR));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_VECTOR);
     assert_eq!(ty.element_type, Some(BaseType::BASE_TYPE_INT));
 }
 
 #[test]
 fn type_vector_of_strings() {
     let s = analyze("table T { names:[string]; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_VECTOR));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_VECTOR);
     assert_eq!(ty.element_type, Some(BaseType::BASE_TYPE_STRING));
 }
 
 #[test]
 fn type_vector_of_tables() {
     let s = analyze("table Item { v:int; }\ntable T { items:[Item]; }");
-    let ty = s.objects[1].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_VECTOR));
+    let ty = s.objects[1].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_VECTOR);
     assert_eq!(ty.element_type, Some(BaseType::BASE_TYPE_TABLE));
     assert_eq!(ty.index, Some(0)); // Item is objects[0]
 }
@@ -160,24 +161,24 @@ fn type_vector_of_tables() {
 #[test]
 fn type_table_reference() {
     let s = analyze("table Inner { x:int; }\ntable Outer { inner:Inner; }");
-    let ty = s.objects[1].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_TABLE));
+    let ty = s.objects[1].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_TABLE);
     assert_eq!(ty.index, Some(0));
 }
 
 #[test]
 fn type_struct_reference() {
     let s = analyze("struct Vec2 { x:float; y:float; }\ntable T { pos:Vec2; }");
-    let ty = s.objects[1].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_STRUCT));
+    let ty = s.objects[1].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_STRUCT);
     assert_eq!(ty.index, Some(0));
 }
 
 #[test]
 fn type_fixed_array() {
     let s = analyze("struct S { data:[int:4]; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_ARRAY));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_ARRAY);
     assert_eq!(ty.element_type, Some(BaseType::BASE_TYPE_INT));
     assert_eq!(ty.fixed_length, Some(4));
 }
@@ -185,8 +186,8 @@ fn type_fixed_array() {
 #[test]
 fn type_enum_field_uses_underlying() {
     let s = analyze("enum Color:short { Red, Green, Blue }\ntable T { c:Color; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_SHORT));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_SHORT);
     assert_eq!(ty.index, Some(0)); // enum index
 }
 
@@ -258,61 +259,61 @@ fn struct_force_align() {
 fn enum_values_auto_numbered() {
     let s = analyze("enum Color:byte { Red, Green, Blue }");
     let e = &s.enums[0];
-    assert_eq!(e.name.as_deref(), Some("Color"));
+    assert_eq!(e.name.as_str(), "Color");
     assert!(!e.is_union);
     assert_eq!(e.values.len(), 3);
-    assert_eq!(e.values[0].name.as_deref(), Some("Red"));
-    assert_eq!(e.values[0].value, Some(0));
-    assert_eq!(e.values[1].name.as_deref(), Some("Green"));
-    assert_eq!(e.values[1].value, Some(1));
-    assert_eq!(e.values[2].name.as_deref(), Some("Blue"));
-    assert_eq!(e.values[2].value, Some(2));
+    assert_eq!(e.values[0].name.as_str(), "Red");
+    assert_eq!(e.values[0].value, 0);
+    assert_eq!(e.values[1].name.as_str(), "Green");
+    assert_eq!(e.values[1].value, 1);
+    assert_eq!(e.values[2].name.as_str(), "Blue");
+    assert_eq!(e.values[2].value, 2);
 }
 
 #[test]
 fn enum_values_explicit() {
     let s = analyze("enum Status:int { OK = 0, NotFound = 404, Error = 500 }");
     let e = &s.enums[0];
-    assert_eq!(e.values[0].value, Some(0));
-    assert_eq!(e.values[1].value, Some(404));
-    assert_eq!(e.values[2].value, Some(500));
+    assert_eq!(e.values[0].value, 0);
+    assert_eq!(e.values[1].value, 404);
+    assert_eq!(e.values[2].value, 500);
 }
 
 #[test]
 fn enum_values_mixed_auto() {
     let s = analyze("enum E:byte { A = 5, B, C, D = 10, E }");
     let e = &s.enums[0];
-    assert_eq!(e.values[0].value, Some(5));
-    assert_eq!(e.values[1].value, Some(6));
-    assert_eq!(e.values[2].value, Some(7));
-    assert_eq!(e.values[3].value, Some(10));
-    assert_eq!(e.values[4].value, Some(11));
+    assert_eq!(e.values[0].value, 5);
+    assert_eq!(e.values[1].value, 6);
+    assert_eq!(e.values[2].value, 7);
+    assert_eq!(e.values[3].value, 10);
+    assert_eq!(e.values[4].value, 11);
 }
 
 #[test]
 fn enum_underlying_type() {
     let s = analyze("enum E:ushort { A, B }");
     let e = &s.enums[0];
-    let ut = e.underlying_type.as_ref().unwrap();
-    assert_eq!(ut.base_type, Some(BaseType::BASE_TYPE_U_SHORT));
+    let ut = e.underlying_type;
+    assert_eq!(ut.base_type, BaseType::BASE_TYPE_U_SHORT);
 }
 
 #[test]
 fn enum_negative_values() {
     let s = analyze("enum E:int { Neg = -10, Zero = 0, Pos = 10 }");
     let e = &s.enums[0];
-    assert_eq!(e.values[0].value, Some(-10));
-    assert_eq!(e.values[1].value, Some(0));
-    assert_eq!(e.values[2].value, Some(10));
+    assert_eq!(e.values[0].value, -10);
+    assert_eq!(e.values[1].value, 0);
+    assert_eq!(e.values[2].value, 10);
 }
 
 #[test]
 fn enum_bitflags() {
     let s = analyze("enum Flags:ubyte (bit_flags) { Read, Write, Execute }");
     let e = &s.enums[0];
-    assert_eq!(e.values[0].value, Some(0)); // bit position 0
-    assert_eq!(e.values[1].value, Some(1)); // bit position 1
-    assert_eq!(e.values[2].value, Some(2)); // bit position 2
+    assert_eq!(e.values[0].value, 0); // bit position 0
+    assert_eq!(e.values[1].value, 1); // bit position 1
+    assert_eq!(e.values[2].value, 2); // bit position 2
                                             // Verify bit_flags attribute is present
     let attrs = e.attributes.as_ref().unwrap();
     assert!(attrs
@@ -334,25 +335,25 @@ fn union_variants() {
          table Root { u:U; }",
     );
     let u = &s.enums[0];
-    assert_eq!(u.name.as_deref(), Some("U"));
+    assert_eq!(u.name.as_str(), "U");
     assert!(u.is_union);
 
     // NONE variant is auto-inserted at index 0
-    assert_eq!(u.values[0].name.as_deref(), Some("NONE"));
-    assert_eq!(u.values[0].value, Some(0));
+    assert_eq!(u.values[0].name.as_str(), "NONE");
+    assert_eq!(u.values[0].value, 0);
 
     // A variant
-    assert_eq!(u.values[1].name.as_deref(), Some("A"));
-    assert_eq!(u.values[1].value, Some(1));
+    assert_eq!(u.values[1].name.as_str(), "A");
+    assert_eq!(u.values[1].value, 1);
     let a_type = u.values[1].union_type.as_ref().unwrap();
-    assert_eq!(a_type.base_type, Some(BaseType::BASE_TYPE_TABLE));
+    assert_eq!(a_type.base_type, BaseType::BASE_TYPE_TABLE);
     assert_eq!(a_type.index, Some(0)); // objects[0] = A
 
     // B variant
-    assert_eq!(u.values[2].name.as_deref(), Some("B"));
-    assert_eq!(u.values[2].value, Some(2));
+    assert_eq!(u.values[2].name.as_str(), "B");
+    assert_eq!(u.values[2].value, 2);
     let b_type = u.values[2].union_type.as_ref().unwrap();
-    assert_eq!(b_type.base_type, Some(BaseType::BASE_TYPE_TABLE));
+    assert_eq!(b_type.base_type, BaseType::BASE_TYPE_TABLE);
     assert_eq!(b_type.index, Some(1)); // objects[1] = B
 }
 
@@ -366,20 +367,20 @@ fn union_companion_type_field() {
     let root = s
         .objects
         .iter()
-        .find(|o| o.name.as_deref() == Some("Root"))
+        .find(|o| o.name == "Root")
         .unwrap();
 
     // Companion _type field is auto-inserted before the union field
     assert_eq!(root.fields.len(), 2);
-    assert_eq!(root.fields[0].name.as_deref(), Some("equipped_type"));
+    assert_eq!(root.fields[0].name.as_str(), "equipped_type");
     assert_eq!(
-        root.fields[0].type_.as_ref().unwrap().base_type,
-        Some(BaseType::BASE_TYPE_U_TYPE)
+        root.fields[0].type_.base_type,
+        BaseType::BASE_TYPE_U_TYPE
     );
-    assert_eq!(root.fields[1].name.as_deref(), Some("equipped"));
+    assert_eq!(root.fields[1].name.as_str(), "equipped");
     assert_eq!(
-        root.fields[1].type_.as_ref().unwrap().base_type,
-        Some(BaseType::BASE_TYPE_UNION)
+        root.fields[1].type_.base_type,
+        BaseType::BASE_TYPE_UNION
     );
 }
 
@@ -396,13 +397,13 @@ fn service_rpc_methods() {
     );
     assert_eq!(s.services.len(), 1);
     let svc = &s.services[0];
-    assert_eq!(svc.name.as_deref(), Some("Svc"));
+    assert_eq!(svc.name.as_str(), "Svc");
 
     assert_eq!(svc.calls.len(), 1);
     let call = &svc.calls[0];
-    assert_eq!(call.name.as_deref(), Some("DoThing"));
-    assert_eq!(call.request_index, Some(0)); // objects[0] = Req
-    assert_eq!(call.response_index, Some(1)); // objects[1] = Resp
+    assert_eq!(call.name.as_str(), "DoThing");
+    assert_eq!(call.request_index, 0); // objects[0] = Req
+    assert_eq!(call.response_index, 1); // objects[1] = Resp
 }
 
 #[test]
@@ -418,9 +419,9 @@ fn service_multiple_methods() {
     );
     let svc = &s.services[0];
     assert_eq!(svc.calls.len(), 3);
-    assert_eq!(svc.calls[0].name.as_deref(), Some("Get"));
-    assert_eq!(svc.calls[1].name.as_deref(), Some("Set"));
-    assert_eq!(svc.calls[2].name.as_deref(), Some("Delete"));
+    assert_eq!(svc.calls[0].name.as_str(), "Get");
+    assert_eq!(svc.calls[1].name.as_str(), "Set");
+    assert_eq!(svc.calls[2].name.as_str(), "Delete");
 }
 
 // ---------------------------------------------------------------------------
@@ -531,15 +532,15 @@ fn cross_namespace_type_resolution() {
     let t = s
         .objects
         .iter()
-        .find(|o| o.name.as_deref() == Some("T"))
+        .find(|o| o.name == "T")
         .unwrap();
-    let ty = t.fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_STRUCT));
+    let ty = t.fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_STRUCT);
     // index should point to Vec2
     let vec2_idx = s
         .objects
         .iter()
-        .position(|o| o.name.as_deref() == Some("Vec2"))
+        .position(|o| o.name == "Vec2")
         .unwrap();
     assert_eq!(ty.index, Some(vec2_idx as i32));
 }
@@ -575,13 +576,13 @@ fn file_extension() {
 #[test]
 fn root_table_set() {
     let s = analyze("table A { x:int; }\ntable B { y:int; }\nroot_type B;");
-    assert_eq!(s.root_table.as_ref().unwrap().name.as_deref(), Some("B"));
+    assert_eq!(s.objects[s.root_table_index.unwrap()].name.as_str(), "B");
 }
 
 #[test]
 fn no_root_table() {
     let s = analyze("table T { x:int; }");
-    assert!(s.root_table.is_none());
+    assert!(s.root_table_index.is_none());
 }
 
 // ---------------------------------------------------------------------------
@@ -658,11 +659,11 @@ fn multiple_enums_independent() {
          enum B:short { P = 100, Q = 200 }",
     );
     assert_eq!(s.enums.len(), 2);
-    assert_eq!(s.enums[0].name.as_deref(), Some("A"));
-    assert_eq!(s.enums[1].name.as_deref(), Some("B"));
+    assert_eq!(s.enums[0].name.as_str(), "A");
+    assert_eq!(s.enums[1].name.as_str(), "B");
     assert_eq!(
-        s.enums[1].underlying_type.as_ref().unwrap().base_type,
-        Some(BaseType::BASE_TYPE_SHORT)
+        s.enums[1].underlying_type.base_type,
+        BaseType::BASE_TYPE_SHORT
     );
 }
 
@@ -680,7 +681,7 @@ fn table_with_all_scalar_types() {
     let types: Vec<BaseType> = t
         .fields
         .iter()
-        .map(|f| f.type_.as_ref().unwrap().base_type.unwrap())
+        .map(|f| f.type_.base_type)
         .collect();
     assert_eq!(
         types,
@@ -703,24 +704,24 @@ fn table_with_all_scalar_types() {
 #[test]
 fn forward_type_reference() {
     let s = analyze("table A { b:B; }\ntable B { x:int; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_TABLE));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_TABLE);
     assert_eq!(ty.index, Some(1)); // B is objects[1]
 }
 
 #[test]
 fn struct_with_enum_field() {
     let s = analyze("enum Color:byte { Red, Green, Blue }\nstruct S { c:Color; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_BYTE));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_BYTE);
     assert_eq!(ty.index, Some(0)); // Color is enums[0]
 }
 
 #[test]
 fn vector_of_enums() {
     let s = analyze("enum Color:byte { Red }\ntable T { colors:[Color]; }");
-    let ty = s.objects[0].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_VECTOR));
+    let ty = s.objects[0].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_VECTOR);
     assert_eq!(ty.element_type, Some(BaseType::BASE_TYPE_BYTE));
     assert_eq!(ty.index, Some(0)); // Color enum index
 }
@@ -728,8 +729,8 @@ fn vector_of_enums() {
 #[test]
 fn vector_of_structs() {
     let s = analyze("struct Vec2 { x:float; y:float; }\ntable T { points:[Vec2]; }");
-    let ty = s.objects[1].fields[0].type_.as_ref().unwrap();
-    assert_eq!(ty.base_type, Some(BaseType::BASE_TYPE_VECTOR));
+    let ty = s.objects[1].fields[0].type_;
+    assert_eq!(ty.base_type, BaseType::BASE_TYPE_VECTOR);
     assert_eq!(ty.element_type, Some(BaseType::BASE_TYPE_STRUCT));
     assert_eq!(ty.index, Some(0)); // Vec2 is objects[0]
 }

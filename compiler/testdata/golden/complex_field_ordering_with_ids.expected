@@ -7,12 +7,7 @@
           "name": "z",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
-              "line": 2,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 2,
           "attributes": {
@@ -33,12 +28,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
-              "line": 3,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 0,
           "attributes": {
@@ -59,12 +49,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/complex_field_ordering_with_ids.fbs",
-              "line": 4,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 1,
           "attributes": {

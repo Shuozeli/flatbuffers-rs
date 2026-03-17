@@ -1,26 +1,25 @@
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::BaseType;
 
-/// Extract BaseType from a Type's base_type field.
-pub fn get_base_type(ty: Option<&schema::Type>) -> BaseType {
-    ty.and_then(|t| t.base_type)
-        .unwrap_or(BaseType::BASE_TYPE_NONE)
+/// Extract BaseType from a ResolvedType.
+pub fn get_base_type(ty: &ResolvedType) -> BaseType {
+    ty.base_type
 }
 
-/// Extract element BaseType from a Type's element_type field.
-pub fn get_element_type(ty: Option<&schema::Type>) -> BaseType {
-    ty.and_then(|t| t.element_type)
-        .unwrap_or(BaseType::BASE_TYPE_NONE)
+/// Extract element BaseType from a ResolvedType's element_type field.
+pub fn get_element_type(ty: &ResolvedType) -> BaseType {
+    ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE)
 }
 
-/// Extract the type index from a Type proto.
-pub fn get_index(ty: Option<&schema::Type>) -> Option<i32> {
-    ty.and_then(|t| t.index)
+/// Extract the type index from a ResolvedType.
+pub fn get_index(ty: &ResolvedType) -> Option<i32> {
+    ty.index
 }
 
 /// Returns true if a field's type has a non-negative index, indicating it
 /// references an enum (or union) definition in `schema.enums`.
-pub fn has_enum_index(field: &schema::Field) -> bool {
-    get_index(field.type_.as_ref())
+pub fn has_enum_index(field: &ResolvedField) -> bool {
+    field.type_.index
         .map(|i| i >= 0)
         .unwrap_or(false)
 }
@@ -208,16 +207,16 @@ pub fn qualified_name(current_ns: &str, target_ns: &str, type_name: &str) -> Str
     format!("{}::{}", suffix.join("::"), type_name)
 }
 
-/// Extract the dot-separated namespace string from an object.
-pub fn object_namespace(obj: &crate::schema::Object) -> &str {
+/// Extract the dot-separated namespace string from a resolved object.
+pub fn object_namespace(obj: &ResolvedObject) -> &str {
     obj.namespace
         .as_ref()
         .and_then(|n| n.namespace.as_deref())
         .unwrap_or("")
 }
 
-/// Extract the dot-separated namespace string from an enum.
-pub fn enum_namespace(e: &crate::schema::Enum) -> &str {
+/// Extract the dot-separated namespace string from a resolved enum.
+pub fn enum_namespace(e: &ResolvedEnum) -> &str {
     e.namespace
         .as_ref()
         .and_then(|n| n.namespace.as_deref())
@@ -226,18 +225,18 @@ pub fn enum_namespace(e: &crate::schema::Enum) -> &str {
 
 /// Resolve a qualified object (table/struct) name relative to the current namespace.
 pub fn resolve_object_name(
-    schema: &crate::schema::Schema,
+    schema: &ResolvedSchema,
     current_ns: &str,
     obj_idx: usize,
 ) -> String {
     let obj = &schema.objects[obj_idx];
-    let name = obj.name.as_deref().unwrap_or("");
+    let name = &obj.name;
     let target_ns = object_namespace(obj);
     qualified_name(current_ns, target_ns, name)
 }
 
 /// Check if an enum at a given index is a bitflags enum.
-pub fn is_bitflags_enum(schema: &crate::schema::Schema, enum_idx: usize) -> bool {
+pub fn is_bitflags_enum(schema: &ResolvedSchema, enum_idx: usize) -> bool {
     let e = &schema.enums[enum_idx];
     e.attributes.as_ref().is_some_and(|attrs| {
         attrs
@@ -249,12 +248,12 @@ pub fn is_bitflags_enum(schema: &crate::schema::Schema, enum_idx: usize) -> bool
 
 /// Resolve a qualified enum name relative to the current namespace.
 pub fn resolve_enum_name(
-    schema: &crate::schema::Schema,
+    schema: &ResolvedSchema,
     current_ns: &str,
     enum_idx: usize,
 ) -> String {
     let e = &schema.enums[enum_idx];
-    let name = e.name.as_deref().unwrap_or("");
+    let name = &e.name;
     let target_ns = enum_namespace(e);
     qualified_name(current_ns, target_ns, name)
 }

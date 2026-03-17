@@ -7,12 +7,7 @@
           "name": "damage",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_multiple_variants.fbs",
-              "line": 1,
-              "col": 22
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -35,12 +30,7 @@
           "name": "defense",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_multiple_variants.fbs",
-              "line": 2,
-              "col": 24
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -63,12 +53,7 @@
           "name": "heal",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_multiple_variants.fbs",
-              "line": 3,
-              "col": 21
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -91,12 +76,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_multiple_variants.fbs",
-              "line": 8,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -119,12 +99,7 @@
           "type": {
             "base_type": "BASE_TYPE_UNION",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/union_multiple_variants.fbs",
-              "line": 9,
-              "col": 12
-            }
+            "index": 0
           },
           "id": 2,
           "span": {

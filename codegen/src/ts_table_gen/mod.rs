@@ -3,7 +3,8 @@ mod helpers;
 mod object_api;
 mod reader;
 
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::ResolvedSchema;
+use flatc_rs_schema::BaseType;
 
 use super::code_writer::CodeWriter;
 use super::ts_type_map;
@@ -13,29 +14,20 @@ use super::TsCodeGenOptions;
 /// Generate TypeScript code for the table at `schema.objects[index]`.
 pub fn generate(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     index: usize,
     opts: &TsCodeGenOptions,
 ) {
     let gen_object_api = opts.gen_object_api;
     let obj = &schema.objects[index];
-    let name = obj.name.as_deref().unwrap_or("");
+    let name = &obj.name;
     let fqn = ts_type_map::build_fqn(obj);
 
     // Check if this table is the root table using the authoritative index
     let is_root = schema
         .root_table_index
         .map(|idx| idx == index)
-        .unwrap_or_else(|| {
-            schema
-                .root_table
-                .as_ref()
-                .map(|rt| {
-                    let rt_fqn = ts_type_map::build_fqn(rt);
-                    rt_fqn == fqn
-                })
-                .unwrap_or(false)
-        });
+        .unwrap_or(false);
     let file_ident = schema.file_ident.as_deref().unwrap_or("");
 
     let implements = if gen_object_api {
@@ -108,7 +100,7 @@ pub fn generate(
                 if field.is_deprecated {
                     continue;
                 }
-                let bt = type_map::get_base_type(field.type_.as_ref());
+                let bt = type_map::get_base_type(&field.type_);
                 if type_map::is_scalar(bt) || bt == BaseType::BASE_TYPE_BOOL {
                     reader::gen_field_mutator(w, schema, field);
                     w.blank();
@@ -128,7 +120,7 @@ pub fn generate(
             w.blank();
 
             // Vector create/start helpers
-            let bt = type_map::get_base_type(field.type_.as_ref());
+            let bt = type_map::get_base_type(&field.type_);
             if bt == BaseType::BASE_TYPE_VECTOR {
                 builder::gen_vector_helpers(w, schema, field);
                 w.blank();

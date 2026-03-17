@@ -6,7 +6,8 @@
 
 use std::collections::BTreeMap;
 
-use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::ResolvedSchema;
+use flatc_rs_schema::Namespace;
 
 use super::should_generate;
 
@@ -49,7 +50,7 @@ impl NamespaceNode {
 }
 
 /// Extract namespace string from an optional Namespace message.
-pub fn namespace_str(ns: Option<&schema::Namespace>) -> String {
+pub fn namespace_str(ns: Option<&Namespace>) -> String {
     ns.and_then(|n| n.namespace.as_deref())
         .unwrap_or("")
         .to_string()
@@ -60,7 +61,7 @@ pub fn namespace_str(ns: Option<&schema::Namespace>) -> String {
 /// Enums, structs, and tables are inserted into the tree at their namespace
 /// path. Types whose `declaration_file` doesn't match the filter are skipped.
 pub fn build_namespace_tree(
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     filter: &Option<std::collections::HashSet<String>>,
 ) -> NamespaceNode {
     let mut root = NamespaceNode::new();

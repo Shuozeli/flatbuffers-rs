@@ -3,16 +3,16 @@ mod helpers;
 mod object_api;
 mod reader;
 
-use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::ResolvedSchema;
 
 use super::code_writer::CodeWriter;
 use super::type_map;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Generate Rust code for the table at `schema.objects[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let obj = &schema.objects[index];
-    let name = obj.name.as_deref().unwrap_or("");
+    let name = &obj.name;
     let vis = type_visibility(obj.attributes.as_ref(), opts);
     let current_ns = type_map::object_namespace(obj);
 

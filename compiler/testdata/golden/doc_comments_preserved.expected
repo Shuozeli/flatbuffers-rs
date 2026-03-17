@@ -7,12 +7,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/doc_comments_preserved.fbs",
-              "line": 5,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 0,
           "documentation": {
@@ -30,12 +25,7 @@
           "name": "hp",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/doc_comments_preserved.fbs",
-              "line": 7,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 1,
           "default_integer": 100,

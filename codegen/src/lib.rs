@@ -14,7 +14,10 @@ pub mod type_map;
 use std::collections::HashSet;
 use std::panic;
 
-use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::{
+    ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+};
+use flatc_rs_schema::Attributes;
 use rust_gen::RustGenerator;
 use ts_gen::TsGenerator;
 
@@ -30,36 +33,25 @@ pub enum CodeGenError {
 // After the analyzer validates the schema, these fields should always be present.
 // A failure here indicates a bug in the analyzer, not a user error.
 
-/// Get the type descriptor for a field.
-fn field_type(field: &schema::Field) -> Result<&schema::Type, CodeGenError> {
-    field.type_.as_ref().ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "field '{}' has no type descriptor",
-            field.name.as_deref().unwrap_or("<unknown>")
-        ))
-    })
-}
-
 /// Get the enum/object index from a field's type.
-fn field_type_index(field: &schema::Field) -> Result<usize, CodeGenError> {
-    let ty = field_type(field)?;
-    ty.index.map(|i| i as usize).ok_or_else(|| {
+fn field_type_index(field: &ResolvedField) -> Result<usize, CodeGenError> {
+    field.type_.index.map(|i| i as usize).ok_or_else(|| {
         CodeGenError::Internal(format!(
             "field '{}' type has no index",
-            field.name.as_deref().unwrap_or("<unknown>")
+            &field.name
         ))
     })
 }
 
 /// Get the enum/object index from a Type descriptor.
-fn type_index(ty: &schema::Type, context: &str) -> Result<usize, CodeGenError> {
+fn type_index(ty: &ResolvedType, context: &str) -> Result<usize, CodeGenError> {
     ty.index.map(|i| i as usize).ok_or_else(|| {
         CodeGenError::Internal(format!("type has no index in {context}"))
     })
 }
 
 /// Get the type index for a union variant's type.
-fn union_variant_type_index(val: &schema::EnumVal) -> Result<usize, CodeGenError> {
+fn union_variant_type_index(val: &ResolvedEnumVal) -> Result<usize, CodeGenError> {
     val.union_type
         .as_ref()
         .and_then(|t| t.index)
@@ -67,57 +59,47 @@ fn union_variant_type_index(val: &schema::EnumVal) -> Result<usize, CodeGenError
         .ok_or_else(|| {
             CodeGenError::Internal(format!(
                 "union variant '{}' has no type index",
-                val.name.as_deref().unwrap_or("<unknown>")
+                &val.name
             ))
         })
 }
 
 /// Get the byte_size of an object (struct).
-fn obj_byte_size(obj: &schema::Object) -> Result<usize, CodeGenError> {
+fn obj_byte_size(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
     obj.byte_size.map(|s| s as usize).ok_or_else(|| {
         CodeGenError::Internal(format!(
             "object '{}' has no byte_size",
-            obj.name.as_deref().unwrap_or("<unknown>")
+            &obj.name
         ))
     })
 }
 
 /// Get the min_align of an object (struct).
-fn obj_min_align(obj: &schema::Object) -> Result<usize, CodeGenError> {
+fn obj_min_align(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
     obj.min_align.map(|a| a as usize).ok_or_else(|| {
         CodeGenError::Internal(format!(
             "object '{}' has no min_align",
-            obj.name.as_deref().unwrap_or("<unknown>")
+            &obj.name
         ))
     })
 }
 
 /// Get a struct field's byte offset.
-fn field_offset(field: &schema::Field) -> Result<usize, CodeGenError> {
+fn field_offset(field: &ResolvedField) -> Result<usize, CodeGenError> {
     field.offset.map(|o| o as usize).ok_or_else(|| {
         CodeGenError::Internal(format!(
             "field '{}' has no offset",
-            field.name.as_deref().unwrap_or("<unknown>")
+            &field.name
         ))
     })
 }
 
 /// Get a table field's ID.
-fn field_id(field: &schema::Field) -> Result<u32, CodeGenError> {
+fn field_id(field: &ResolvedField) -> Result<u32, CodeGenError> {
     field.id.ok_or_else(|| {
         CodeGenError::Internal(format!(
             "field '{}' has no id",
-            field.name.as_deref().unwrap_or("<unknown>")
-        ))
-    })
-}
-
-/// Get an enum value's integer discriminator.
-fn enum_val_value(val: &schema::EnumVal) -> Result<i64, CodeGenError> {
-    val.value.ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "enum value '{}' has no value",
-            val.name.as_deref().unwrap_or("<unknown>")
+            &field.name
         ))
     })
 }
@@ -147,7 +129,7 @@ pub struct CodeGenOptions {
 ///
 /// When `opts.no_leak_private` is true and the type has a `(private)` attribute,
 /// returns `"pub(crate)"`. Otherwise returns `"pub"`.
-pub fn type_visibility(attrs: Option<&schema::Attributes>, opts: &CodeGenOptions) -> &'static str {
+pub fn type_visibility(attrs: Option<&Attributes>, opts: &CodeGenOptions) -> &'static str {
     if opts.no_leak_private {
         if let Some(attrs) = attrs {
             if attrs
@@ -192,7 +174,7 @@ fn should_generate(declaration_file: Option<&str>, filter: &Option<HashSet<Strin
 /// The generated code is compatible with the `flatbuffers` runtime crate and
 /// includes readers, builders, and trait implementations for all types.
 pub fn generate_rust(
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
     let gen = RustGenerator::new(schema, opts);
@@ -206,7 +188,7 @@ pub fn generate_rust(
 ///
 /// Panics in the TS codegen are caught and converted to `CodeGenError::Internal`.
 pub fn generate_typescript(
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     opts: &TsCodeGenOptions,
 ) -> Result<String, CodeGenError> {
     catch_codegen_panic(|| {

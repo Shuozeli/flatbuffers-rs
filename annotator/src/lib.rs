@@ -6,12 +6,12 @@ pub use binary_walker::{is_scalar, scalar_byte_size, BinaryWalker};
 pub use formatter::format_afb;
 pub use region::{AnnotatedRegion, RegionType, WalkError};
 
-pub use flatc_rs_schema::Schema;
+pub use flatc_rs_schema::resolved::ResolvedSchema;
 
 /// Walk a FlatBuffers binary using a Schema and root type name.
 pub fn walk_binary(
     binary: &[u8],
-    schema: &Schema,
+    schema: &ResolvedSchema,
     root_type_name: &str,
 ) -> Result<Vec<AnnotatedRegion>, WalkError> {
     let walker = BinaryWalker::new(binary, schema);
@@ -22,7 +22,7 @@ pub fn walk_binary(
 /// matching the C++ `flatc --annotate` format.
 pub fn annotate_binary(
     binary: &[u8],
-    schema: &Schema,
+    schema: &ResolvedSchema,
     root_type_name: &str,
     schema_file: &str,
     binary_file: &str,

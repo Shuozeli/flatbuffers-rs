@@ -8,12 +8,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/multiple_enums_same_file.fbs",
-              "line": 6,
-              "col": 10
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -27,12 +22,7 @@
           "type": {
             "base_type": "BASE_TYPE_INT",
             "base_size": 4,
-            "index": 1,
-            "span": {
-              "file": "testdata/golden/multiple_enums_same_file.fbs",
-              "line": 7,
-              "col": 11
-            }
+            "index": 1
           },
           "id": 1,
           "span": {
@@ -46,12 +36,7 @@
           "type": {
             "base_type": "BASE_TYPE_SHORT",
             "base_size": 2,
-            "index": 2,
-            "span": {
-              "file": "testdata/golden/multiple_enums_same_file.fbs",
-              "line": 8,
-              "col": 11
-            }
+            "index": 2
           },
           "id": 2,
           "span": {

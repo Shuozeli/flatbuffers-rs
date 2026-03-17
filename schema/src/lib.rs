@@ -1,4 +1,5 @@
 pub mod buf_reader;
+pub mod resolved;
 
 use serde::{Deserialize, Serialize};
 

@@ -1,12 +1,13 @@
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use super::code_writer::CodeWriter;
 use super::type_map;
-use super::{enum_val_value, union_variant_type_index};
+use super::union_variant_type_index;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Check if an enum has a specific attribute (e.g., "bit_flags").
-fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
+fn has_attribute(enum_def: &ResolvedEnum, key: &str) -> bool {
     enum_def
         .attributes
         .as_ref()
@@ -14,7 +15,7 @@ fn has_attribute(enum_def: &schema::Enum, key: &str) -> bool {
 }
 
 /// Generate Rust code for the enum at `schema.enums[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let is_bitflags = has_attribute(enum_def, "bit_flags");
 
@@ -33,10 +34,10 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
 }
 
 /// Generate a bitflags enum using the `bitflags!` macro.
-fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
-    let name = enum_def.name.as_deref().unwrap_or("");
+fn generate_bitflags(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+    let name = &enum_def.name;
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
-    let underlying_bt = type_map::get_base_type(enum_def.underlying_type.as_ref());
+    let underlying_bt = enum_def.underlying_type.base_type;
     let rust_type = type_map::scalar_rust_type(underlying_bt);
     let mod_name = format!("bitflags_{}", type_map::to_snake_case(name));
 
@@ -45,9 +46,9 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
         .values
         .iter()
         .map(|val| {
-            let vname = val.name.as_deref().unwrap_or("");
-            let bit_pos = enum_val_value(val)?;
-            Ok((vname, 1u64 << bit_pos))
+            let vname = &val.name;
+            let bit_pos = val.value;
+            Ok((vname.as_str(), 1u64 << bit_pos))
         })
         .collect::<Result<Vec<_>, CodeGenError>>()?;
 
@@ -175,20 +176,20 @@ fn generate_bitflags(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGen
 }
 
 /// Generate a regular (non-bitflags) enum.
-fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
-    let name = enum_def.name.as_deref().unwrap_or("");
+fn generate_regular(w: &mut CodeWriter, enum_def: &ResolvedEnum, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+    let name = &enum_def.name;
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let is_union = enum_def.is_union;
 
-    let underlying_bt = type_map::get_base_type(enum_def.underlying_type.as_ref());
+    let underlying_bt = enum_def.underlying_type.base_type;
     let rust_type = type_map::scalar_rust_type(underlying_bt);
 
-    // Pre-compute all enum values so we can use them without Result in closures
+    // Pre-compute all enum values
     let val_values: Vec<i64> = enum_def
         .values
         .iter()
-        .map(|v| enum_val_value(v))
-        .collect::<Result<Vec<_>, CodeGenError>>()?;
+        .map(|v| v.value)
+        .collect();
 
     // Deprecated global constants (non-union enums only, matching C++ flatc)
     if !is_union && !enum_def.values.is_empty() {
@@ -212,7 +213,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
         ));
         w.indent();
         for val in &enum_def.values {
-            let vname = val.name.as_deref().unwrap_or("");
+            let vname = &val.name;
             let sanitized = type_map::sanitize_union_const_name(vname);
             let esc = type_map::escape_keyword(&sanitized);
             w.line(&format!("{name}::{esc},"));
@@ -232,7 +233,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
     w.block(&format!("impl {name}"), |w| {
         // Variant constants
         for (i, val) in enum_def.values.iter().enumerate() {
-            let vname = val.name.as_deref().unwrap_or("");
+            let vname = &val.name;
             // Sanitize FQN: "MyGame.Example2.Monster" -> "MyGame_Example2_Monster"
             let sanitized = type_map::sanitize_union_const_name(vname);
             let escaped = type_map::escape_keyword(&sanitized);
@@ -254,7 +255,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
                 .iter()
                 .map(|v| {
                     let sanitized =
-                        type_map::sanitize_union_const_name(v.name.as_deref().unwrap_or(""));
+                        type_map::sanitize_union_const_name(&v.name);
                     let esc = type_map::escape_keyword(&sanitized);
                     format!("Self::{esc}")
                 })
@@ -273,7 +274,7 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
         w.block("pub fn variant_name(self) -> Option<&'static str>", |w| {
             w.block("match self", |w| {
                 for val in &enum_def.values {
-                    let vname = val.name.as_deref().unwrap_or("");
+                    let vname = &val.name;
                     let sanitized = type_map::sanitize_union_const_name(vname);
                     let escaped = type_map::escape_keyword(&sanitized);
                     // Return sanitized name as string
@@ -438,12 +439,12 @@ fn generate_regular(w: &mut CodeWriter, enum_def: &schema::Enum, opts: &CodeGenO
 /// Generate the Object API union T enum for a union type.
 fn gen_union_object_api(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     index: usize,
     opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
-    let name = enum_def.name.as_deref().unwrap_or("");
+    let name = &enum_def.name;
     let t_name = format!("{name}T");
     let current_ns = enum_def
         .namespace
@@ -458,11 +459,13 @@ fn gen_union_object_api(
         .values
         .iter()
         .map(|val| {
-            let vname = val.name.as_deref().unwrap_or("");
+            let vname = &val.name;
             if vname == "NONE" {
                 return Ok(None);
             }
-            let variant_bt = type_map::get_base_type(val.union_type.as_ref());
+            let variant_bt = val.union_type.as_ref()
+                .map(|t| t.base_type)
+                .unwrap_or(BaseType::BASE_TYPE_NONE);
             if variant_bt == BaseType::BASE_TYPE_TABLE {
                 Ok(Some(union_variant_type_index(val)?))
             } else {
@@ -482,7 +485,7 @@ fn gen_union_object_api(
     w.block(&format!("{vis} enum {t_name}"), |w| {
         w.line("NONE,");
         for (i, val) in enum_def.values.iter().enumerate() {
-            let vname = val.name.as_deref().unwrap_or("");
+            let vname = &val.name;
             if vname == "NONE" {
                 continue;
             }
@@ -511,7 +514,7 @@ fn gen_union_object_api(
             w.block("match self", |w| {
                 w.line(&format!("Self::NONE => {name}::NONE,"));
                 for val in &enum_def.values {
-                    let vname = val.name.as_deref().unwrap_or("");
+                    let vname = &val.name;
                     if vname == "NONE" {
                         continue;
                     }
@@ -531,7 +534,7 @@ fn gen_union_object_api(
                 w.block("match self", |w| {
                     w.line("Self::NONE => None,");
                     for val in &enum_def.values {
-                        let vname = val.name.as_deref().unwrap_or("");
+                        let vname = &val.name;
                         if vname == "NONE" {
                             continue;
                         }

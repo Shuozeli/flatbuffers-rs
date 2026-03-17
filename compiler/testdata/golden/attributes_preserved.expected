@@ -7,12 +7,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/attributes_preserved.fbs",
-              "line": 5,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 0,
           "required": true,
@@ -33,12 +28,7 @@
           "name": "hp",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/attributes_preserved.fbs",
-              "line": 6,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 1,
           "default_integer": 100,
@@ -64,12 +54,7 @@
           "name": "mana",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/attributes_preserved.fbs",
-              "line": 7,
-              "col": 8
-            }
+            "base_size": 2
           },
           "id": 2,
           "key": true,

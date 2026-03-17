@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/vector_of_user_defined_type.fbs",
-              "line": 2,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/vector_of_user_defined_type.fbs",
-              "line": 3,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -43,12 +33,7 @@
           "name": "z",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/vector_of_user_defined_type.fbs",
-              "line": 4,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 8,
           "span": {
@@ -77,12 +62,7 @@
             "base_size": 4,
             "element_size": 4,
             "element": "BASE_TYPE_STRUCT",
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/vector_of_user_defined_type.fbs",
-              "line": 8,
-              "col": 13
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -97,12 +77,7 @@
             "base_type": "BASE_TYPE_VECTOR",
             "base_size": 4,
             "element_size": 4,
-            "element": "BASE_TYPE_STRING",
-            "span": {
-              "file": "testdata/golden/vector_of_user_defined_type.fbs",
-              "line": 9,
-              "col": 9
-            }
+            "element": "BASE_TYPE_STRING"
           },
           "id": 1,
           "span": {

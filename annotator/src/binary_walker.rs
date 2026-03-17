@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::ops::Range;
 
 use flatc_rs_schema::buf_reader::{BoundsError, BufReader};
-use flatc_rs_schema::{BaseType, Enum, Field, Object, Schema, Type};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::BaseType;
 
 use crate::region::{AnnotatedRegion, RegionType, WalkError};
 
@@ -24,7 +25,7 @@ const MAX_DEPTH: usize = 64;
 
 pub struct BinaryWalker<'a> {
     reader: BufReader<'a>,
-    schema: &'a Schema,
+    schema: &'a ResolvedSchema,
     regions: Vec<AnnotatedRegion>,
     annotated: Vec<bool>,
     visited_tables: HashSet<usize>,
@@ -33,16 +34,15 @@ pub struct BinaryWalker<'a> {
 }
 
 impl<'a> BinaryWalker<'a> {
-    pub fn new(buf: &'a [u8], schema: &'a Schema) -> Self {
+    pub fn new(buf: &'a [u8], schema: &'a ResolvedSchema) -> Self {
         let len = buf.len();
         let mut object_index = std::collections::HashMap::new();
         for (i, obj) in schema.objects.iter().enumerate() {
-            if let Some(ref name) = obj.name {
-                object_index.entry(name.as_str()).or_insert(i);
-                if let Some(short) = name.rsplit('.').next() {
-                    if short != name.as_str() {
-                        object_index.entry(short).or_insert(i);
-                    }
+            let name = obj.name.as_str();
+            object_index.entry(name).or_insert(i);
+            if let Some(short) = name.rsplit('.').next() {
+                if short != name {
+                    object_index.entry(short).or_insert(i);
                 }
             }
         }
@@ -113,7 +113,7 @@ impl<'a> BinaryWalker<'a> {
             })
     }
 
-    fn get_object(&self, idx: usize) -> Result<&Object, WalkError> {
+    fn get_object(&self, idx: usize) -> Result<&ResolvedObject, WalkError> {
         self.schema
             .objects
             .get(idx)
@@ -123,7 +123,7 @@ impl<'a> BinaryWalker<'a> {
             })
     }
 
-    fn get_enum(&self, idx: usize) -> Result<&Enum, WalkError> {
+    fn get_enum(&self, idx: usize) -> Result<&ResolvedEnum, WalkError> {
         self.schema
             .enums
             .get(idx)
@@ -131,14 +131,6 @@ impl<'a> BinaryWalker<'a> {
                 index: idx,
                 count: self.schema.enums.len(),
             })
-    }
-
-    fn obj_name(obj: &Object) -> String {
-        obj.name.clone().unwrap_or_else(|| "?".to_string())
-    }
-
-    fn field_name(field: &Field) -> String {
-        field.name.clone().unwrap_or_else(|| "?".to_string())
     }
 
     // -----------------------------------------------------------------------
@@ -161,8 +153,8 @@ impl<'a> BinaryWalker<'a> {
         self.visited_tables.insert(table_offset);
 
         let obj = self.get_object(obj_idx)?;
-        let type_name = Self::obj_name(obj);
-        let fields: Vec<Field> = obj.fields.clone();
+        let type_name = obj.name.clone();
+        let fields: Vec<ResolvedField> = obj.fields.clone();
 
         let vtable_soffset = self.reader.read_i32_le(table_offset)?;
         let vtable_offset = (table_offset as i64 - vtable_soffset as i64) as usize;
@@ -195,11 +187,8 @@ impl<'a> BinaryWalker<'a> {
             std::collections::HashMap::new();
 
         for field in &fields {
-            let ty = match field.type_.as_ref() {
-                Some(t) => t,
-                None => continue,
-            };
-            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            let ty = &field.type_;
+            let bt = ty.base_type;
             if bt != BaseType::BASE_TYPE_U_TYPE {
                 continue;
             }
@@ -217,17 +206,14 @@ impl<'a> BinaryWalker<'a> {
 
             let field_data_offset = table_offset + field_offset_in_table;
             let val = self.reader.read_u8(field_data_offset)?;
-            let fname = Self::field_name(field);
-            let union_name = fname.strip_suffix("_type").unwrap_or(&fname).to_string();
+            let fname = &field.name;
+            let union_name = fname.strip_suffix("_type").unwrap_or(fname).to_string();
             union_type_values.insert(union_name, val);
         }
 
         for field in &fields {
-            let ty = match field.type_.as_ref() {
-                Some(t) => t,
-                None => continue,
-            };
-            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            let ty = &field.type_;
+            let bt = ty.base_type;
 
             let field_id = field.id.unwrap_or(0) as usize;
             let vtable_entry_offset = vtable_offset + 4 + field_id * 2;
@@ -242,12 +228,11 @@ impl<'a> BinaryWalker<'a> {
 
             let field_data_offset = table_offset + field_offset_in_table;
             let mut field_path = path.clone();
-            let fname = Self::field_name(field);
+            let fname = field.name.clone();
             field_path.push(fname.clone());
 
             self.walk_field(
                 field_data_offset,
-                field,
                 ty,
                 bt,
                 &field_path,
@@ -268,7 +253,7 @@ impl<'a> BinaryWalker<'a> {
     fn walk_vtable(
         &mut self,
         vtable_offset: usize,
-        fields: &[Field],
+        fields: &[ResolvedField],
         type_name: &str,
         path: &[String],
         depth: usize,
@@ -321,7 +306,7 @@ impl<'a> BinaryWalker<'a> {
             let field_name = fields
                 .iter()
                 .find(|f| f.id == Some(i as u32))
-                .and_then(|f| f.name.as_deref())
+                .map(|f| f.name.as_str())
                 .unwrap_or("?")
                 .to_string();
 
@@ -355,8 +340,7 @@ impl<'a> BinaryWalker<'a> {
     fn walk_field(
         &mut self,
         offset: usize,
-        _field: &Field,
-        ty: &Type,
+        ty: &ResolvedType,
         bt: BaseType,
         path: &[String],
         fname: &str,
@@ -526,9 +510,9 @@ impl<'a> BinaryWalker<'a> {
         }
 
         let obj = self.get_object(obj_idx)?;
-        let type_name = Self::obj_name(obj);
+        let type_name = obj.name.clone();
         let byte_size = obj.byte_size.unwrap_or(0) as usize;
-        let fields: Vec<Field> = obj.fields.clone();
+        let fields: Vec<ResolvedField> = obj.fields.clone();
 
         let struct_region = self.add_region(
             offset..offset + byte_size,
@@ -543,13 +527,10 @@ impl<'a> BinaryWalker<'a> {
         self.regions[parent_region].children.push(struct_region);
 
         for field in &fields {
-            let field_ty = match field.type_.as_ref() {
-                Some(t) => t,
-                None => continue,
-            };
-            let field_bt = field_ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            let field_ty = &field.type_;
+            let field_bt = field_ty.base_type;
             let field_offset = offset + field.offset.unwrap_or(0) as usize;
-            let fname = Self::field_name(field);
+            let fname = field.name.clone();
 
             let mut field_path = path.to_vec();
             field_path.push(fname.clone());
@@ -582,10 +563,10 @@ impl<'a> BinaryWalker<'a> {
                         let region = self.add_region(
                             field_offset..field_offset + size,
                             RegionType::StructField {
-                                field_name: fname,
+                                field_name: fname.clone(),
                                 base_type: field_bt,
                             },
-                            Self::field_name(field),
+                            fname,
                             field_path,
                             value,
                             depth + 1,
@@ -606,7 +587,7 @@ impl<'a> BinaryWalker<'a> {
     fn walk_fixed_array(
         &mut self,
         offset: usize,
-        ty: &Type,
+        ty: &ResolvedType,
         path: &[String],
         fname: &str,
         depth: usize,
@@ -689,7 +670,7 @@ impl<'a> BinaryWalker<'a> {
     fn walk_vector(
         &mut self,
         vec_start: usize,
-        ty: &Type,
+        ty: &ResolvedType,
         path: &[String],
         depth: usize,
         parent_region: usize,
@@ -874,7 +855,7 @@ impl<'a> BinaryWalker<'a> {
     fn walk_union_data(
         &mut self,
         offset: usize,
-        ty: &Type,
+        ty: &ResolvedType,
         discriminant: u8,
         path: &[String],
         depth: usize,
@@ -890,19 +871,17 @@ impl<'a> BinaryWalker<'a> {
         let variant = enum_def
             .values
             .iter()
-            .find(|v| v.value == Some(discriminant as i64));
+            .find(|v| v.value == discriminant as i64);
 
         if let Some(variant) = variant {
             if let Some(ref union_type) = variant.union_type {
-                let variant_bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_TABLE);
+                let variant_bt = union_type.base_type;
                 let variant_idx = require_type_index(union_type, "union variant")?;
 
                 match variant_bt {
                     BaseType::BASE_TYPE_TABLE => {
                         let mut variant_path = path.to_vec();
-                        if let Some(ref vname) = variant.name {
-                            variant_path.push(vname.clone());
-                        }
+                        variant_path.push(variant.name.clone());
                         let table_region =
                             self.walk_table(offset, variant_idx, variant_path, depth + 1)?;
                         self.regions[parent_region].children.push(table_region);
@@ -988,7 +967,7 @@ impl<'a> BinaryWalker<'a> {
         &self,
         offset: usize,
         bt: BaseType,
-        ty: &Type,
+        ty: &ResolvedType,
     ) -> Result<String, WalkError> {
         let display = match bt {
             BaseType::BASE_TYPE_BOOL => {
@@ -1016,10 +995,8 @@ impl<'a> BinaryWalker<'a> {
                 if let Some(idx) = ty.index {
                     if idx >= 0 && (idx as usize) < self.schema.enums.len() {
                         let e = &self.schema.enums[idx as usize];
-                        if let Some(val) = e.values.iter().find(|ev| ev.value == Some(v as i64)) {
-                            if let Some(ref name) = val.name {
-                                return Ok(format!("{name} ({v})"));
-                            }
+                        if let Some(val) = e.values.iter().find(|ev| ev.value == v as i64) {
+                            return Ok(format!("{} ({v})", val.name));
                         }
                     }
                 }
@@ -1059,8 +1036,8 @@ impl<'a> BinaryWalker<'a> {
 // Free functions
 // ---------------------------------------------------------------------------
 
-/// Extract a non-negative type index from a `Type`, or return a `WalkError`.
-fn require_type_index(ty: &Type, context: &str) -> Result<usize, WalkError> {
+/// Extract a non-negative type index from a `ResolvedType`, or return a `WalkError`.
+fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, WalkError> {
     ty.index
         .filter(|&i| i >= 0)
         .map(|i| i as usize)

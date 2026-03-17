@@ -10,12 +10,7 @@
             "base_size": 4,
             "element_size": 1,
             "element": "BASE_TYPE_BYTE",
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/vector_of_enums.fbs",
-              "line": 4,
-              "col": 11
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -29,12 +24,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/vector_of_enums.fbs",
-              "line": 5,
-              "col": 12
-            }
+            "index": 0
           },
           "id": 1,
           "span": {

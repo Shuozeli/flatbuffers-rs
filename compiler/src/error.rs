@@ -227,6 +227,9 @@ pub enum AnalyzeError {
 
     #[error("schema size limit exceeded: {detail}")]
     SchemaSizeLimitExceeded { detail: String },
+
+    #[error("internal error: {0}")]
+    InternalError(String),
 }
 
 fn format_cycle(names: &[String]) -> String {

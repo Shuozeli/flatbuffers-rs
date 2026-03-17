@@ -10,12 +10,7 @@
             "base_size": 4,
             "element_size": 4,
             "element": "BASE_TYPE_FLOAT",
-            "fixed_length": 4,
-            "span": {
-              "file": "testdata/golden/struct_with_fixed_array.fbs",
-              "line": 2,
-              "col": 11
-            }
+            "fixed_length": 4
           },
           "offset": 0,
           "span": {
@@ -41,12 +36,7 @@
           "name": "a",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_with_fixed_array.fbs",
-              "line": 6,
-              "col": 6
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -59,12 +49,7 @@
           "name": "b",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_with_fixed_array.fbs",
-              "line": 7,
-              "col": 6
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -91,12 +76,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/struct_with_fixed_array.fbs",
-              "line": 11,
-              "col": 11
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -112,12 +92,7 @@
             "base_size": 4,
             "element_size": 4,
             "element": "BASE_TYPE_STRUCT",
-            "index": 1,
-            "span": {
-              "file": "testdata/golden/struct_with_fixed_array.fbs",
-              "line": 12,
-              "col": 10
-            }
+            "index": 1
           },
           "id": 1,
           "span": {

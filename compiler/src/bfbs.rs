@@ -38,6 +38,10 @@
 
 use flatbuffers::{FlatBufferBuilder, TableFinishedWIPOffset, WIPOffset};
 use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::{
+    ResolvedEnum, ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedRpcCall,
+    ResolvedSchema, ResolvedService, ResolvedType,
+};
 
 use crate::reflection::reflection as refl;
 
@@ -160,16 +164,16 @@ struct IndexMaps<'a> {
 ///
 /// The output is a valid FlatBuffer with file identifier "BFBS" conforming to
 /// the official `reflection.fbs` schema.
-pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
+pub fn serialize_schema(schema: &ResolvedSchema) -> Vec<u8> {
     let mut b = FlatBufferBuilder::with_capacity(4096);
 
     // Sort objects and enums by name (reflection.fbs requires sorted vectors).
-    let mut sorted_objects: Vec<(usize, &schema::Object)> =
+    let mut sorted_objects: Vec<(usize, &ResolvedObject)> =
         schema.objects.iter().enumerate().collect();
-    sorted_objects.sort_by(|a, b| obj_name(a.1).cmp(obj_name(b.1)));
+    sorted_objects.sort_by(|a, b| resolved_obj_name(a.1).cmp(resolved_obj_name(b.1)));
 
-    let mut sorted_enums: Vec<(usize, &schema::Enum)> = schema.enums.iter().enumerate().collect();
-    sorted_enums.sort_by(|a, b| enum_name(a.1).cmp(enum_name(b.1)));
+    let mut sorted_enums: Vec<(usize, &ResolvedEnum)> = schema.enums.iter().enumerate().collect();
+    sorted_enums.sort_by(|a, b| resolved_enum_name(a.1).cmp(resolved_enum_name(b.1)));
 
     // Mapping from original index -> sorted position (for Type.index remapping).
     let mut obj_index_to_sorted: Vec<usize> = vec![0; schema.objects.len()];
@@ -188,14 +192,14 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
     // --- Serialize objects ---
     let obj_offs: Vec<TOff> = sorted_objects
         .iter()
-        .map(|(_, obj)| write_object(&mut b, obj, &index_maps))
+        .map(|(_, obj)| write_resolved_object(&mut b, obj, &index_maps))
         .collect();
     let objects_vec = b.create_vector(&obj_offs);
 
     // --- Serialize enums ---
     let enum_offs: Vec<TOff> = sorted_enums
         .iter()
-        .map(|(_, e)| write_enum(&mut b, e, &index_maps))
+        .map(|(_, e)| write_resolved_enum(&mut b, e, &index_maps))
         .collect();
     let enums_vec = b.create_vector(&enum_offs);
 
@@ -203,7 +207,7 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
     let svc_offs: Vec<TOff> = schema
         .services
         .iter()
-        .map(|svc| write_service(&mut b, svc, &schema.objects, &index_maps))
+        .map(|svc| write_resolved_service(&mut b, svc, &schema.objects, &index_maps))
         .collect();
     let services_vec = if svc_offs.is_empty() {
         None
@@ -230,19 +234,7 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
     // --- Find root_table offset ---
     let root_table_off: Option<TOff> = schema
         .root_table_index
-        .map(|idx| obj_offs[obj_index_to_sorted[idx]])
-        .or_else(|| {
-            // Fallback: match by name if root_table_index is not set
-            schema.root_table.as_ref().and_then(|rt| {
-                let rt_name = rt.name.as_deref().unwrap_or("");
-                schema
-                    .objects
-                    .iter()
-                    .enumerate()
-                    .find(|(_, obj)| obj.name.as_deref() == Some(rt_name))
-                    .map(|(orig_idx, _)| obj_offs[obj_index_to_sorted[orig_idx]])
-            })
-        });
+        .map(|idx| obj_offs[obj_index_to_sorted[idx]]);
 
     // --- Build Schema table ---
     let start = b.start_table();
@@ -276,8 +268,12 @@ pub fn serialize_schema(schema: &schema::Schema) -> Vec<u8> {
 // Table writers -- each returns a finished table offset (TOff)
 // ---------------------------------------------------------------------------
 
-fn write_type(b: &mut FlatBufferBuilder<'_>, ty: &schema::Type, maps: &IndexMaps<'_>) -> TOff {
-    let bt = ty.base_type.unwrap_or(schema::BaseType::BASE_TYPE_NONE);
+// ---------------------------------------------------------------------------
+// Resolved type writers (for serialization from ResolvedSchema)
+// ---------------------------------------------------------------------------
+
+fn write_resolved_type(b: &mut FlatBufferBuilder<'_>, ty: &ResolvedType, maps: &IndexMaps<'_>) -> TOff {
+    let bt = ty.base_type;
     let et = ty.element_type.unwrap_or(schema::BaseType::BASE_TYPE_NONE);
 
     // Remap Type.index from declaration order to sorted order.
@@ -299,7 +295,6 @@ fn write_type(b: &mut FlatBufferBuilder<'_>, ty: &schema::Type, maps: &IndexMaps
                         idx
                     }
                 }
-                // For vector/array of objects, the element type determines the index target
                 schema::BaseType::BASE_TYPE_VECTOR
                 | schema::BaseType::BASE_TYPE_ARRAY
                 | schema::BaseType::BASE_TYPE_VECTOR64 => {
@@ -319,7 +314,6 @@ fn write_type(b: &mut FlatBufferBuilder<'_>, ty: &schema::Type, maps: &IndexMaps
                             }
                         }
                         _ => {
-                            // Enum element types also need remapping
                             if i < maps.enum_index_to_sorted.len() {
                                 maps.enum_index_to_sorted[i] as i32
                             } else {
@@ -329,7 +323,6 @@ fn write_type(b: &mut FlatBufferBuilder<'_>, ty: &schema::Type, maps: &IndexMaps
                     }
                 }
                 _ => {
-                    // Scalar enum types: index references enums
                     if i < maps.enum_index_to_sorted.len() {
                         maps.enum_index_to_sorted[i] as i32
                     } else {
@@ -352,35 +345,19 @@ fn write_type(b: &mut FlatBufferBuilder<'_>, ty: &schema::Type, maps: &IndexMaps
     b.end_table(start)
 }
 
-fn write_key_value(b: &mut FlatBufferBuilder<'_>, kv: &schema::KeyValue) -> TOff {
-    let key = kv.key.as_deref().map(|s| b.create_string(s));
-    let value = kv.value.as_deref().map(|s| b.create_string(s));
-
-    let start = b.start_table();
-    if let Some(k) = key {
-        b.push_slot_always(KV_KEY, k);
-    }
-    if let Some(v) = value {
-        b.push_slot_always(KV_VALUE, v);
-    }
-    b.end_table(start)
-}
-
-fn write_enum_val(
+fn write_resolved_enum_val(
     b: &mut FlatBufferBuilder<'_>,
-    ev: &schema::EnumVal,
+    ev: &ResolvedEnumVal,
     maps: &IndexMaps<'_>,
 ) -> TOff {
-    let name = ev.name.as_deref().map(|s| b.create_string(s));
-    let union_type = ev.union_type.as_ref().map(|t| write_type(b, t, maps));
+    let name = b.create_string(&ev.name);
+    let union_type = ev.union_type.as_ref().map(|t| write_resolved_type(b, t, maps));
     let doc = ev.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
     let attrs = ev.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
 
     let start = b.start_table();
-    if let Some(n) = name {
-        b.push_slot_always(ENUMVAL_NAME, n);
-    }
-    b.push_slot::<i64>(ENUMVAL_VALUE, ev.value.unwrap_or(0), 0);
+    b.push_slot_always(ENUMVAL_NAME, name);
+    b.push_slot::<i64>(ENUMVAL_VALUE, ev.value, 0);
     if let Some(ut) = union_type {
         b.push_slot_always(ENUMVAL_UNION_TYPE, ut);
     }
@@ -393,19 +370,19 @@ fn write_enum_val(
     b.end_table(start)
 }
 
-fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum, maps: &IndexMaps<'_>) -> TOff {
-    let fq_name = fully_qualified_enum_name(e);
+fn write_resolved_enum(b: &mut FlatBufferBuilder<'_>, e: &ResolvedEnum, maps: &IndexMaps<'_>) -> TOff {
+    let fq_name = fq_resolved_enum_name(e);
     let name = b.create_string(&fq_name);
 
-    let mut sorted_vals: Vec<&schema::EnumVal> = e.values.iter().collect();
-    sorted_vals.sort_by_key(|v| v.value.unwrap_or(0));
+    let mut sorted_vals: Vec<&ResolvedEnumVal> = e.values.iter().collect();
+    sorted_vals.sort_by_key(|v| v.value);
     let val_offs: Vec<TOff> = sorted_vals
         .iter()
-        .map(|v| write_enum_val(b, v, maps))
+        .map(|v| write_resolved_enum_val(b, v, maps))
         .collect();
     let values_vec = b.create_vector(&val_offs);
 
-    let underlying = e.underlying_type.as_ref().map(|t| write_type(b, t, maps));
+    let underlying = write_resolved_type(b, &e.underlying_type, maps);
     let attrs = e.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
     let doc = e.documentation.as_ref().and_then(|d| write_doc_vec(b, d));
     let decl_file = e.declaration_file.as_deref().map(|s| b.create_string(s));
@@ -414,9 +391,7 @@ fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum, maps: &IndexMaps<
     b.push_slot_always(ENUM_NAME, name);
     b.push_slot_always(ENUM_VALUES, values_vec);
     b.push_slot::<bool>(ENUM_IS_UNION, e.is_union, false);
-    if let Some(ut) = underlying {
-        b.push_slot_always(ENUM_UNDERLYING_TYPE, ut);
-    }
+    b.push_slot_always(ENUM_UNDERLYING_TYPE, underlying);
     if let Some(a) = attrs {
         b.push_slot_always(ENUM_ATTRIBUTES, a);
     }
@@ -429,9 +404,9 @@ fn write_enum(b: &mut FlatBufferBuilder<'_>, e: &schema::Enum, maps: &IndexMaps<
     b.end_table(start)
 }
 
-fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field, maps: &IndexMaps<'_>) -> TOff {
-    let name = field.name.as_deref().map(|s| b.create_string(s));
-    let field_type = field.type_.as_ref().map(|t| write_type(b, t, maps));
+fn write_resolved_field(b: &mut FlatBufferBuilder<'_>, field: &ResolvedField, maps: &IndexMaps<'_>) -> TOff {
+    let name = b.create_string(&field.name);
+    let field_type = write_resolved_type(b, &field.type_, maps);
     let attrs = field
         .attributes
         .as_ref()
@@ -442,21 +417,13 @@ fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field, maps: &Inde
         .and_then(|d| write_doc_vec(b, d));
 
     let start = b.start_table();
-    if let Some(n) = name {
-        b.push_slot_always(FIELD_NAME, n);
-    }
-    if let Some(t) = field_type {
-        b.push_slot_always(FIELD_TYPE, t);
-    }
+    b.push_slot_always(FIELD_NAME, name);
+    b.push_slot_always(FIELD_TYPE, field_type);
     b.push_slot::<u16>(FIELD_ID, field.id.unwrap_or(0) as u16, 0);
     b.push_slot::<u16>(FIELD_OFFSET, field.offset.unwrap_or(0) as u16, 0);
     b.push_slot::<i64>(FIELD_DEFAULT_INTEGER, field.default_integer.unwrap_or(0), 0);
     b.push_slot::<f64>(FIELD_DEFAULT_REAL, field.default_real.unwrap_or(0.0), 0.0);
-    b.push_slot::<bool>(
-        FIELD_DEPRECATED,
-        field.is_deprecated,
-        false,
-    );
+    b.push_slot::<bool>(FIELD_DEPRECATED, field.is_deprecated, false);
     b.push_slot::<bool>(FIELD_REQUIRED, field.is_required, false);
     b.push_slot::<bool>(FIELD_KEY, field.is_key, false);
     if let Some(a) = attrs {
@@ -471,21 +438,16 @@ fn write_field(b: &mut FlatBufferBuilder<'_>, field: &schema::Field, maps: &Inde
     b.end_table(start)
 }
 
-fn write_object(b: &mut FlatBufferBuilder<'_>, obj: &schema::Object, maps: &IndexMaps<'_>) -> TOff {
-    let fq_name = fully_qualified_obj_name(obj);
+fn write_resolved_object(b: &mut FlatBufferBuilder<'_>, obj: &ResolvedObject, maps: &IndexMaps<'_>) -> TOff {
+    let fq_name = fq_resolved_obj_name(obj);
     let name = b.create_string(&fq_name);
 
     // Fields sorted by name (reflection.fbs requires sorted fields)
-    let mut sorted_fields: Vec<&schema::Field> = obj.fields.iter().collect();
-    sorted_fields.sort_by(|a, b| {
-        a.name
-            .as_deref()
-            .unwrap_or("")
-            .cmp(b.name.as_deref().unwrap_or(""))
-    });
+    let mut sorted_fields: Vec<&ResolvedField> = obj.fields.iter().collect();
+    sorted_fields.sort_by(|a, b| a.name.cmp(&b.name));
     let field_offs: Vec<TOff> = sorted_fields
         .iter()
-        .map(|f| write_field(b, f, maps))
+        .map(|f| write_resolved_field(b, f, maps))
         .collect();
     let fields_vec = b.create_vector(&field_offs);
 
@@ -511,19 +473,15 @@ fn write_object(b: &mut FlatBufferBuilder<'_>, obj: &schema::Object, maps: &Inde
     b.end_table(start)
 }
 
-fn write_rpc_call(
+fn write_resolved_rpc_call(
     b: &mut FlatBufferBuilder<'_>,
-    call: &schema::RpcCall,
-    objects: &[schema::Object],
+    call: &ResolvedRpcCall,
+    objects: &[ResolvedObject],
     maps: &IndexMaps<'_>,
 ) -> TOff {
-    let name = call.name.as_deref().map(|s| b.create_string(s));
-    let request = call
-        .request_index
-        .map(|idx| write_object(b, &objects[idx as usize], maps));
-    let response = call
-        .response_index
-        .map(|idx| write_object(b, &objects[idx as usize], maps));
+    let name = b.create_string(&call.name);
+    let request = write_resolved_object(b, &objects[call.request_index], maps);
+    let response = write_resolved_object(b, &objects[call.response_index], maps);
     let attrs = call.attributes.as_ref().and_then(|a| write_attrs_vec(b, a));
     let doc = call
         .documentation
@@ -531,15 +489,9 @@ fn write_rpc_call(
         .and_then(|d| write_doc_vec(b, d));
 
     let start = b.start_table();
-    if let Some(n) = name {
-        b.push_slot_always(RPCCALL_NAME, n);
-    }
-    if let Some(r) = request {
-        b.push_slot_always(RPCCALL_REQUEST, r);
-    }
-    if let Some(r) = response {
-        b.push_slot_always(RPCCALL_RESPONSE, r);
-    }
+    b.push_slot_always(RPCCALL_NAME, name);
+    b.push_slot_always(RPCCALL_REQUEST, request);
+    b.push_slot_always(RPCCALL_RESPONSE, response);
     if let Some(a) = attrs {
         b.push_slot_always(RPCCALL_ATTRIBUTES, a);
     }
@@ -549,19 +501,19 @@ fn write_rpc_call(
     b.end_table(start)
 }
 
-fn write_service(
+fn write_resolved_service(
     b: &mut FlatBufferBuilder<'_>,
-    svc: &schema::Service,
-    objects: &[schema::Object],
+    svc: &ResolvedService,
+    objects: &[ResolvedObject],
     maps: &IndexMaps<'_>,
 ) -> TOff {
-    let fq_name = fully_qualified_svc_name(svc);
+    let fq_name = fq_resolved_svc_name(svc);
     let name = b.create_string(&fq_name);
 
     let call_offs: Vec<TOff> = svc
         .calls
         .iter()
-        .map(|c| write_rpc_call(b, c, objects, maps))
+        .map(|c| write_resolved_rpc_call(b, c, objects, maps))
         .collect();
     let calls_vec = if call_offs.is_empty() {
         None
@@ -616,6 +568,20 @@ fn write_schema_file(b: &mut FlatBufferBuilder<'_>, sf: &schema::SchemaFile) -> 
 // Vector helpers for attributes and documentation
 // ---------------------------------------------------------------------------
 
+fn write_key_value(b: &mut FlatBufferBuilder<'_>, kv: &schema::KeyValue) -> TOff {
+    let key = kv.key.as_deref().map(|s| b.create_string(s));
+    let value = kv.value.as_deref().map(|s| b.create_string(s));
+
+    let start = b.start_table();
+    if let Some(k) = key {
+        b.push_slot_always(KV_KEY, k);
+    }
+    if let Some(v) = value {
+        b.push_slot_always(KV_VALUE, v);
+    }
+    b.end_table(start)
+}
+
 /// Serialize an Attributes list into a vector of KeyValue tables.
 /// Returns None if there are no entries.
 fn write_attrs_vec<'a>(
@@ -651,16 +617,16 @@ fn write_doc_vec<'a>(
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn obj_name(obj: &schema::Object) -> &str {
-    obj.name.as_deref().unwrap_or("")
+fn resolved_obj_name(obj: &ResolvedObject) -> &str {
+    &obj.name
 }
 
-fn enum_name(e: &schema::Enum) -> &str {
-    e.name.as_deref().unwrap_or("")
+fn resolved_enum_name(e: &ResolvedEnum) -> &str {
+    &e.name
 }
 
-fn fully_qualified_obj_name(obj: &schema::Object) -> String {
-    let name = obj.name.as_deref().unwrap_or("");
+fn fq_resolved_obj_name(obj: &ResolvedObject) -> String {
+    let name = &obj.name;
     match &obj.namespace {
         Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
             format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
@@ -669,8 +635,8 @@ fn fully_qualified_obj_name(obj: &schema::Object) -> String {
     }
 }
 
-fn fully_qualified_enum_name(e: &schema::Enum) -> String {
-    let name = e.name.as_deref().unwrap_or("");
+fn fq_resolved_enum_name(e: &ResolvedEnum) -> String {
+    let name = &e.name;
     match &e.namespace {
         Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
             format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
@@ -679,9 +645,23 @@ fn fully_qualified_enum_name(e: &schema::Enum) -> String {
     }
 }
 
-fn fully_qualified_svc_name(svc: &schema::Service) -> String {
-    let name = svc.name.as_deref().unwrap_or("");
+fn fq_resolved_svc_name(svc: &ResolvedService) -> String {
+    let name = &svc.name;
     match &svc.namespace {
+        Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
+            format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
+        }
+        _ => name.to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy helpers (used by deserialization which builds parsed Schema types)
+// ---------------------------------------------------------------------------
+
+fn fully_qualified_obj_name(obj: &schema::Object) -> String {
+    let name = obj.name.as_deref().unwrap_or("");
+    match &obj.namespace {
         Some(ns) if !ns.namespace.as_deref().unwrap_or("").is_empty() => {
             format!("{}.{}", ns.namespace.as_deref().unwrap_or(""), name)
         }
@@ -1102,7 +1082,16 @@ mod tests {
 
     #[test]
     fn test_serialize_empty_schema() {
-        let schema = schema::Schema::new();
+        let schema = ResolvedSchema {
+            objects: vec![],
+            enums: vec![],
+            file_ident: None,
+            file_ext: None,
+            root_table_index: None,
+            services: vec![],
+            advanced_features: schema::AdvancedFeatures(0),
+            fbs_files: vec![],
+        };
         let buf = serialize_schema(&schema);
         assert!(buf.len() >= 8, "buffer too small: {} bytes", buf.len());
         assert_eq!(&buf[4..8], b"BFBS", "missing BFBS file identifier");
@@ -1110,23 +1099,53 @@ mod tests {
 
     #[test]
     fn test_serialize_minimal_schema_with_table() {
-        let mut schema = schema::Schema::new();
-        let mut obj = schema::Object::new();
-        obj.name = Some("Monster".to_string());
+        let obj = ResolvedObject {
+            name: "Monster".to_string(),
+            fields: vec![ResolvedField {
+                name: "hp".to_string(),
+                type_: ResolvedType {
+                    base_type: schema::BaseType::BASE_TYPE_SHORT,
+                    base_size: Some(2),
+                    element_size: None,
+                    element_type: None,
+                    index: None,
+                    fixed_length: None,
+                },
+                id: Some(0),
+                offset: None,
+                default_integer: None,
+                default_real: None,
+                default_string: None,
+                is_deprecated: false,
+                is_required: false,
+                is_key: false,
+                is_optional: false,
+                attributes: None,
+                documentation: None,
+                padding: None,
+                is_offset_64: false,
+                span: None,
+            }],
+            is_struct: false,
+            min_align: None,
+            byte_size: None,
+            attributes: None,
+            documentation: None,
+            declaration_file: None,
+            namespace: None,
+            span: None,
+        };
 
-        let mut field = schema::Field::new();
-        field.name = Some("hp".to_string());
-        field.id = Some(0);
-        field.type_ = Some(schema::Type {
-            base_type: Some(schema::BaseType::BASE_TYPE_SHORT),
-            base_size: Some(2),
-            ..Default::default()
-        });
-        obj.fields.push(field);
-
-        schema.objects.push(obj.clone());
-        schema.root_table = Some(obj);
-        schema.root_table_index = Some(0);
+        let schema = ResolvedSchema {
+            objects: vec![obj],
+            enums: vec![],
+            file_ident: None,
+            file_ext: None,
+            root_table_index: Some(0),
+            services: vec![],
+            advanced_features: schema::AdvancedFeatures(0),
+            fbs_files: vec![],
+        };
 
         let buf = serialize_schema(&schema);
         assert_eq!(&buf[4..8], b"BFBS");

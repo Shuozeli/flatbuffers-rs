@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/nested_flatbuffer_field.fbs",
-              "line": 1,
-              "col": 17
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -37,12 +32,7 @@
             "base_type": "BASE_TYPE_VECTOR",
             "base_size": 4,
             "element_size": 1,
-            "element": "BASE_TYPE_U_BYTE",
-            "span": {
-              "file": "testdata/golden/nested_flatbuffer_field.fbs",
-              "line": 2,
-              "col": 20
-            }
+            "element": "BASE_TYPE_U_BYTE"
           },
           "id": 0,
           "attributes": {

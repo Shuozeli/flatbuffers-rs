@@ -7,12 +7,7 @@
           "name": "a",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/valid_same_name_different_ns.fbs",
-              "line": 3,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -38,12 +33,7 @@
           "name": "b",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/valid_same_name_different_ns.fbs",
-              "line": 8,
-              "col": 6
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {

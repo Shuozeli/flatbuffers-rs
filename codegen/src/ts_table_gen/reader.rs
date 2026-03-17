@@ -1,4 +1,5 @@
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use crate::code_writer::CodeWriter;
 use crate::ts_type_map;
@@ -37,14 +38,12 @@ pub(super) fn gen_get_size_prefixed_root_as(w: &mut CodeWriter, name: &str) {
 /// Generate a field accessor.
 pub(super) fn gen_field_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    _obj: &schema::Object,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    _obj: &ResolvedObject,
+    field: &ResolvedField,
 ) {
-    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
-    let bt = type_map::get_base_type(field.type_.as_ref());
+    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
+    let bt = type_map::get_base_type(&field.type_);
     let slot = field_id(field).unwrap();
     let vt_offset = 4 + 2 * slot;
 
@@ -85,9 +84,9 @@ fn gen_scalar_accessor(
     w: &mut CodeWriter,
     fname: &str,
     bt: BaseType,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
 ) {
     let ts_type = ts_type_map::scalar_ts_type(bt);
     let read_method = ts_type_map::bb_read_method(bt);
@@ -121,15 +120,15 @@ fn gen_scalar_accessor(
 
 fn gen_enum_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
     bt: BaseType,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
     let enum_idx = field_type_index(field).unwrap();
     let enum_def = &schema.enums[enum_idx];
-    let enum_name = enum_def.name.as_deref().unwrap_or("number");
+    let enum_name = &enum_def.name;
     let read_method = ts_type_map::bb_read_method(bt);
 
     let default_val = helpers::scalar_default_value(field, bt, schema);
@@ -144,7 +143,7 @@ fn gen_enum_accessor(
     });
 }
 
-fn gen_string_accessor(w: &mut CodeWriter, fname: &str, field: &schema::Field, vt_offset: u32) {
+fn gen_string_accessor(w: &mut CodeWriter, fname: &str, field: &ResolvedField, vt_offset: u32) {
     let has_default = field.default_string.is_some();
 
     if has_default {
@@ -179,13 +178,13 @@ fn gen_string_accessor(w: &mut CodeWriter, fname: &str, field: &schema::Field, v
 
 fn gen_struct_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
+    let struct_name = &schema.objects[idx].name;
 
     w.block(
         &format!("{fname}(obj?:{struct_name}):{struct_name}|null"),
@@ -202,13 +201,13 @@ fn gen_struct_accessor(
 
 fn gen_table_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
+    let table_name = &schema.objects[idx].name;
 
     w.block(
         &format!("{fname}(obj?:{table_name}):{table_name}|null"),
@@ -225,13 +224,13 @@ fn gen_table_accessor(
 
 fn gen_union_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
     // Check if the union has string variants - use __union_with_string in that case
-    let has_string = type_map::get_index(field.type_.as_ref())
+    let has_string = field.type_.index
         .and_then(|idx| {
             if idx >= 0 {
                 Some(&schema.enums[idx as usize])
@@ -241,9 +240,10 @@ fn gen_union_accessor(
         })
         .map(|enum_def| {
             enum_def.values.iter().any(|val| {
-                let vname = val.name.as_deref().unwrap_or("");
-                vname != "NONE"
-                    && type_map::get_base_type(val.union_type.as_ref())
+                val.name != "NONE"
+                    && val.union_type.as_ref()
+                        .map(|t| t.base_type)
+                        .unwrap_or(BaseType::BASE_TYPE_NONE)
                         == BaseType::BASE_TYPE_STRING
             })
         })
@@ -273,12 +273,12 @@ fn gen_union_accessor(
 
 fn gen_vector_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
-    let et = type_map::get_element_type(field.type_.as_ref());
+    let et = type_map::get_element_type(&field.type_);
 
     match et {
         et if type_map::is_scalar(et) => {
@@ -311,9 +311,9 @@ fn gen_vector_accessor(
 
 fn gen_scalar_vector_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     et: BaseType,
     vt_offset: u32,
 ) {
@@ -324,11 +324,7 @@ fn gen_scalar_vector_accessor(
     // Check for enum element type
     let return_type = if type_map::has_enum_index(field) {
         let enum_idx = field_type_index(field).unwrap();
-        schema.enums[enum_idx]
-            .name
-            .as_deref()
-            .unwrap_or(ts_type)
-            .to_string()
+        schema.enums[enum_idx].name.clone()
     } else {
         ts_type.to_string()
     };
@@ -380,13 +376,13 @@ fn gen_string_vector_accessor(w: &mut CodeWriter, fname: &str, vt_offset: u32) {
 
 fn gen_table_vector_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
+    let table_name = &schema.objects[idx].name;
 
     w.block(
         &format!("{fname}(index: number, obj?:{table_name}):{table_name}|null"),
@@ -403,13 +399,13 @@ fn gen_table_vector_accessor(
 
 fn gen_struct_vector_accessor(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     fname: &str,
-    field: &schema::Field,
+    field: &ResolvedField,
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
+    let struct_name = &schema.objects[idx].name;
     let struct_size = obj_byte_size(&schema.objects[idx]).unwrap();
 
     w.block(
@@ -442,13 +438,11 @@ fn gen_union_vector_accessor(w: &mut CodeWriter, fname: &str, vt_offset: u32) {
 /// Generate field mutator for scalar table fields.
 pub(super) fn gen_field_mutator(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
 ) {
-    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
-    let bt = type_map::get_base_type(field.type_.as_ref());
+    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
+    let bt = type_map::get_base_type(&field.type_);
     let slot = field_id(field).unwrap();
     let vt_offset = 4 + 2 * slot;
 

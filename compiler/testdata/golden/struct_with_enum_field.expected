@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_with_enum_field.fbs",
-              "line": 4,
-              "col": 6
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_with_enum_field.fbs",
-              "line": 5,
-              "col": 6
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -44,12 +34,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/struct_with_enum_field.fbs",
-              "line": 6,
-              "col": 10
-            }
+            "index": 0
           },
           "offset": 8,
           "padding": 3,
@@ -77,12 +62,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/struct_with_enum_field.fbs",
-              "line": 10,
-              "col": 11
-            }
+            "index": 0
           },
           "id": 0,
           "span": {

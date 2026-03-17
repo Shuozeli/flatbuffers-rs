@@ -7,12 +7,7 @@
           "name": "value",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/file_extension_valid.fbs",
-              "line": 4,
-              "col": 20
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -38,12 +33,7 @@
         "name": "value",
         "type": {
           "base_type": "BASE_TYPE_INT",
-          "base_size": 4,
-          "span": {
-            "file": "testdata/golden/file_extension_valid.fbs",
-            "line": 4,
-            "col": 20
-          }
+          "base_size": 4
         },
         "id": 0,
         "span": {

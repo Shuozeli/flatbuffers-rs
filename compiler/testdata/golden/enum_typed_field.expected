@@ -8,12 +8,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/enum_typed_field.fbs",
-              "line": 4,
-              "col": 9
-            }
+            "index": 0
           },
           "id": 0,
           "span": {

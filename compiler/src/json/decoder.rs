@@ -4,7 +4,8 @@
 //! producing a `serde_json::Value` tree. No intermediate representation.
 
 use flatc_rs_schema::buf_reader::BufReader;
-use flatc_rs_schema::{BaseType, Enum, Field, Object, Schema, Type};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType};
+use flatc_rs_schema::BaseType;
 use serde_json::{json, Map, Value};
 
 use super::error::{is_scalar, scalar_byte_size, JsonError};
@@ -43,7 +44,7 @@ impl Default for JsonOptions {
 /// `opts` controls output formatting.
 pub fn binary_to_json(
     buf: &[u8],
-    schema: &Schema,
+    schema: &ResolvedSchema,
     root_type: &str,
     opts: &JsonOptions,
 ) -> Result<Value, JsonError> {
@@ -58,21 +59,20 @@ pub fn binary_to_json(
 
 struct Decoder<'a> {
     reader: BufReader<'a>,
-    schema: &'a Schema,
+    schema: &'a ResolvedSchema,
     opts: &'a JsonOptions,
     object_index: std::collections::HashMap<&'a str, usize>,
 }
 
 impl<'a> Decoder<'a> {
-    fn new(reader: BufReader<'a>, schema: &'a Schema, opts: &'a JsonOptions) -> Self {
+    fn new(reader: BufReader<'a>, schema: &'a ResolvedSchema, opts: &'a JsonOptions) -> Self {
         let mut object_index = std::collections::HashMap::new();
         for (i, obj) in schema.objects.iter().enumerate() {
-            if let Some(ref name) = obj.name {
-                object_index.entry(name.as_str()).or_insert(i);
-                if let Some(short) = name.rsplit('.').next() {
-                    if short != name.as_str() {
-                        object_index.entry(short).or_insert(i);
-                    }
+            let name = obj.name.as_str();
+            object_index.entry(name).or_insert(i);
+            if let Some(short) = name.rsplit('.').next() {
+                if short != name {
+                    object_index.entry(short).or_insert(i);
                 }
             }
         }
@@ -107,22 +107,9 @@ impl<'a> Decoder<'a> {
 
     fn find_object_index(&self, name: &str) -> Result<usize, JsonError> {
         // If the name matches the schema's root_table, prefer using root_table_index
-        // (handles name collisions like MyGame.Example2.Monster vs MyGame.Example.Monster)
         if let Some(idx) = self.schema.root_table_index {
-            if self.schema.objects[idx].name.as_deref() == Some(name) {
+            if self.schema.objects[idx].name == name {
                 return Ok(idx);
-            }
-        } else if let Some(ref rt) = self.schema.root_table {
-            if rt.name.as_deref() == Some(name) {
-                // Fallback: find by matching field count when index is not available
-                for (i, obj) in self.schema.objects.iter().enumerate() {
-                    if obj.name.as_deref() == Some(name)
-                        && obj.fields.len() == rt.fields.len()
-                        && obj.is_struct == rt.is_struct
-                    {
-                        return Ok(i);
-                    }
-                }
             }
         }
 
@@ -134,7 +121,7 @@ impl<'a> Decoder<'a> {
             })
     }
 
-    fn get_object(&self, idx: usize) -> Result<&Object, JsonError> {
+    fn get_object(&self, idx: usize) -> Result<&ResolvedObject, JsonError> {
         self.schema
             .objects
             .get(idx)
@@ -144,7 +131,7 @@ impl<'a> Decoder<'a> {
             })
     }
 
-    fn get_enum(&self, idx: usize) -> Result<&Enum, JsonError> {
+    fn get_enum(&self, idx: usize) -> Result<&ResolvedEnum, JsonError> {
         self.schema
             .enums
             .get(idx)
@@ -152,10 +139,6 @@ impl<'a> Decoder<'a> {
                 index: idx,
                 count: self.schema.enums.len(),
             })
-    }
-
-    fn field_name(field: &Field) -> String {
-        field.name.clone().unwrap_or_else(|| "?".to_string())
     }
 
     // -------------------------------------------------------------------
@@ -173,7 +156,7 @@ impl<'a> Decoder<'a> {
         }
 
         let obj = self.get_object(obj_idx)?;
-        let fields: Vec<Field> = obj.fields.clone();
+        let fields: Vec<ResolvedField> = obj.fields.clone();
 
         // Read soffset to vtable
         let vtable_soffset = self.reader.read_i32_le(table_offset)?;
@@ -186,11 +169,8 @@ impl<'a> Decoder<'a> {
 
         // First pass: read _type fields (BASE_TYPE_U_TYPE)
         for field in &fields {
-            let ty = match field.type_.as_ref() {
-                Some(t) => t,
-                None => continue,
-            };
-            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            let ty = &field.type_;
+            let bt = ty.base_type;
             if bt != BaseType::BASE_TYPE_U_TYPE {
                 continue;
             }
@@ -208,8 +188,8 @@ impl<'a> Decoder<'a> {
 
             let field_data_offset = table_offset + field_offset_in_table;
             let val = self.reader.read_u8(field_data_offset)?;
-            let fname = Self::field_name(field);
-            let union_name = fname.strip_suffix("_type").unwrap_or(&fname).to_string();
+            let fname = &field.name;
+            let union_name = fname.strip_suffix("_type").unwrap_or(fname).to_string();
             union_type_values.insert(union_name, val);
         }
 
@@ -217,11 +197,8 @@ impl<'a> Decoder<'a> {
         let mut result = Map::new();
 
         for field in &fields {
-            let ty = match field.type_.as_ref() {
-                Some(t) => t,
-                None => continue,
-            };
-            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            let ty = &field.type_;
+            let bt = ty.base_type;
 
             let field_id = field.id.unwrap_or(0) as usize;
             let vtable_entry_offset = vtable_offset + 4 + field_id * 2;
@@ -233,7 +210,7 @@ impl<'a> Decoder<'a> {
             if field_offset_in_table == 0 {
                 // Field not present, skip (or output default if requested)
                 if self.opts.output_defaults {
-                    let fname = Self::field_name(field);
+                    let fname = field.name.clone();
                     if let Some(default) = self.default_value(field, bt, ty) {
                         result.insert(fname, default);
                     }
@@ -242,7 +219,7 @@ impl<'a> Decoder<'a> {
             }
 
             let field_data_offset = table_offset + field_offset_in_table;
-            let fname = Self::field_name(field);
+            let fname = field.name.clone();
 
             let value =
                 self.decode_field(field_data_offset, bt, ty, &fname, depth, &union_type_values)?;
@@ -263,7 +240,7 @@ impl<'a> Decoder<'a> {
         &self,
         offset: usize,
         bt: BaseType,
-        ty: &Type,
+        ty: &ResolvedType,
         fname: &str,
         depth: usize,
         union_type_values: &std::collections::HashMap<String, u8>,
@@ -391,18 +368,15 @@ impl<'a> Decoder<'a> {
         }
 
         let obj = self.get_object(obj_idx)?;
-        let fields: Vec<Field> = obj.fields.clone();
+        let fields: Vec<ResolvedField> = obj.fields.clone();
 
         let mut result = Map::new();
 
         for field in &fields {
-            let field_ty = match field.type_.as_ref() {
-                Some(t) => t,
-                None => continue,
-            };
-            let field_bt = field_ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            let field_ty = &field.type_;
+            let field_bt = field_ty.base_type;
             let field_offset = offset + field.offset.unwrap_or(0) as usize;
-            let fname = Self::field_name(field);
+            let fname = field.name.clone();
 
             match field_bt {
                 BaseType::BASE_TYPE_STRUCT => {
@@ -436,7 +410,7 @@ impl<'a> Decoder<'a> {
     fn decode_fixed_array(
         &self,
         offset: usize,
-        ty: &Type,
+        ty: &ResolvedType,
         depth: usize,
     ) -> Result<Value, JsonError> {
         let elem_bt = ty.element_type.unwrap_or(BaseType::BASE_TYPE_U_BYTE);
@@ -473,7 +447,7 @@ impl<'a> Decoder<'a> {
     // Vector decoding
     // -------------------------------------------------------------------
 
-    fn decode_vector(&self, vec_start: usize, ty: &Type, depth: usize) -> Result<Value, JsonError> {
+    fn decode_vector(&self, vec_start: usize, ty: &ResolvedType, depth: usize) -> Result<Value, JsonError> {
         let count = self.reader.read_u32_le(vec_start)? as usize;
         let data_start = vec_start + 4;
 
@@ -538,7 +512,7 @@ impl<'a> Decoder<'a> {
     fn decode_union_data(
         &self,
         offset: usize,
-        ty: &Type,
+        ty: &ResolvedType,
         discriminant: u8,
         depth: usize,
     ) -> Result<Value, JsonError> {
@@ -552,11 +526,11 @@ impl<'a> Decoder<'a> {
         let variant = enum_def
             .values
             .iter()
-            .find(|v| v.value == Some(discriminant as i64));
+            .find(|v| v.value == discriminant as i64);
 
         if let Some(variant) = variant {
             if let Some(ref union_type) = variant.union_type {
-                let variant_bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_TABLE);
+                let variant_bt = union_type.base_type;
                 let variant_idx = require_type_index(union_type, "union variant")?;
 
                 return match variant_bt {
@@ -586,7 +560,7 @@ impl<'a> Decoder<'a> {
         &self,
         offset: usize,
         bt: BaseType,
-        ty: &Type,
+        ty: &ResolvedType,
     ) -> Result<Value, JsonError> {
         match bt {
             BaseType::BASE_TYPE_BOOL => {
@@ -646,15 +620,13 @@ impl<'a> Decoder<'a> {
     // -------------------------------------------------------------------
 
     /// Convert an integer value to JSON, resolving enum names if applicable.
-    fn maybe_enum_value(&self, val: i64, ty: &Type) -> Value {
+    fn maybe_enum_value(&self, val: i64, ty: &ResolvedType) -> Value {
         if self.opts.output_enum_identifiers {
             if let Some(idx) = ty.index {
                 if idx >= 0 && (idx as usize) < self.schema.enums.len() {
                     let e = &self.schema.enums[idx as usize];
-                    if let Some(ev) = e.values.iter().find(|ev| ev.value == Some(val)) {
-                        if let Some(ref name) = ev.name {
-                            return Value::String(name.clone());
-                        }
+                    if let Some(ev) = e.values.iter().find(|ev| ev.value == val) {
+                        return Value::String(ev.name.clone());
                     }
                 }
             }
@@ -666,10 +638,8 @@ impl<'a> Decoder<'a> {
     fn enum_value_to_json(&self, val: i64, enum_idx: usize) -> Value {
         if self.opts.output_enum_identifiers {
             if let Some(e) = self.schema.enums.get(enum_idx) {
-                if let Some(ev) = e.values.iter().find(|ev| ev.value == Some(val)) {
-                    if let Some(ref name) = ev.name {
-                        return Value::String(name.clone());
-                    }
+                if let Some(ev) = e.values.iter().find(|ev| ev.value == val) {
+                    return Value::String(ev.name.clone());
                 }
             }
         }
@@ -677,7 +647,7 @@ impl<'a> Decoder<'a> {
     }
 
     /// Produce a default JSON value for a field type.
-    fn default_value(&self, field: &Field, bt: BaseType, ty: &Type) -> Option<Value> {
+    fn default_value(&self, field: &ResolvedField, bt: BaseType, ty: &ResolvedType) -> Option<Value> {
         // Use the field's default_integer / default_real if available,
         // otherwise use the type's zero value.
         match bt {
@@ -718,8 +688,8 @@ impl<'a> Decoder<'a> {
 // Free functions
 // ---------------------------------------------------------------------------
 
-/// Extract a non-negative type index from a `Type`, or return a `JsonError`.
-fn require_type_index(ty: &Type, context: &str) -> Result<usize, JsonError> {
+/// Extract a non-negative type index from a `ResolvedType`, or return a `JsonError`.
+fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, JsonError> {
     ty.index
         .filter(|&i| i >= 0)
         .map(|i| i as usize)

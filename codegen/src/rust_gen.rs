@@ -1,4 +1,4 @@
-use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::ResolvedSchema;
 
 use super::code_writer::CodeWriter;
 use super::enum_gen;
@@ -11,13 +11,13 @@ use super::{CodeGenError, CodeGenOptions};
 /// Main code generator. Holds a reference to the resolved schema and produces
 /// Rust source code compatible with the `flatbuffers` runtime crate.
 pub struct RustGenerator<'a> {
-    pub schema: &'a schema::Schema,
+    pub schema: &'a ResolvedSchema,
     pub w: CodeWriter,
     pub _opts: &'a CodeGenOptions,
 }
 
 impl<'a> RustGenerator<'a> {
-    pub fn new(schema: &'a schema::Schema, opts: &'a CodeGenOptions) -> Self {
+    pub fn new(schema: &'a ResolvedSchema, opts: &'a CodeGenOptions) -> Self {
         Self {
             schema,
             w: CodeWriter::new(),
@@ -111,12 +111,9 @@ impl<'a> RustGenerator<'a> {
     fn gen_root_type_functions(&mut self) {
         let root_table = match self.schema.root_table_index {
             Some(idx) => &self.schema.objects[idx],
-            None => match self.schema.root_table.as_ref() {
-                Some(rt) => rt,
-                None => return,
-            },
+            None => return,
         };
-        let name = root_table.name.as_deref().unwrap_or("");
+        let name = &root_table.name;
         if name.is_empty() {
             return;
         }

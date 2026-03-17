@@ -1,4 +1,4 @@
-use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::ResolvedSchema;
 
 use super::code_writer::CodeWriter;
 use super::namespace_tree::{self, NamespaceNode, TypeEntry};
@@ -9,13 +9,13 @@ use super::TsCodeGenOptions;
 
 /// Main TypeScript code generator.
 pub struct TsGenerator<'a> {
-    pub schema: &'a schema::Schema,
+    pub schema: &'a ResolvedSchema,
     pub w: CodeWriter,
     pub opts: &'a TsCodeGenOptions,
 }
 
 impl<'a> TsGenerator<'a> {
-    pub fn new(schema: &'a schema::Schema, opts: &'a TsCodeGenOptions) -> Self {
+    pub fn new(schema: &'a ResolvedSchema, opts: &'a TsCodeGenOptions) -> Self {
         Self {
             schema,
             w: CodeWriter::new(),

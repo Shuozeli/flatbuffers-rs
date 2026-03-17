@@ -7,12 +7,7 @@
           "name": "a",
           "type": {
             "base_type": "BASE_TYPE_BOOL",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 2,
-              "col": 6
-            }
+            "base_size": 1
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "b",
           "type": {
             "base_type": "BASE_TYPE_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 3,
-              "col": 6
-            }
+            "base_size": 1
           },
           "offset": 1,
           "span": {
@@ -43,12 +33,7 @@
           "name": "c",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 4,
-              "col": 6
-            }
+            "base_size": 2
           },
           "offset": 2,
           "span": {
@@ -61,12 +46,7 @@
           "name": "d",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 5,
-              "col": 6
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -79,12 +59,7 @@
           "name": "e",
           "type": {
             "base_type": "BASE_TYPE_LONG",
-            "base_size": 8,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 6,
-              "col": 6
-            }
+            "base_size": 8
           },
           "offset": 8,
           "span": {
@@ -97,12 +72,7 @@
           "name": "f",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 7,
-              "col": 6
-            }
+            "base_size": 4
           },
           "offset": 16,
           "padding": 4,
@@ -116,12 +86,7 @@
           "name": "g",
           "type": {
             "base_type": "BASE_TYPE_DOUBLE",
-            "base_size": 8,
-            "span": {
-              "file": "testdata/golden/struct_layout_all_sizes.fbs",
-              "line": 8,
-              "col": 6
-            }
+            "base_size": 8
           },
           "offset": 24,
           "span": {

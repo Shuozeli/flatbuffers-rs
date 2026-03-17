@@ -43,18 +43,18 @@ use crate::error::{AnalyzeError, Result};
 use crate::struct_layout;
 use crate::type_index::{TypeIndex, TypeRef};
 use flatc_rs_parser::{ParseOutput, ParserState};
-use flatc_rs_schema::{self as schema, Attributes, BaseType};
+use flatc_rs_schema::{self as schema, resolved::ResolvedSchema, Attributes, BaseType};
 
 /// Analyze a parsed schema, resolving type references, assigning enum values,
 /// computing struct layouts, and validating correctness.
 ///
-/// Returns a fully resolved `Schema` ready for code generation.
+/// Returns a fully resolved `ResolvedSchema` ready for code generation.
 ///
 /// # Errors
 ///
 /// Returns `AnalyzeError` if any validation step fails. Errors carry `Span`
 /// information (file, line, column) whenever available.
-pub fn analyze(output: ParseOutput) -> Result<schema::Schema> {
+pub fn analyze(output: ParseOutput) -> Result<ResolvedSchema> {
     let ParseOutput { mut schema, state } = output;
 
     // G3.20: Validate schema size limits to prevent OOM on malicious input
@@ -93,7 +93,10 @@ pub fn analyze(output: ParseOutput) -> Result<schema::Schema> {
         schema.root_table = Some(schema.objects[idx].clone());
     }
 
-    Ok(schema)
+    // Convert to resolved schema with non-optional guarantees.
+    let resolved = ResolvedSchema::try_from_parsed(&schema)
+        .map_err(|e| AnalyzeError::InternalError(e.to_string()))?;
+    Ok(resolved)
 }
 
 // ---------------------------------------------------------------------------
@@ -1286,50 +1289,41 @@ fn has_private_attr(attrs: Option<&Attributes>) -> bool {
 /// Matches C++ flatc `CheckPrivateLeak()`: for each struct/table, if it is NOT
 /// private but a field's type (enum or struct/table) IS private, that's an error.
 /// Similarly for union types: if a union is not private but a variant's struct is.
-pub fn check_private_leak(schema: &schema::Schema) -> Result<()> {
+pub fn check_private_leak(schema: &ResolvedSchema) -> Result<()> {
     // Check struct/table fields
     for obj in &schema.objects {
-        let obj_name = obj.name.as_deref().unwrap_or("");
+        let obj_name = &obj.name;
         let obj_is_private = has_private_attr(obj.attributes.as_ref());
 
         for field in &obj.fields {
-            if let Some(ref ty) = field.type_ {
-                let field_type_bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
-                match field_type_bt {
-                    BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                        if let Some(idx) = ty.index {
-                            if let Some(ref_obj) = schema.objects.get(idx as usize) {
-                                if !obj_is_private && has_private_attr(ref_obj.attributes.as_ref())
-                                {
-                                    return Err(AnalyzeError::PrivateLeak {
-                                        public_type: obj_name.to_string(),
-                                        private_type: ref_obj
-                                            .name
-                                            .as_deref()
-                                            .unwrap_or("")
-                                            .to_string(),
-                                    });
-                                }
+            let ty = &field.type_;
+            let field_type_bt = ty.base_type;
+            match field_type_bt {
+                BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                    if let Some(idx) = ty.index {
+                        if let Some(ref_obj) = schema.objects.get(idx as usize) {
+                            if !obj_is_private && has_private_attr(ref_obj.attributes.as_ref())
+                            {
+                                return Err(AnalyzeError::PrivateLeak {
+                                    public_type: obj_name.to_string(),
+                                    private_type: ref_obj.name.clone(),
+                                });
                             }
                         }
                     }
-                    _ => {
-                        // Check enum types via index
-                        if let Some(idx) = ty.index {
-                            if let Some(ref_enum) = schema.enums.get(idx as usize) {
-                                if !ref_enum.is_union
-                                    && !obj_is_private
-                                    && has_private_attr(ref_enum.attributes.as_ref())
-                                {
-                                    return Err(AnalyzeError::PrivateLeak {
-                                        public_type: obj_name.to_string(),
-                                        private_type: ref_enum
-                                            .name
-                                            .as_deref()
-                                            .unwrap_or("")
-                                            .to_string(),
-                                    });
-                                }
+                }
+                _ => {
+                    // Check enum types via index
+                    if let Some(idx) = ty.index {
+                        if let Some(ref_enum) = schema.enums.get(idx as usize) {
+                            if !ref_enum.is_union
+                                && !obj_is_private
+                                && has_private_attr(ref_enum.attributes.as_ref())
+                            {
+                                return Err(AnalyzeError::PrivateLeak {
+                                    public_type: obj_name.to_string(),
+                                    private_type: ref_enum.name.clone(),
+                                });
                             }
                         }
                     }
@@ -1343,19 +1337,19 @@ pub fn check_private_leak(schema: &schema::Schema) -> Result<()> {
         if !enum_def.is_union {
             continue;
         }
-        let enum_name = enum_def.name.as_deref().unwrap_or("");
+        let enum_name = &enum_def.name;
         let enum_is_private = has_private_attr(enum_def.attributes.as_ref());
 
         for val in &enum_def.values {
             if let Some(ref union_type) = val.union_type {
-                let bt = union_type.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+                let bt = union_type.base_type;
                 if bt == BaseType::BASE_TYPE_TABLE || bt == BaseType::BASE_TYPE_STRUCT {
                     if let Some(idx) = union_type.index {
                         if let Some(ref_obj) = schema.objects.get(idx as usize) {
                             if !enum_is_private && has_private_attr(ref_obj.attributes.as_ref()) {
                                 return Err(AnalyzeError::PrivateLeak {
                                     public_type: enum_name.to_string(),
-                                    private_type: ref_obj.name.as_deref().unwrap_or("").to_string(),
+                                    private_type: ref_obj.name.clone(),
                                 });
                             }
                         }

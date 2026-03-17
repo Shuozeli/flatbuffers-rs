@@ -7,12 +7,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-              "line": 3,
-              "col": 21
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "level",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-              "line": 3,
-              "col": 35
-            }
+            "base_size": 4
           },
           "id": 1,
           "span": {
@@ -56,12 +46,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-              "line": 4,
-              "col": 20
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -74,12 +59,7 @@
           "name": "hp",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-              "line": 4,
-              "col": 31
-            }
+            "base_size": 4
           },
           "id": 1,
           "span": {
@@ -105,12 +85,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-              "line": 5,
-              "col": 19
-            }
+            "base_size": 4
           },
           "id": 0,
           "span": {
@@ -123,12 +98,7 @@
           "name": "value",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-              "line": 5,
-              "col": 33
-            }
+            "base_size": 4
           },
           "id": 1,
           "span": {
@@ -155,12 +125,7 @@
         "name": "name",
         "type": {
           "base_type": "BASE_TYPE_STRING",
-          "base_size": 4,
-          "span": {
-            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-            "line": 3,
-            "col": 21
-          }
+          "base_size": 4
         },
         "id": 0,
         "span": {
@@ -173,12 +138,7 @@
         "name": "level",
         "type": {
           "base_type": "BASE_TYPE_INT",
-          "base_size": 4,
-          "span": {
-            "file": "testdata/golden/multiple_tables_same_namespace.fbs",
-            "line": 3,
-            "col": 35
-          }
+          "base_size": 4
         },
         "id": 1,
         "span": {

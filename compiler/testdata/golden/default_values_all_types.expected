@@ -7,12 +7,7 @@
           "name": "b",
           "type": {
             "base_type": "BASE_TYPE_BOOL",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 2,
-              "col": 5
-            }
+            "base_size": 1
           },
           "id": 0,
           "default_integer": 1,
@@ -26,12 +21,7 @@
           "name": "i8",
           "type": {
             "base_type": "BASE_TYPE_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 3,
-              "col": 6
-            }
+            "base_size": 1
           },
           "id": 1,
           "default_integer": -1,
@@ -45,12 +35,7 @@
           "name": "u8",
           "type": {
             "base_type": "BASE_TYPE_U_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 4,
-              "col": 6
-            }
+            "base_size": 1
           },
           "id": 2,
           "default_integer": 255,
@@ -64,12 +49,7 @@
           "name": "i16",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 5,
-              "col": 7
-            }
+            "base_size": 2
           },
           "id": 3,
           "default_integer": -1000,
@@ -83,12 +63,7 @@
           "name": "u16",
           "type": {
             "base_type": "BASE_TYPE_U_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 6,
-              "col": 7
-            }
+            "base_size": 2
           },
           "id": 4,
           "default_integer": 60000,
@@ -102,12 +77,7 @@
           "name": "i32",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 7,
-              "col": 7
-            }
+            "base_size": 4
           },
           "id": 5,
           "default_integer": -100000,
@@ -121,12 +91,7 @@
           "name": "u32",
           "type": {
             "base_type": "BASE_TYPE_U_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 8,
-              "col": 7
-            }
+            "base_size": 4
           },
           "id": 6,
           "default_integer": 3000000000,
@@ -140,12 +105,7 @@
           "name": "i64",
           "type": {
             "base_type": "BASE_TYPE_LONG",
-            "base_size": 8,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 9,
-              "col": 7
-            }
+            "base_size": 8
           },
           "id": 7,
           "default_integer": -9999999999,
@@ -159,12 +119,7 @@
           "name": "u64",
           "type": {
             "base_type": "BASE_TYPE_U_LONG",
-            "base_size": 8,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 10,
-              "col": 7
-            }
+            "base_size": 8
           },
           "id": 8,
           "default_integer": 18000000000,
@@ -178,12 +133,7 @@
           "name": "f32",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 11,
-              "col": 7
-            }
+            "base_size": 4
           },
           "id": 9,
           "default_real": 3.14,
@@ -197,12 +147,7 @@
           "name": "f64",
           "type": {
             "base_type": "BASE_TYPE_DOUBLE",
-            "base_size": 8,
-            "span": {
-              "file": "testdata/golden/default_values_all_types.fbs",
-              "line": 12,
-              "col": 7
-            }
+            "base_size": 8
           },
           "id": 10,
           "default_real": 2.718281828,

@@ -1,4 +1,5 @@
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::ResolvedObject;
+use flatc_rs_schema::{BaseType, Documentation};
 
 use super::code_writer::CodeWriter;
 use super::type_map;
@@ -268,7 +269,7 @@ pub fn escape_ts_keyword(name: &str) -> String {
 }
 
 /// Emit a JSDoc comment block if documentation is present.
-pub fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&schema::Documentation>) {
+pub fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&Documentation>) {
     let doc = match doc {
         Some(d) if !d.lines.is_empty() => d,
         _ => return,
@@ -285,8 +286,8 @@ pub fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&schema::Documentation>) 
 }
 
 /// Build FQN like "MyGame.Example.Monster".
-pub fn build_fqn(obj: &schema::Object) -> String {
-    let name = obj.name.as_deref().unwrap_or("");
+pub fn build_fqn(obj: &ResolvedObject) -> String {
+    let name = &obj.name;
     let ns = type_map::object_namespace(obj);
     if ns.is_empty() {
         name.to_string()

@@ -1,6 +1,7 @@
 use crate::field_type_index;
 use crate::type_map::{get_base_type, get_element_type, has_enum_index};
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedField, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use crate::type_map;
 use crate::CodeGenError;
@@ -22,8 +23,8 @@ pub(super) fn scalar_alignment_size(bt: BaseType) -> u32 {
 
 /// Get the Rust type string for a vector element.
 pub(super) fn vector_element_type(
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     element_bt: BaseType,
     lifetime: &str,
     current_ns: &str,
@@ -63,11 +64,11 @@ pub(super) fn vector_element_type(
 
 /// Get the type string for verifier field visitation.
 pub(super) fn verifier_type_str(
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    let bt = get_base_type(field.type_.as_ref());
+    let bt = get_base_type(&field.type_);
 
     match bt {
         bt if type_map::is_scalar(bt) => {
@@ -89,7 +90,7 @@ pub(super) fn verifier_type_str(
             Ok(format!("::flatbuffers::ForwardsUOffset<{tname}>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let element_bt = get_element_type(field.type_.as_ref());
+            let element_bt = get_element_type(&field.type_);
             let inner = vector_element_type(schema, field, element_bt, "'_", current_ns)?;
             Ok(format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>"))
         }
@@ -101,7 +102,7 @@ pub(super) fn verifier_type_str(
 }
 
 /// Get the scalar default value as a Rust expression.
-pub(super) fn scalar_default(field: &schema::Field, bt: BaseType) -> String {
+pub(super) fn scalar_default(field: &ResolvedField, bt: BaseType) -> String {
     if let Some(ref ds) = field.default_string {
         // Enum default handled elsewhere
         return ds.clone();
@@ -122,8 +123,8 @@ pub(super) fn scalar_default(field: &schema::Field, bt: BaseType) -> String {
 /// Get the Rust type for a scalar builder parameter.
 /// Returns (type_str, use_push_slot_with_default).
 pub(super) fn scalar_builder_type(
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     bt: BaseType,
     current_ns: &str,
 ) -> Result<(String, bool), CodeGenError> {
@@ -140,8 +141,8 @@ pub(super) fn scalar_builder_type(
 
 /// Get the default value string for a scalar builder push_slot call.
 pub(super) fn scalar_builder_default(
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     bt: BaseType,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
@@ -166,11 +167,11 @@ pub(super) fn scalar_builder_default(
 
 /// Get the Rust type for an Args struct field.
 pub(super) fn args_field_type(
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    let bt = get_base_type(field.type_.as_ref());
+    let bt = get_base_type(&field.type_);
     let is_optional = field.is_optional;
 
     match bt {
@@ -199,7 +200,7 @@ pub(super) fn args_field_type(
             Ok(format!("Option<::flatbuffers::WIPOffset<{tname}<'a>>>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let element_bt = get_element_type(field.type_.as_ref());
+            let element_bt = get_element_type(&field.type_);
             let inner = vector_element_type(schema, field, element_bt, "'a", current_ns)?;
             Ok(format!("Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, {inner}>>>"))
         }
@@ -212,11 +213,11 @@ pub(super) fn args_field_type(
 
 /// Get the default value for an Args struct field.
 pub(super) fn args_field_default(
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    let bt = get_base_type(field.type_.as_ref());
+    let bt = get_base_type(&field.type_);
 
     match bt {
         bt if type_map::is_scalar(bt) => {
@@ -232,7 +233,7 @@ pub(super) fn args_field_default(
 
 /// Extract the `nested_flatbuffer` attribute value from a field, if present.
 /// The value is the type name of the nested table (e.g., "Monster").
-pub(super) fn get_nested_flatbuffer_attr(field: &schema::Field) -> Option<String> {
+pub(super) fn get_nested_flatbuffer_attr(field: &ResolvedField) -> Option<String> {
     field.attributes.as_ref().and_then(|attrs| {
         attrs.entries.iter().find_map(|e| {
             if e.key.as_deref() == Some("nested_flatbuffer") {
@@ -248,15 +249,15 @@ pub(super) fn get_nested_flatbuffer_attr(field: &schema::Field) -> Option<String
 }
 
 /// Find a table in the schema by its short name (not FQN).
-pub(super) fn find_table_by_name(schema: &schema::Schema, name: &str) -> Option<usize> {
+pub(super) fn find_table_by_name(schema: &ResolvedSchema, name: &str) -> Option<usize> {
     schema
         .objects
         .iter()
-        .position(|obj| !obj.is_struct && obj.name.as_deref() == Some(name))
+        .position(|obj| !obj.is_struct && obj.name == name)
 }
 
 /// Check if a field has the `key` attribute.
-pub(super) fn has_key_attribute(field: &schema::Field) -> bool {
+pub(super) fn has_key_attribute(field: &ResolvedField) -> bool {
     field.attributes.as_ref().is_some_and(|attrs| {
         attrs
             .entries
@@ -266,15 +267,15 @@ pub(super) fn has_key_attribute(field: &schema::Field) -> bool {
 }
 
 /// Check if a field's type is a union.
-pub(super) fn is_union_field(field: &schema::Field) -> bool {
-    get_base_type(field.type_.as_ref()) == BaseType::BASE_TYPE_UNION
+pub(super) fn is_union_field(field: &ResolvedField) -> bool {
+    get_base_type(&field.type_) == BaseType::BASE_TYPE_UNION
 }
 
 /// Check if a field is a union type discriminator (the `_type` field for a union).
 /// Returns false if the field type index cannot be resolved (should not happen
 /// after analyzer validation).
-pub(super) fn is_union_type_field(schema: &schema::Schema, field: &schema::Field) -> bool {
-    let bt = get_base_type(field.type_.as_ref());
+pub(super) fn is_union_type_field(schema: &ResolvedSchema, field: &ResolvedField) -> bool {
+    let bt = get_base_type(&field.type_);
     if !type_map::is_scalar(bt) {
         return false;
     }
@@ -292,13 +293,13 @@ pub(super) fn is_union_type_field(schema: &schema::Schema, field: &schema::Field
 }
 
 /// Check if a field is required (explicitly or implicitly as a string key).
-pub(super) fn is_field_required(field: &schema::Field) -> bool {
+pub(super) fn is_field_required(field: &ResolvedField) -> bool {
     if field.is_required {
         return true;
     }
     // String key fields are implicitly required (C++ flatc behavior)
     if field.is_key {
-        let bt = get_base_type(field.type_.as_ref());
+        let bt = get_base_type(&field.type_);
         if bt == BaseType::BASE_TYPE_STRING {
             return true;
         }

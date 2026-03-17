@@ -1,4 +1,5 @@
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use crate::code_writer::CodeWriter;
 use crate::ts_type_map;
@@ -7,7 +8,7 @@ use crate::{field_id, field_type_index, obj_byte_size};
 
 use super::helpers;
 
-pub(super) fn gen_start_method(w: &mut CodeWriter, obj: &schema::Object, name: &str) {
+pub(super) fn gen_start_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let field_count = obj.fields.len();
     w.block(
         &format!("static start{name}(builder:flatbuffers.Builder)"),
@@ -19,18 +20,14 @@ pub(super) fn gen_start_method(w: &mut CodeWriter, obj: &schema::Object, name: &
 
 pub(super) fn gen_add_method(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    _obj: &schema::Object,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    _obj: &ResolvedObject,
+    field: &ResolvedField,
     _table_name: &str,
 ) {
-    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
-    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
-    let bt = type_map::get_base_type(field.type_.as_ref());
+    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
+    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
+    let bt = type_map::get_base_type(&field.type_);
     let slot = field_id(field).unwrap();
 
     match bt {
@@ -118,13 +115,11 @@ pub(super) fn gen_add_method(
 
 pub(super) fn gen_vector_helpers(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
 ) {
-    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
-    let et = type_map::get_element_type(field.type_.as_ref());
+    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
+    let et = type_map::get_element_type(&field.type_);
 
     if type_map::is_scalar(et) {
         // createXxxVector for scalar types
@@ -179,7 +174,7 @@ pub(super) fn gen_vector_helpers(
     );
 }
 
-pub(super) fn gen_end_method(w: &mut CodeWriter, obj: &schema::Object, name: &str) {
+pub(super) fn gen_end_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     w.block(
         &format!("static end{name}(builder:flatbuffers.Builder):flatbuffers.Offset"),
         |w| {
@@ -189,7 +184,7 @@ pub(super) fn gen_end_method(w: &mut CodeWriter, obj: &schema::Object, name: &st
                 if field.is_required {
                     let slot = field_id(field).unwrap();
                     let vt_offset = 4 + 2 * slot;
-                    let fname = field.name.as_deref().unwrap_or("");
+                    let fname = &field.name;
                     w.line(&format!(
                         "builder.requiredField(offset, {vt_offset}); // {fname}"
                     ));
@@ -202,8 +197,8 @@ pub(super) fn gen_end_method(w: &mut CodeWriter, obj: &schema::Object, name: &st
 
 pub(super) fn gen_create_fn(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
     name: &str,
 ) {
     // Build parameter list (skip deprecated fields)
@@ -212,10 +207,8 @@ pub(super) fn gen_create_fn(
         .iter()
         .filter(|f| !f.is_deprecated)
         .map(|f| {
-            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
-                f.name.as_deref().unwrap_or(""),
-            ));
-            let bt = type_map::get_base_type(f.type_.as_ref());
+            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&f.name));
+            let bt = type_map::get_base_type(&f.type_);
             let is_optional = f.is_optional;
             let param_type = helpers::create_fn_param_type(schema, f, bt);
             if is_optional && type_map::is_scalar(bt) {
@@ -248,13 +241,9 @@ pub(super) fn gen_create_fn(
                 if field.is_deprecated {
                     continue;
                 }
-                let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
-                    field.name.as_deref().unwrap_or(""),
-                ));
-                let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(
-                    field.name.as_deref().unwrap_or(""),
-                ));
-                let bt = type_map::get_base_type(field.type_.as_ref());
+                let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
+                let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
+                let bt = type_map::get_base_type(&field.type_);
                 let is_optional = field.is_optional;
 
                 match bt {

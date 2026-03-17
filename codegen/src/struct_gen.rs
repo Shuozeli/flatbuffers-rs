@@ -1,15 +1,16 @@
 use super::type_map::{escape_keyword, get_base_type, get_element_type, has_enum_index};
-use super::{field_offset, field_type, field_type_index, obj_byte_size, obj_min_align, type_index};
-use flatc_rs_schema::{self as schema, BaseType};
+use super::{field_offset, field_type_index, obj_byte_size, obj_min_align, type_index};
+use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use super::code_writer::CodeWriter;
 use super::type_map;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
 
 /// Generate Rust code for the struct at `schema.objects[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
+pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, opts: &CodeGenOptions) -> Result<(), CodeGenError> {
     let obj = &schema.objects[index];
-    let name = obj.name.as_deref().unwrap_or("");
+    let name = &obj.name;
     let byte_size = obj_byte_size(obj)?;
     let min_align = obj_min_align(obj)?;
 
@@ -37,7 +38,7 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
             |w| {
                 w.line(&format!("let mut s = f.debug_struct(\"{name}\");"));
                 for field in &obj.fields {
-                    let fname = field.name.as_deref().unwrap_or("");
+                    let fname = &field.name;
                     let accessor = escape_keyword(&type_map::to_snake_case(fname));
                     w.line(&format!("s.field(\"{fname}\", &self.{accessor}());"));
                 }
@@ -56,7 +57,7 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
                     w.line("use ::serde::ser::SerializeStruct;");
                     w.line(&format!("let mut s = serializer.serialize_struct(\"{name}\", {n})?;"));
                     for field in &obj.fields {
-                        let fname = field.name.as_deref().unwrap_or("");
+                        let fname = &field.name;
                         let accessor = type_map::to_snake_case(fname);
                         w.line(&format!("s.serialize_field(\"{fname}\", &self.{accessor}())?;"));
                     }
@@ -180,7 +181,7 @@ pub fn generate(w: &mut CodeWriter, schema: &schema::Schema, index: usize, opts:
 }
 
 /// Generate the `new(...)` constructor.
-fn gen_constructor(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Object) -> Result<(), CodeGenError> {
+fn gen_constructor(w: &mut CodeWriter, schema: &ResolvedSchema, obj: &ResolvedObject) -> Result<(), CodeGenError> {
     if obj.fields.is_empty() {
         return Ok(());
     }
@@ -190,8 +191,8 @@ fn gen_constructor(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Ob
         .fields
         .iter()
         .map(|f| {
-            let fname = escape_keyword(&type_map::to_snake_case(f.name.as_deref().unwrap_or("")));
-            let bt = get_base_type(f.type_.as_ref());
+            let fname = escape_keyword(&type_map::to_snake_case(&f.name));
+            let bt = get_base_type(&f.type_);
             if bt == BaseType::BASE_TYPE_ARRAY {
                 let (elem_type_str, fixed_len) = array_element_info(schema, f)?;
                 Ok(format!("{fname}: &[{elem_type_str}; {fixed_len}]"))
@@ -209,9 +210,7 @@ fn gen_constructor(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Ob
     w.block(&format!("pub fn new({}) -> Self", params.join(", ")), |w| {
         w.line(&format!("let mut s = Self([0; {byte_size}]);"));
         for field in &obj.fields {
-            let fname = escape_keyword(&type_map::to_snake_case(
-                field.name.as_deref().unwrap_or(""),
-            ));
+            let fname = escape_keyword(&type_map::to_snake_case(&field.name));
             w.line(&format!("s.set_{fname}({fname});"));
         }
         w.line("s");
@@ -220,13 +219,11 @@ fn gen_constructor(w: &mut CodeWriter, schema: &schema::Schema, obj: &schema::Ob
 }
 
 /// Generate a getter for a struct field.
-fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema::Field) -> Result<(), CodeGenError> {
-    let fname = escape_keyword(&type_map::to_snake_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
+fn gen_field_getter(w: &mut CodeWriter, schema: &ResolvedSchema, field: &ResolvedField) -> Result<(), CodeGenError> {
+    let fname = escape_keyword(&type_map::to_snake_case(&field.name));
     let offset = field_offset(field)?;
 
-    let bt = get_base_type(field.type_.as_ref());
+    let bt = get_base_type(&field.type_);
 
     // Array fields return ::flatbuffers::Array<'a, T, N>
     if bt == BaseType::BASE_TYPE_ARRAY {
@@ -249,7 +246,7 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     // Struct fields inside structs are read via nested struct accessor
     if bt == BaseType::BASE_TYPE_STRUCT {
         let struct_idx = field_type_index(field)?;
-        let struct_name = schema.objects[struct_idx].name.as_deref().unwrap_or("");
+        let struct_name = &schema.objects[struct_idx].name;
         let struct_size = obj_byte_size(&schema.objects[struct_idx])?;
 
         w.line(&format!("pub fn {fname}(&self) -> &{struct_name} {{"));
@@ -265,7 +262,7 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     // Check if this is an enum-typed field (scalar base type with index)
     if type_map::is_scalar(bt) && has_enum_index(field) {
         let enum_idx = field_type_index(field)?;
-        let enum_name = schema.enums[enum_idx].name.as_deref().unwrap_or("");
+        let enum_name = &schema.enums[enum_idx].name;
 
         // Use EndianScalar trait methods on the enum type directly.
         // This works for both regular enums and bitflags (avoids private field access).
@@ -317,17 +314,15 @@ fn gen_field_getter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
 }
 
 /// Generate a setter for a struct field.
-fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema::Field) -> Result<(), CodeGenError> {
-    let fname = escape_keyword(&type_map::to_snake_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
+fn gen_field_setter(w: &mut CodeWriter, schema: &ResolvedSchema, field: &ResolvedField) -> Result<(), CodeGenError> {
+    let fname = escape_keyword(&type_map::to_snake_case(&field.name));
     let offset = field_offset(field)?;
 
-    let bt = get_base_type(field.type_.as_ref());
+    let bt = get_base_type(&field.type_);
 
     // Array fields
     if bt == BaseType::BASE_TYPE_ARRAY {
-        let et = get_element_type(field.type_.as_ref());
+        let et = get_element_type(&field.type_);
         let (elem_type_str, fixed_len) = array_element_info(schema, field)?;
 
         if et == BaseType::BASE_TYPE_STRUCT {
@@ -368,7 +363,7 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     // Struct fields inside structs
     if bt == BaseType::BASE_TYPE_STRUCT {
         let struct_idx = field_type_index(field)?;
-        let struct_name = schema.objects[struct_idx].name.as_deref().unwrap_or("");
+        let struct_name = &schema.objects[struct_idx].name;
         let struct_size = obj_byte_size(&schema.objects[struct_idx])?;
 
         w.line(&format!(
@@ -388,7 +383,7 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
     // Enum-typed field: use EndianScalar trait to avoid private field access (bitflags)
     if type_map::is_scalar(bt) && has_enum_index(field) {
         let enum_idx = field_type_index(field)?;
-        let enum_name = schema.enums[enum_idx].name.as_deref().unwrap_or("");
+        let enum_name = &schema.enums[enum_idx].name;
 
         w.line(&format!(
             "pub fn set_{fname}(&mut self, {fname}: {enum_name}) {{"
@@ -438,58 +433,42 @@ fn gen_field_setter(w: &mut CodeWriter, schema: &schema::Schema, field: &schema:
 }
 
 /// Get the Rust type string for a struct field (scalars only, or nested struct reference).
-fn field_rust_type(schema: &schema::Schema, field: &schema::Field) -> Result<String, CodeGenError> {
-    let bt = get_base_type(field.type_.as_ref());
+fn field_rust_type(schema: &ResolvedSchema, field: &ResolvedField) -> Result<String, CodeGenError> {
+    let bt = get_base_type(&field.type_);
 
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field)?;
-        return Ok(schema.objects[idx]
-            .name
-            .as_deref()
-            .unwrap_or("")
-            .to_string());
+        return Ok(schema.objects[idx].name.clone());
     }
 
     // Check if this is an enum-typed field
     if type_map::is_scalar(bt) && has_enum_index(field) {
         let enum_idx = field_type_index(field)?;
-        return Ok(schema.enums[enum_idx]
-            .name
-            .as_deref()
-            .unwrap_or("")
-            .to_string());
+        return Ok(schema.enums[enum_idx].name.clone());
     }
 
     Ok(type_map::scalar_rust_type(bt).to_string())
 }
 
 /// Get the element Rust type name and fixed length for an array field.
-fn array_element_info(schema: &schema::Schema, field: &schema::Field) -> Result<(String, usize), CodeGenError> {
-    let ty = field_type(field)?;
+fn array_element_info(schema: &ResolvedSchema, field: &ResolvedField) -> Result<(String, usize), CodeGenError> {
+    let ty = &field.type_;
     let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
     let fixed_len = ty
         .fixed_length
         .ok_or_else(|| CodeGenError::Internal(format!(
             "array field '{}' has no fixed_length",
-            field.name.as_deref().unwrap_or("<unknown>")
+            &field.name
         )))? as usize;
 
     let elem_type_str = if et == BaseType::BASE_TYPE_STRUCT {
         let idx = type_index(ty, "array element struct lookup")?;
-        schema.objects[idx]
-            .name
-            .as_deref()
-            .unwrap_or("")
-            .to_string()
+        schema.objects[idx].name.clone()
     } else if type_map::is_scalar(et) {
         // Check for enum index on the array type
         if let Some(idx) = ty.index {
             if idx >= 0 {
-                schema.enums[idx as usize]
-                    .name
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_string()
+                schema.enums[idx as usize].name.clone()
             } else {
                 type_map::scalar_rust_type(et).to_string()
             }
@@ -504,14 +483,14 @@ fn array_element_info(schema: &schema::Schema, field: &schema::Field) -> Result<
 }
 
 /// Returns true if any field in the struct is an array type.
-fn has_array_fields(obj: &schema::Object) -> bool {
+fn has_array_fields(obj: &ResolvedObject) -> bool {
     obj.fields
         .iter()
-        .any(|f| get_base_type(f.type_.as_ref()) == BaseType::BASE_TYPE_ARRAY)
+        .any(|f| get_base_type(&f.type_) == BaseType::BASE_TYPE_ARRAY)
 }
 
 /// Check if a field has the `key` attribute.
-fn has_key_attribute(field: &schema::Field) -> bool {
+fn has_key_attribute(field: &ResolvedField) -> bool {
     field.attributes.as_ref().is_some_and(|attrs| {
         attrs
             .entries
@@ -521,19 +500,19 @@ fn has_key_attribute(field: &schema::Field) -> bool {
 }
 
 /// Find the key field in a struct.
-fn find_key_field(obj: &schema::Object) -> Option<&schema::Field> {
+fn find_key_field(obj: &ResolvedObject) -> Option<&ResolvedField> {
     obj.fields.iter().find(|f| has_key_attribute(f))
 }
 
 /// Generate the Object API for a struct: owned `{Name}T` type with `pack`/`unpack`.
 fn gen_object_api(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
+    schema: &ResolvedSchema,
     index: usize,
     opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let obj = &schema.objects[index];
-    let name = obj.name.as_deref().unwrap_or("");
+    let name = &obj.name;
     let vis = type_visibility(obj.attributes.as_ref(), opts);
     let t_name = format!("{name}T");
 
@@ -548,7 +527,7 @@ fn gen_object_api(
         .fields
         .iter()
         .map(|field| {
-            let bt = get_base_type(field.type_.as_ref());
+            let bt = get_base_type(&field.type_);
             struct_owned_field_type(schema, field, bt)
         })
         .collect::<Result<Vec<_>, CodeGenError>>()?;
@@ -562,9 +541,7 @@ fn gen_object_api(
     w.line(&format!("#[derive({})]", derives.join(", ")));
     w.block(&format!("{vis} struct {t_name}"), |w| {
         for (i, field) in obj.fields.iter().enumerate() {
-            let fname = escape_keyword(&type_map::to_snake_case(
-                field.name.as_deref().unwrap_or(""),
-            ));
+            let fname = escape_keyword(&type_map::to_snake_case(&field.name));
             let owned_type = &field_owned_types[i];
             w.line(&format!("pub {fname}: {owned_type},"));
         }
@@ -579,9 +556,8 @@ fn gen_object_api(
                 .fields
                 .iter()
                 .map(|f| {
-                    let fname =
-                        escape_keyword(&type_map::to_snake_case(f.name.as_deref().unwrap_or("")));
-                    let bt = get_base_type(f.type_.as_ref());
+                    let fname = escape_keyword(&type_map::to_snake_case(&f.name));
+                    let bt = get_base_type(&f.type_);
                     if bt == BaseType::BASE_TYPE_STRUCT {
                         // Nested struct: pack and pass by reference
                         format!("&self.{fname}.pack()")
@@ -601,10 +577,8 @@ fn gen_object_api(
             w.line(&format!("{t_name} {{"));
             w.indent();
             for field in &obj.fields {
-                let fname = escape_keyword(&type_map::to_snake_case(
-                    field.name.as_deref().unwrap_or(""),
-                ));
-                let bt = get_base_type(field.type_.as_ref());
+                let fname = escape_keyword(&type_map::to_snake_case(&field.name));
+                let bt = get_base_type(&field.type_);
                 if bt == BaseType::BASE_TYPE_STRUCT {
                     w.line(&format!("{fname}: self.{fname}().unpack(),"));
                 } else {
@@ -619,20 +593,16 @@ fn gen_object_api(
 }
 
 /// Get the owned Rust type for a struct field in the Object API.
-fn struct_owned_field_type(schema: &schema::Schema, field: &schema::Field, bt: BaseType) -> Result<String, CodeGenError> {
+fn struct_owned_field_type(schema: &ResolvedSchema, field: &ResolvedField, bt: BaseType) -> Result<String, CodeGenError> {
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field)?;
-        let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
+        let struct_name = &schema.objects[idx].name;
         Ok(format!("{struct_name}T"))
     } else if type_map::is_scalar(bt) {
         // Check for enum-typed field
         if has_enum_index(field) {
             let enum_idx = field_type_index(field)?;
-            Ok(schema.enums[enum_idx]
-                .name
-                .as_deref()
-                .unwrap_or("")
-                .to_string())
+            Ok(schema.enums[enum_idx].name.clone())
         } else {
             Ok(type_map::scalar_rust_type(bt).to_string())
         }
@@ -644,11 +614,11 @@ fn struct_owned_field_type(schema: &schema::Schema, field: &schema::Field, bt: B
 /// Generate key comparison methods for a struct.
 fn gen_struct_key_methods(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    field: &schema::Field,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
     struct_name: &str,
 ) -> Result<(), CodeGenError> {
-    let fname = field.name.as_deref().unwrap_or("");
+    let fname = &field.name;
     let accessor = escape_keyword(&type_map::to_snake_case(fname));
     let rust_type = field_rust_type(schema, field)?;
 

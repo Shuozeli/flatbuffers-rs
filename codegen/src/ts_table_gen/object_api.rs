@@ -1,4 +1,5 @@
-use flatc_rs_schema::{self as schema, BaseType};
+use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
+use flatc_rs_schema::BaseType;
 
 use crate::code_writer::CodeWriter;
 use crate::field_type_index;
@@ -9,8 +10,8 @@ use super::helpers;
 
 pub(super) fn gen_unpack(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
     name: &str,
 ) {
     let non_deprecated: Vec<_> = obj
@@ -37,8 +38,8 @@ pub(super) fn gen_unpack(
 
 pub(super) fn gen_unpack_to(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
     name: &str,
 ) {
     w.block(&format!("unpackTo(_o:{name}T):void"), |w| {
@@ -46,20 +47,16 @@ pub(super) fn gen_unpack_to(
             if field.is_deprecated {
                 continue;
             }
-            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
-                field.name.as_deref().unwrap_or(""),
-            ));
+            let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
             let expr = unpack_field_expr(schema, field);
             w.line(&format!("_o.{fname} = {expr};"));
         }
     });
 }
 
-fn unpack_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
-    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
-    let bt = type_map::get_base_type(field.type_.as_ref());
+fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
+    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
+    let bt = type_map::get_base_type(&field.type_);
 
     match bt {
         BaseType::BASE_TYPE_STRUCT => {
@@ -72,7 +69,7 @@ fn unpack_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
             format!("this.{fname}()")
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let et = type_map::get_element_type(field.type_.as_ref());
+            let et = type_map::get_element_type(&field.type_);
             match et {
                 et if type_map::is_scalar(et) => {
                     format!(
@@ -87,14 +84,14 @@ fn unpack_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
                 }
                 BaseType::BASE_TYPE_TABLE => {
                     let idx = field_type_index(field).unwrap();
-                    let table_name = schema.objects[idx].name.as_deref().unwrap_or("");
+                    let table_name = &schema.objects[idx].name;
                     format!(
                         "this.bb!.createObjList<{table_name}, {table_name}T>(this.{fname}.bind(this), this.{fname}Length())"
                     )
                 }
                 BaseType::BASE_TYPE_STRUCT => {
                     let idx = field_type_index(field).unwrap();
-                    let struct_name = schema.objects[idx].name.as_deref().unwrap_or("");
+                    let struct_name = &schema.objects[idx].name;
                     format!(
                         "this.bb!.createObjList<{struct_name}, {struct_name}T>(this.{fname}.bind(this), this.{fname}Length())"
                     )
@@ -104,9 +101,9 @@ fn unpack_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
         }
         BaseType::BASE_TYPE_UNION => {
             // Unpack union using unionToXxx helper for proper type dispatch
-            let idx = field.type_.as_ref().and_then(|t| t.index).unwrap_or(-1);
+            let idx = field.type_.index.unwrap_or(-1);
             if idx >= 0 && (idx as usize) < schema.enums.len() {
-                let enum_name = schema.enums[idx as usize].name.as_deref().unwrap_or("");
+                let enum_name = &schema.enums[idx as usize].name;
                 format!(
                     "(() => {{ const temp = unionTo{enum_name}(this.{fname}Type(), (obj:any) => this.{fname}(obj)); return temp === null ? null : temp.unpack() }})()"
                 )
@@ -120,8 +117,8 @@ fn unpack_field_expr(schema: &schema::Schema, field: &schema::Field) -> String {
 
 pub(super) fn gen_object_api_class(
     w: &mut CodeWriter,
-    schema: &schema::Schema,
-    obj: &schema::Object,
+    schema: &ResolvedSchema,
+    obj: &ResolvedObject,
     name: &str,
 ) {
     let t_name = format!("{name}T");
@@ -135,7 +132,7 @@ pub(super) fn gen_object_api_class(
                 .iter()
                 .filter(|f| !f.is_deprecated)
                 .map(|f| {
-                    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(f.name.as_deref().unwrap_or("")));
+                    let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&f.name));
                     let (ts_type, default) = helpers::object_api_field_type_and_default(schema, f);
                     format!("public {fname}:{ts_type} = {default}")
                 })
@@ -165,8 +162,8 @@ pub(super) fn gen_object_api_class(
                             continue;
                         }
                         let fname =
-                            ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(field.name.as_deref().unwrap_or("")));
-                        let bt = type_map::get_base_type(field.type_.as_ref());
+                            ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
+                        let bt = type_map::get_base_type(&field.type_);
                         match bt {
                             BaseType::BASE_TYPE_STRING => {
                                 w.line(&format!(
@@ -174,7 +171,7 @@ pub(super) fn gen_object_api_class(
                                 ));
                             }
                             BaseType::BASE_TYPE_VECTOR => {
-                                gen_pack_vector(w, schema, field, &fname, name);
+                                gen_pack_vector(w, field, &fname, name);
                             }
                             _ => {}
                         }
@@ -190,10 +187,10 @@ pub(super) fn gen_object_api_class(
                             continue;
                         }
                         let fname =
-                            ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(field.name.as_deref().unwrap_or("")));
+                            ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
                         let pascal =
-                            ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(field.name.as_deref().unwrap_or("")));
-                        let bt = type_map::get_base_type(field.type_.as_ref());
+                            ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
+                        let bt = type_map::get_base_type(&field.type_);
 
                         match bt {
                             bt if type_map::is_scalar(bt) => {
@@ -242,15 +239,12 @@ pub(super) fn gen_object_api_class(
 
 fn gen_pack_vector(
     w: &mut CodeWriter,
-    _schema: &schema::Schema,
-    field: &schema::Field,
+    field: &ResolvedField,
     fname: &str,
     table_name: &str,
 ) {
-    let et = type_map::get_element_type(field.type_.as_ref());
-    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(
-        field.name.as_deref().unwrap_or(""),
-    ));
+    let et = type_map::get_element_type(&field.type_);
+    let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
 
     match et {
         et if type_map::is_scalar(et) => {

@@ -7,12 +7,7 @@
           "name": "a",
           "type": {
             "base_type": "BASE_TYPE_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/struct_layout_mixed_alignment.fbs",
-              "line": 2,
-              "col": 5
-            }
+            "base_size": 1
           },
           "offset": 0,
           "padding": 3,
@@ -26,12 +21,7 @@
           "name": "b",
           "type": {
             "base_type": "BASE_TYPE_INT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/struct_layout_mixed_alignment.fbs",
-              "line": 3,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -44,12 +34,7 @@
           "name": "c",
           "type": {
             "base_type": "BASE_TYPE_BYTE",
-            "base_size": 1,
-            "span": {
-              "file": "testdata/golden/struct_layout_mixed_alignment.fbs",
-              "line": 4,
-              "col": 5
-            }
+            "base_size": 1
           },
           "offset": 8,
           "padding": 1,
@@ -63,12 +48,7 @@
           "name": "d",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/struct_layout_mixed_alignment.fbs",
-              "line": 5,
-              "col": 5
-            }
+            "base_size": 2
           },
           "offset": 10,
           "span": {

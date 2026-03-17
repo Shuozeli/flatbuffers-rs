@@ -5,6 +5,7 @@ use crate::analyzer;
 use crate::error::AnalyzeError;
 use flatc_rs_parser::{FbsParser, ParseOutput, ParserState};
 use flatc_rs_schema as schema;
+use flatc_rs_schema::resolved::ResolvedSchema;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -57,7 +58,7 @@ pub struct CompilerOptions {
 #[derive(Debug)]
 pub struct CompilationResult {
     /// The fully resolved schema.
-    pub schema: schema::Schema,
+    pub schema: ResolvedSchema,
 }
 
 // ---------------------------------------------------------------------------

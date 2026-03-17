@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 1,
-              "col": 17
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 1,
-              "col": 26
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -43,12 +33,7 @@
           "name": "z",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 1,
-              "col": 35
-            }
+            "base_size": 4
           },
           "offset": 8,
           "span": {
@@ -74,12 +59,7 @@
           "name": "damage",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 2,
-              "col": 23
-            }
+            "base_size": 2
           },
           "id": 0,
           "span": {
@@ -112,12 +92,7 @@
           "type": {
             "base_type": "BASE_TYPE_UNION",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 10,
-              "col": 9
-            }
+            "index": 0
           },
           "id": 1,
           "span": {
@@ -148,12 +123,7 @@
           "union_type": {
             "base_type": "BASE_TYPE_TABLE",
             "base_size": 4,
-            "index": 1,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 5,
-              "col": 11
-            }
+            "index": 1
           },
           "span": {
             "file": "testdata/golden/union_with_struct_variant.fbs",
@@ -167,12 +137,7 @@
           "union_type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/union_with_struct_variant.fbs",
-              "line": 6,
-              "col": 13
-            }
+            "index": 0
           },
           "span": {
             "file": "testdata/golden/union_with_struct_variant.fbs",

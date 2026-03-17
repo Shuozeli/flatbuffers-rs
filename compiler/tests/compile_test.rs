@@ -476,7 +476,7 @@ table PrivateTable (private) { y: int; }
 }
 
 /// Analyze a schema and return the resolved schema for leak checking.
-fn analyze_schema(src: &str) -> flatc_rs_compiler::schema::Schema {
+fn analyze_schema(src: &str) -> flatc_rs_compiler::schema::resolved::ResolvedSchema {
     let parser = FbsParser::new(src).with_file_name("test.fbs".to_string());
     let parse_output = parser.parse().unwrap();
     analyze(parse_output).unwrap()

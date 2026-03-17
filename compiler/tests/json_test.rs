@@ -415,8 +415,9 @@ fn decode_cpp_monsterdata() {
     // stored at a specific index. Find it by field count.
     let root_name = "Monster";
     // Verify the root_table is set
-    assert!(result.schema.root_table.is_some());
-    let root_obj = result.schema.root_table.as_ref().unwrap();
+    assert!(result.schema.root_table_index.is_some());
+    let root_idx = result.schema.root_table_index.unwrap();
+    let root_obj = &result.schema.objects[root_idx];
     assert!(
         root_obj.fields.len() > 5,
         "root Monster should have many fields"

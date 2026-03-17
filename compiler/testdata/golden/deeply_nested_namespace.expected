@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/deeply_nested_namespace.fbs",
-              "line": 3,
-              "col": 18
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/deeply_nested_namespace.fbs",
-              "line": 3,
-              "col": 27
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -60,12 +50,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/deeply_nested_namespace.fbs",
-              "line": 5,
-              "col": 24
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -79,12 +64,7 @@
           "type": {
             "base_type": "BASE_TYPE_BYTE",
             "base_size": 1,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/deeply_nested_namespace.fbs",
-              "line": 5,
-              "col": 39
-            }
+            "index": 0
           },
           "id": 1,
           "span": {

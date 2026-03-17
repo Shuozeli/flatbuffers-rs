@@ -7,12 +7,7 @@
           "name": "x",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/basic_type_resolution.fbs",
-              "line": 2,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 0,
           "span": {
@@ -25,12 +20,7 @@
           "name": "y",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/basic_type_resolution.fbs",
-              "line": 3,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 4,
           "span": {
@@ -43,12 +33,7 @@
           "name": "z",
           "type": {
             "base_type": "BASE_TYPE_FLOAT",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/basic_type_resolution.fbs",
-              "line": 4,
-              "col": 5
-            }
+            "base_size": 4
           },
           "offset": 8,
           "span": {
@@ -75,12 +60,7 @@
           "type": {
             "base_type": "BASE_TYPE_STRUCT",
             "base_size": 4,
-            "index": 0,
-            "span": {
-              "file": "testdata/golden/basic_type_resolution.fbs",
-              "line": 8,
-              "col": 7
-            }
+            "index": 0
           },
           "id": 0,
           "span": {
@@ -93,12 +73,7 @@
           "name": "name",
           "type": {
             "base_type": "BASE_TYPE_STRING",
-            "base_size": 4,
-            "span": {
-              "file": "testdata/golden/basic_type_resolution.fbs",
-              "line": 9,
-              "col": 8
-            }
+            "base_size": 4
           },
           "id": 1,
           "span": {
@@ -111,12 +86,7 @@
           "name": "hp",
           "type": {
             "base_type": "BASE_TYPE_SHORT",
-            "base_size": 2,
-            "span": {
-              "file": "testdata/golden/basic_type_resolution.fbs",
-              "line": 10,
-              "col": 6
-            }
+            "base_size": 2
           },
           "id": 2,
           "span": {
