@@ -3,6 +3,8 @@ mod enum_gen;
 mod namespace_tree;
 mod rust_gen;
 mod rust_table_gen;
+#[cfg(feature = "grpc")]
+mod service_gen;
 mod struct_gen;
 mod ts_enum_gen;
 mod ts_gen;
@@ -163,7 +165,20 @@ pub fn generate_rust(
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
     let gen = RustGenerator::new(schema, opts);
-    gen.generate()
+    let code = gen.generate()?;
+
+    // Append gRPC service stubs when grpc feature is enabled
+    #[cfg(feature = "grpc")]
+    let code = {
+        let service_code = service_gen::generate_services(schema, "super")?;
+        if service_code.is_empty() {
+            code
+        } else {
+            format!("{code}\n{service_code}")
+        }
+    };
+
+    Ok(code)
 }
 
 /// Generate TypeScript source code from a fully resolved FlatBuffers schema.

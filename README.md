@@ -13,6 +13,7 @@ Drop-in replacement: same `.fbs` input, same generated code output, same binary 
 - TypeScript code generation (readers, builders, Object API)
 - Serde Serialize/Deserialize support (`--rust-serialize`)
 - Binary-compatible output verified against C++ `flatc`
+- Optional gRPC service stub generation (`--features grpc`) via [pure-grpc-rs](https://github.com/shuozeli/pure-grpc-rs)
 - 550+ tests passing, including cross-compatibility with the C++ implementation
 
 ## Quick Start

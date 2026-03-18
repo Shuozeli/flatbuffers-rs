@@ -8,6 +8,14 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+grpc = ["grpc-codegen", "dep:proc-macro2", "dep:syn", "dep:prettyplease"]
+
 [dependencies]
 flatc-rs-schema = { path = "../schema" }
 thiserror = "2"
+grpc-codegen = { git = "https://github.com/shuozeli/pure-grpc-rs.git", optional = true, default-features = false, features = ["flatbuffers"] }
+proc-macro2 = { version = "1", optional = true }
+syn = { version = "2", optional = true }
+prettyplease = { version = "0.2", optional = true }
