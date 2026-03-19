@@ -1,6 +1,6 @@
 # CLI Flag Parity: C++ flatc vs Rust flatc
 
-Last updated: 2026-03-04
+Last updated: 2026-03-19
 
 This document tracks every C++ `flatc` flag (excluding language backends we don't
 plan to support) and its status in the Rust implementation. Language-specific flags
@@ -111,7 +111,7 @@ These control details of the `--schema` / `-b` output.
 |------|--------|-------------|
 | `--conform FILE` | DONE | Check that the input schema is a backwards-compatible evolution of a base schema. Validates: field IDs unchanged, defaults unchanged, types unchanged, no field deletions, enum values stable. |
 | `--conform-includes PATH` | DONE | Include search paths for the `--conform` base schema. Falls back to `-I` paths if not specified. |
-| `--annotate SCHEMA` | TODO | Annotate binary files with human-readable field names/types using a schema. Produces a text dump showing each byte's meaning. Our visualizer already does this interactively. **Priority: LOW** -- covered by visualizer. |
+| `--annotate` | DONE | Annotate binary files with human-readable field names/types using a schema. Produces `.afb` text dump showing each byte's meaning. Usage: `flatc --annotate schema.fbs -- data.bin` |
 | `--annotate-sparse-vectors` | TODO | When annotating, skip individual vector elements. Modifier for `--annotate`. |
 
 ## Enum Flags (C++ specific, N/A)
@@ -127,7 +127,7 @@ These control details of the `--schema` / `-b` output.
 
 | Flag | Status | Notes |
 |------|--------|-------|
-| `--grpc` | TODO | Generate gRPC service stubs. Per roadmap Phase F2-F3. C++ flatc's Rust generator does NOT implement gRPC -- this would be new. **Priority: per roadmap**. |
+| `--grpc` | DONE (feature-gated) | Generate gRPC service stubs. Enabled via `features = ["grpc"]` on `flatc-rs-codegen`. Uses `grpc-codegen` crate to generate server traits and client stubs. Automatically appends service code when the feature is enabled and services are defined in the schema. |
 
 ## Proto Conversion
 

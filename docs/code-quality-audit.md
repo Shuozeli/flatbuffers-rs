@@ -155,70 +155,22 @@ fn float_to_json(v: f64) -> Value {
 
 ## 2. Architectural Flaws
 
-### 2.1 No Separation Between Parsed and Resolved Schemas
+### 2.1 No Separation Between Parsed and Resolved Schemas -- FIXED
 
-**Location:** `schema/src/lib.rs` (entire file)
+**Status:** FIXED in commit `8791685` (refactor: separate parsed and resolved schema types)
 
-The same `Schema`, `Object`, `Field`, `Enum`, and `Type` structs are used both before
-and after semantic analysis. Before the analyzer runs, fields like `Type.index`,
-`Field.id`, `Field.offset`, and `Object.byte_size` are `None`. After analysis, they are
-`Some`. This invariant exists only in documentation and developer knowledge -- the type
-system does not enforce it.
+The parsed types in `schema/src/lib.rs` (all `Option<T>`) are now only used during
+parsing and analysis. After semantic analysis, the analyzer converts to `ResolvedSchema`
+(`schema/src/resolved.rs`) where required fields like `name`, `type_`, `value` are
+non-optional. Codegen and other downstream consumers now use `ResolvedSchema`,
+`ResolvedObject`, `ResolvedField`, etc.
 
-Every field on every schema type is `Option<T>`:
+The `ResolvedSchema.as_legacy()` method provides backward compatibility for code that
+hasn't been migrated yet.
 
-```rust
-pub struct Field {
-    pub name: Option<String>,       // A field without a name?
-    pub type_: Option<Type>,        // A field without a type?
-    pub id: Option<u32>,            // A field without an ID?
-    pub offset: Option<u32>,        // set by analyzer
-    pub default_integer: Option<i64>,
-    pub default_real: Option<f64>,
-    pub default_string: Option<String>,
-    pub is_deprecated: Option<bool>,  // Option<bool> -- three states for a flag?
-    pub is_required: Option<bool>,
-    pub is_key: Option<bool>,
-    pub is_optional: Option<bool>,
-    pub attributes: Option<Attributes>,
-    pub documentation: Option<Documentation>,
-    pub padding: Option<u32>,
-    pub is_offset_64: Option<bool>,
-    pub span: Option<Span>,
-}
-```
-
-This results in **~466 `.unwrap()` / `.unwrap_or()` calls** scattered across the
-codebase. Every consumer must assume the analyzer populated these fields correctly.
-
-**Improvement:** Define separate types for unresolved and resolved schemas:
-
-```rust
-// Parser output -- all fields genuinely optional
-pub struct UnresolvedField {
-    pub name: String,
-    pub type_name: String,       // unresolved string reference
-    pub default_value: Option<DefaultValue>,
-    pub attributes: Vec<KeyValue>,
-    // ...
-}
-
-// Analyzer output -- all required fields are non-optional
-pub struct ResolvedField {
-    pub name: String,
-    pub type_: ResolvedType,     // guaranteed resolved
-    pub id: u32,                 // guaranteed assigned
-    pub offset: u32,             // guaranteed computed
-    pub default_integer: i64,
-    pub is_deprecated: bool,     // bool, not Option<bool>
-    pub is_required: bool,
-    // ...
-}
-```
-
-This eliminates all downstream unwrapping. The type system guarantees that resolved
-schemas are complete. **Estimated effort: Large (2-3 days), but eliminates an entire
-class of bugs.**
+**Remaining work:** Some fields that are always populated post-analysis are still
+`Option<T>` in the resolved types (e.g., `id: Option<u32>`, `offset: Option<u32>`).
+These could be made non-optional for stronger guarantees.
 
 ### 2.2 `root_table` Is a Deep Clone That Goes Stale
 
@@ -488,14 +440,15 @@ if has_array_fields(obj) {
 
 Or implement array support in the Object API.
 
-### 5.2 Parser Silently Drops Unrecognized Nodes
+### 5.2 Parser Silently Drops Unrecognized Tokens
 
-**Location:** Parser `_other` catch-all (documented as G3.23)
+**Location:** `parser/src/parser.rs:111` -- `_ => { self.advance(); }`
 
-Unrecognized top-level node types are silently ignored via `_other => {}`. Invalid
-schema constructs produce no error -- they are simply dropped.
+The hand-written recursive-descent parser (which replaced the tree-sitter-based parser
+in commit `2a0039e`) silently skips unrecognized top-level tokens. Invalid schema
+constructs produce no error -- they are simply dropped.
 
-**Improvement:** Emit a parse warning or error for unrecognized node types.
+**Improvement:** Emit a parse warning or error for unrecognized top-level tokens.
 
 ### 5.3 Unhandled BaseType Variants Produce `// TODO` Comments
 
@@ -614,72 +567,44 @@ source and add `// @generated` markers.
 
 ---
 
-## 8. Known Unfixed Bugs (from ROADMAP.md)
+## 8. Known Bugs (from ROADMAP.md) -- Status Update
 
-The project's own ROADMAP lists 24 MEDIUM-severity known bugs. The most impactful:
+Many bugs listed in the original ROADMAP have been fixed. Updated status:
 
-| ID | Category | Description | Risk |
-|----|----------|-------------|------|
-| G3.7 | Crash | Unbounded recursion in struct topological sort. Deeply nested structs cause stack overflow. | High |
-| G3.8 | Crash | No include depth limit (partially fixed, but G3.7 remains). | Medium |
-| G3.14 | Wrong output | ~40 instances of `unwrap_or(0) as usize` produce silent wrong-type references. | High |
-| G3.17 | Crash | 8 `panic!()` calls behind `catch_unwind` break with `panic=abort`. | High |
-| G3.9 | Wrong output | Unhandled BaseType emits `// TODO` comments in generated code. | Medium |
-| G3.10 | Wrong output | Vector-of-unknown-type silently generates `Vector<u8>` fallback. | Medium |
-| G3.15 | Wrong output | `root_table` deep clone goes stale after layout computation. | Medium |
-| G3.19 | DoS | No tree-sitter timeout. Pathological input stalls indefinitely. | Medium |
-| G3.20 | DoS | No limit on schema size. Millions of fields cause OOM. | Medium |
-| G3.1 | Wrong output | Union field `id: 0` causes ID collision with companion `_type` field. | Medium |
-| G3.6 | Wrong output | No parent namespace walking. Types in parent namespaces not found. | Medium |
+| ID | Category | Description | Status |
+|----|----------|-------------|--------|
+| G3.7 | Crash | Unbounded recursion in struct topological sort. | **FIXED** -- depth limit (256) + proper `StructDepthLimitExceeded` error |
+| G3.8 | Crash | No include depth limit. | **FIXED** -- 64-level depth limit, 1000 file limit |
+| G3.14 | Wrong output | ~40 instances of `unwrap_or(0) as usize`. | **FIXED** -- proper error handling throughout decoder/encoder/annotator |
+| G3.17 | Crash | `panic!()` calls in Rust codegen behind `catch_unwind`. | **FIXED** -- Rust codegen converted to `Result<T, CodeGenError>`. TS codegen still uses `catch_unwind` as safety net. |
+| G3.9 | Wrong output | Unhandled BaseType emits `// TODO` in generated code. | Partially addressed -- warnings added |
+| G3.10 | Wrong output | Vector-of-unknown-type silently generates `Vector<u8>`. | Still open |
+| G3.15 | Wrong output | `root_table` deep clone goes stale. | **FIXED** -- `root_table_index` added, refreshed after layout computation |
+| G3.19 | DoS | No parser timeout. | **FIXED** -- 10-second parse timeout added |
+| G3.20 | DoS | No schema size limit. | **FIXED** -- 10K objects, 10K enums, 100K fields, 100K enum values, 1K files |
+| G3.1 | Wrong output | Union field `id: 0` collision. | **FIXED** -- `UnionFieldIdZero` validation error |
+| G3.6 | Wrong output | No parent namespace walking. | **FIXED** -- `TypeIndex.resolve()` walks parent namespaces |
 
-**Improvement:** Address G3.14 (silent wrong-type references) and G3.17
-(`panic=abort` incompatibility) as highest priority. These affect correctness and
-deployment flexibility respectively. G3.7 (stack overflow) should follow.
+**Remaining open items:** G3.9, G3.10 (silent fallbacks in codegen), G3.23 (parser
+silently drops unrecognized tokens).
 
 ---
 
 ## 9. Recommended Improvements
 
-### Priority 1: Correctness (Must Fix)
+### Priority 1: Correctness -- ALL DONE
 
-1. **Replace `unwrap_or(0) as usize` with proper error handling** (G3.14)
-   - ~40 instances across decoder, annotator, and codegen
-   - Each is a potential silent wrong-output bug
-   - Estimated effort: 4-6 hours
+1. ~~Replace `unwrap_or(0) as usize` with proper error handling (G3.14)~~ -- DONE
+2. ~~Replace panic-based codegen APIs with `Result` (G3.17)~~ -- DONE (Rust codegen)
+3. ~~Fix `root_table` stale clone (G3.15)~~ -- DONE
+4. ~~Add recursion depth limit to struct topological sort (G3.7)~~ -- DONE
 
-2. **Replace panic-based codegen APIs with `Result`** (G3.17)
-   - 10 functions in `codegen/src/lib.rs`, 8 in `ts_type_map.rs`
-   - Required for `panic=abort` compatibility
-   - Estimated effort: 1-2 days
+### Priority 2: Architecture -- MOSTLY DONE
 
-3. **Fix `root_table` stale clone** (G3.15)
-   - Replace `root_table: Option<Object>` with `root_table_index: Option<usize>`
-   - Estimated effort: 2-4 hours
-
-4. **Add recursion depth limit to struct topological sort** (G3.7)
-   - Prevents stack overflow on deeply nested or maliciously crafted schemas
-   - Estimated effort: 1-2 hours
-
-### Priority 2: Architecture (Should Fix)
-
-5. **Separate parsed and resolved schema types**
-   - Eliminate all downstream unwrapping of analyzer-populated fields
-   - Largest improvement for long-term maintainability
-   - Estimated effort: 2-3 days
-
-6. **Extract shared `BufReader` into a common crate**
-   - Eliminates 124 lines of duplicated code
-   - Prevents future drift between the two copies
-   - Estimated effort: 2-4 hours
-
-7. **Deduplicate `is_scalar()`, `scalar_byte_size()`, and scalar match blocks**
-   - Move to `BaseType` methods in schema crate
-   - Eliminates 3 copies of the same logic
-   - Estimated effort: 2-4 hours
-
-8. **Replace `Option<bool>` flags with `bool` + `#[serde(default)]`**
-   - Simplifies all flag checks from `== Some(true)` to just the field name
-   - Estimated effort: 2-4 hours
+5. ~~Separate parsed and resolved schema types~~ -- DONE (`schema/src/resolved.rs`)
+6. ~~Extract shared `BufReader` into a common crate~~ -- DONE (`schema/src/buf_reader.rs`)
+7. ~~Deduplicate `is_scalar()`, `scalar_byte_size()`~~ -- DONE (methods on `BaseType`)
+8. ~~Replace `Option<bool>` flags with `bool`~~ -- DONE
 
 ### Priority 3: Code Quality (Nice to Fix)
 

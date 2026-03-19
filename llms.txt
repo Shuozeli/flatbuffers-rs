@@ -21,46 +21,68 @@ Use cases:
 
 ## Architecture
 
-Six crates in a Cargo workspace:
-
-### grammar
-
-Tree-sitter grammar for the `.fbs` IDL. Defines the syntax rules for parsing
-FlatBuffers schema files.
+Ten crates in a Cargo workspace:
 
 ### schema
 
-Protobuf-based schema types that mirror the official FlatBuffers reflection
-schema (`reflection.fbs`). The internal representation used by all other crates.
+Schema type definitions mirroring the official FlatBuffers reflection schema
+(`reflection.fbs`). Two layers: parsed types (all `Option<T>`, used during
+parsing) and resolved types (`resolved.rs`, non-optional after analysis).
+Also contains `BufReader` for safe binary buffer reads.
 
 ### parser
 
-`.fbs` text -> unresolved Schema. Uses tree-sitter for incremental,
-error-tolerant parsing.
+Hand-written recursive-descent parser. Tokenizes `.fbs` source text, then
+parses into an unresolved Schema AST. Includes safety guards: 10MB input
+limit and 10-second parse timeout.
+
+### grammar
+
+Tree-sitter grammar for the `.fbs` IDL. NOT used by the compilation pipeline.
+Exists for IDE/editor integration (syntax highlighting, structural queries).
 
 ### codegen
 
-Code generators for multiple target languages:
-- `rust_gen.rs` -- Rust code generation (tables, structs, enums, unions, Object API)
-- `ts_gen.rs` -- TypeScript code generation
+Code generators for Rust and TypeScript:
+- `rust_gen.rs` -- Rust code generation orchestrator
+- `ts_gen.rs` -- TypeScript code generation orchestrator
 - `enum_gen.rs` -- Enum and bitflags generation
 - `struct_gen.rs` -- Struct generation
 - `rust_table_gen/` -- Table reader, builder, and Object API generation
+- `service_gen.rs` -- gRPC service stub generation (feature-gated, `grpc`)
 
 ### compiler
 
 The main orchestrator:
-- `analyzer.rs` -- 8-step semantic analysis (type resolution, field ID assignment, etc.)
+- `analyzer.rs` -- 8-step semantic analysis (type resolution, field ID assignment, struct layouts, etc.)
 - `compiler.rs` -- Multi-file include resolution and schema merging
 - `bfbs.rs` -- Binary schema (.bfbs) serialization and deserialization
 - `conform.rs` -- Schema backwards-compatibility checking
 - `json/` -- JSON <-> FlatBuffers binary encoder/decoder
 - `main.rs` -- CLI entry point (`flatc` binary)
 
+### annotator
+
+Binary annotation engine. Walks FlatBuffer binaries using schema metadata and
+produces annotated output (`.afb` format matching C++ `flatc --annotate`).
+
+### fbs-gen
+
+Random valid `.fbs` schema generator for fuzz testing. Deterministic seeds.
+
+### data-gen
+
+Random JSON data generator from compiled schemas. For testing JSON round-trips.
+
 ### test-utils
 
-Shared golden test framework. Tests are `.fbs` + `.expected` pairs,
-auto-discovered by build.rs.
+Shared golden test framework. Tests are `.fbs` + `.expected` pairs.
+`UPDATE_GOLDEN=1` env var regenerates expected files.
+
+### wasm-api
+
+WASM bindings (via wasm-bindgen) for browser-based compilation. Supports
+Rust/TypeScript codegen, BFBS output, and binary annotation. Single-file only.
 
 ## CLI Usage
 
@@ -107,6 +129,8 @@ BFBS: `--bfbs-comments`, `--bfbs-filenames`, `--bfbs-absolute-paths`
 
 Schema validation: `--conform`, `--conform-includes`
 
+Binary inspection: `--annotate`, `--dump-schema`
+
 ## Build
 
 ```bash
@@ -122,10 +146,11 @@ UPDATE_GOLDEN=1 cargo test --workspace
 
 ## Status
 
-- 550+ tests passing
+- 612+ tests passing
 - Cross-compatibility verified against C++ flatc for monster_test, optional_scalars, more_defaults
-- 90.6% of official .fbs test files compile successfully
 - Binary-compatible output (same bytes as C++ flatc for same schema + data)
+- Optional gRPC service generation (feature = "grpc")
+- WASM compilation support for browser-based use
 
 ## Related Projects
 
