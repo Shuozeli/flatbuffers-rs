@@ -1,7 +1,7 @@
 # flatbuffers-rs Code Quality Audit
 
 **Date:** 2026-03-17
-**Scope:** Full codebase review across all 10 crates (~26,000 lines of Rust)
+**Scope:** Full codebase review across all 9 workspace crates (~31,000 lines of Rust)
 **Verdict:** This codebase exhibits strong indicators of AI-generated code and contains
 numerous architectural flaws, code quality issues, and known unfixed bugs that make it
 unsuitable for production use.
@@ -82,43 +82,18 @@ conditions, and silent data loss scenarios.
 **Improvement:** Convert the ROADMAP into a proper issue tracker. Each G3 item should
 become a tracked issue with an owner and timeline.
 
-### 1.3 `catch_unwind` as Error Handling Strategy
+### 1.3 `catch_unwind` as Error Handling Strategy -- [FIXED for Rust codegen]
 
-**Location:** `codegen/src/lib.rs:226-239`
+**Status:** Rust codegen now uses proper `Result<T, CodeGenError>` returns (9 panic
+helpers converted, `try_block` added to CodeWriter). TypeScript codegen still uses
+`catch_unwind` as a safety net at `codegen/src/lib.rs:203-216`.
 
-```rust
-fn catch_codegen_panic<F: FnOnce() -> String + panic::UnwindSafe>(
-    f: F,
-) -> Result<String, CodeGenError> {
-    panic::catch_unwind(f).map_err(|payload| {
-        let msg = if let Some(s) = payload.downcast_ref::<&str>() {
-            s.to_string()
-        } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-        } else {
-            "unknown codegen error".to_string()
-        };
-        CodeGenError::Internal(msg)
-    })
-}
-```
+**Original issue:** The entire code generation pipeline was wrapped in
+`panic::catch_unwind()` because internal helper functions used `panic!()` for error
+cases.
 
-The entire code generation pipeline is wrapped in `panic::catch_unwind()` because the
-internal helper functions (`field_type`, `field_type_index`, `type_index`, etc.) all use
-`panic!()` for error cases. This is a band-aid over missing proper error propagation.
-
-**Problems:**
-- `catch_unwind` does not work with `panic = "abort"` compilation profiles, which are
-  common in release builds for smaller binaries. The code will crash instead of returning
-  an error. This is documented as known bug G3.17 but unfixed.
-- Stack unwinding has significant performance overhead compared to `Result<T, E>`.
-- Panic messages are lossy -- the original error context (file, line, field name) is
-  reduced to a string.
-
-**Improvement:** Replace all `panic!()` calls in `codegen/src/lib.rs:34-124` and
-`codegen/src/ts_type_map.rs` with `Result<T, CodeGenError>` returns. Thread the
-`Result` through the call chain. Remove the `catch_unwind` wrapper entirely. This
-requires changing approximately 10 functions and their ~50 call sites.
+**Remaining:** TS codegen path still uses `catch_unwind`. Converting TS codegen to
+`Result` returns would eliminate the last use.
 
 ### 1.4 `float_to_json` Contains Dead Logic
 
@@ -172,28 +147,12 @@ hasn't been migrated yet.
 `Option<T>` in the resolved types (e.g., `id: Option<u32>`, `offset: Option<u32>`).
 These could be made non-optional for stronger guarantees.
 
-### 2.2 `root_table` Is a Deep Clone That Goes Stale
+### 2.2 `root_table` Is a Deep Clone That Goes Stale -- [FIXED]
 
-**Location:** `schema/src/lib.rs:528`
+**Status:** Fixed by adding `root_table_index`, refreshed after layout computation.
 
-```rust
-pub struct Schema {
-    pub objects: Vec<Object>,
-    // ...
-    pub root_table: Option<Object>,  // deep clone of one object in `objects`
-}
-```
-
-`root_table` is a full deep clone of the root table `Object`. After
-`compute_struct_layouts()` modifies field offsets on objects in the `objects` vec, the
-`root_table` clone still contains the old, pre-layout offsets. Any code that reads
-`root_table.fields[i].offset` gets stale data.
-
-This is documented as known bug **G3.15** but remains unfixed.
-
-**Improvement:** Replace `root_table: Option<Object>` with `root_table_index: Option<usize>`
-that indexes into `schema.objects`. All consumers dereference through the index. This
-eliminates the stale data problem and reduces memory usage.
+**Original issue:** `root_table` was a full deep clone that went stale after
+`compute_struct_layouts()` modified field offsets.
 
 ### 2.3 Linear Object/Enum Lookup
 
@@ -219,33 +178,10 @@ For schemas with hundreds of types, this is O(n) per lookup.
 **Improvement:** Build a `HashMap<String, usize>` name-to-index map once at the start
 of decoding/walking. This makes all lookups O(1).
 
-### 2.4 `Option<bool>` for Boolean Flags
+### 2.4 `Option<bool>` for Boolean Flags -- [FIXED]
 
-**Location:** `schema/src/lib.rs:301-323`
-
-Multiple boolean attributes are modeled as `Option<bool>`, creating a three-state flag
-(`None`, `Some(false)`, `Some(true)`) where only two states are meaningful:
-
-```rust
-pub is_deprecated: Option<bool>,
-pub is_required: Option<bool>,
-pub is_key: Option<bool>,
-pub is_optional: Option<bool>,
-pub is_offset_64: Option<bool>,
-```
-
-Throughout the codebase, these are checked as `field.is_required == Some(true)` instead
-of just `field.is_required`. This is verbose and error-prone -- forgetting `Some()`
-silently evaluates to `false`.
-
-**Improvement:** Use `#[serde(default)]` and plain `bool` fields:
-
-```rust
-#[serde(default)]
-pub is_deprecated: bool,
-#[serde(default)]
-pub is_required: bool,
-```
+**Status:** Replaced all `Option<bool>` flags with `bool` + `#[serde(default)]`
+(7 fields, ~60 call sites updated).
 
 ---
 
@@ -545,25 +481,14 @@ if idx >= schema.objects.len() {
 intended for. The underscore prefix suggests these were planned for future use but
 never implemented.
 
-### 7.2 Blanket Lint Suppression on Reflection Module
+### 7.2 Blanket Lint Suppression on Reflection Module -- [FIXED]
 
-**Location:** `compiler/src/lib.rs:7-16`
-
-```rust
-#[allow(
-    unused_imports, dead_code, clippy::all,
-    non_camel_case_types, non_snake_case,
-    unused_variables, unused_mut, deprecated
-)]
-pub mod reflection;
-```
-
-This suppresses **ALL** clippy and rustc warnings for the entire reflection module,
-hiding any code quality issues.
-
-**Improvement:** Remove the blanket suppression. Fix or individually suppress specific
-warnings with explanatory comments. If the module is generated, document the generation
-source and add `// @generated` markers.
+**Status:** Replaced blanket `clippy::all` suppression with a specific auditable lint
+list in `compiler/src/lib.rs`. The module is documented as generated from
+`reflection.fbs` by C++ flatc, and individual lint suppressions are now listed
+explicitly (e.g., `clippy::duplicated_attributes`, `clippy::extra_unused_lifetimes`,
+`clippy::missing_safety_doc`, `clippy::module_inception`,
+`clippy::wrong_self_convention`).
 
 ---
 
@@ -651,19 +576,21 @@ Key files mentioned in this audit:
 
 | File | Lines | Role |
 |------|-------|------|
-| `schema/src/lib.rs` | 545 | Schema type definitions (all-Optional pattern) |
-| `codegen/src/lib.rs` | 240 | Codegen entry point (panic-based helpers, catch_unwind) |
-| `codegen/src/rust_table_gen/reader.rs` | 746 | Rust table reader generation |
-| `codegen/src/rust_table_gen/builder.rs` | 324 | Rust table builder generation |
-| `codegen/src/rust_table_gen/object_api.rs` | 579 | Rust Object API generation |
-| `codegen/src/enum_gen.rs` | 536 | Rust enum/bitflags generation |
-| `codegen/src/struct_gen.rs` | 653 | Rust struct generation |
-| `codegen/src/type_map.rs` | 365 | Type mapping and name conversion |
-| `compiler/src/main.rs` | 700 | CLI entry point |
-| `compiler/src/analyzer.rs` | 1310 | 8-step semantic analysis pipeline |
-| `compiler/src/compiler.rs` | 449 | Include resolution and schema merging |
-| `compiler/src/json/decoder.rs` | 854 | FlatBuffer binary to JSON conversion |
-| `compiler/src/json/encoder.rs` | 926 | JSON to FlatBuffer binary conversion |
-| `compiler/src/lib.rs` | 32 | Compiler crate root (blanket lint suppression) |
-| `annotator/src/binary_walker.rs` | 1194 | Binary annotation engine |
-| `ROADMAP.md` | 288 | Self-audit with 24 known unfixed bugs |
+| `schema/src/lib.rs` | 602 | Schema type definitions (parsed types) |
+| `schema/src/resolved.rs` | -- | Resolved schema types (non-optional, post-analysis) |
+| `schema/src/buf_reader.rs` | -- | Shared safe binary buffer reader |
+| `codegen/src/lib.rs` | 216 | Codegen entry point (Result for Rust, catch_unwind for TS) |
+| `codegen/src/rust_table_gen/reader.rs` | -- | Rust table reader generation |
+| `codegen/src/rust_table_gen/builder.rs` | -- | Rust table builder generation |
+| `codegen/src/rust_table_gen/object_api.rs` | -- | Rust Object API generation |
+| `codegen/src/enum_gen.rs` | -- | Rust enum/bitflags generation |
+| `codegen/src/struct_gen.rs` | -- | Rust struct generation |
+| `codegen/src/type_map.rs` | -- | Type mapping and name conversion |
+| `compiler/src/main.rs` | 690 | CLI entry point |
+| `compiler/src/analyzer.rs` | 1349 | 8-step semantic analysis pipeline |
+| `compiler/src/compiler.rs` | 463 | Include resolution and schema merging |
+| `compiler/src/json/decoder.rs` | 718 | FlatBuffer binary to JSON conversion |
+| `compiler/src/json/encoder.rs` | 904 | JSON to FlatBuffer binary conversion |
+| `compiler/src/lib.rs` | 41 | Compiler crate root (specific lint list) |
+| `annotator/src/binary_walker.rs` | 1057 | Binary annotation engine |
+| `ROADMAP.md` | -- | Development roadmap and audit tracking |

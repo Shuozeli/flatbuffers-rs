@@ -21,7 +21,7 @@ Use cases:
 
 ## Architecture
 
-Ten crates in a Cargo workspace:
+Nine crates in a Cargo workspace (plus a standalone grammar crate):
 
 ### schema
 
@@ -36,9 +36,10 @@ Hand-written recursive-descent parser. Tokenizes `.fbs` source text, then
 parses into an unresolved Schema AST. Includes safety guards: 10MB input
 limit and 10-second parse timeout.
 
-### grammar
+### grammar (not a workspace member)
 
 Tree-sitter grammar for the `.fbs` IDL. NOT used by the compilation pipeline.
+NOT a workspace member (lives in `grammar/` but is not listed in workspace `Cargo.toml`).
 Exists for IDE/editor integration (syntax highlighting, structural queries).
 
 ### codegen
@@ -137,7 +138,7 @@ Binary inspection: `--annotate`, `--dump-schema`
 # Build
 cargo build --workspace
 
-# Run all tests (550+ tests)
+# Run all tests (612+ tests)
 cargo test --workspace
 
 # Regenerate golden files after intentional changes

@@ -1,27 +1,30 @@
 # flatc-rs Roadmap
 
-Last updated: 2026-03-01
+Last updated: 2026-03-19
 
 ## Current State
 
 Rust implementation of the FlatBuffers compiler (`flatc`). The core pipeline is complete:
 parsing, semantic analysis, compiler orchestration, and code generation for Rust and
-TypeScript. 445+ tests passing. Binary compatibility verified against the C++ `flatc` via
+TypeScript. 612+ tests passing. Binary compatibility verified against the C++ `flatc` via
 cross-compat tests. Production readiness audit completed 2026-02-28. All CRITICAL and HIGH
-audit findings resolved.
+audit findings resolved. Code quality audit completed 2026-03-17 with all priority-1 and
+priority-2 fixes applied.
 
 | Component               | Status   | Tests |
 |-------------------------|----------|-------|
-| Tree-sitter Parser      | Complete | 59    |
-| Semantic Analyzer       | Complete | 78    |
-| Compiler Orchestration  | Complete | 8     |
-| Rust Code Generation    | Mature   | 133   |
-| TypeScript Code Gen     | Mature   | 18    |
-| Object API (pack/unpack)| Complete | 14    |
-| Fuzz/Random Schema Gen  | Complete | 38    |
+| Parser (recursive descent)| Complete | 58  |
+| Semantic Analyzer       | Complete | 105   |
+| Compiler Orchestration  | Complete | 17    |
+| Rust Code Generation    | Mature   | 168   |
+| TypeScript Code Gen     | Mature   | 52    |
+| Object API (pack/unpack)| Complete | 22    |
+| Fuzz/Random Schema Gen  | Complete | 44    |
 | Cross-compat (C++ flatc)| Verified | 17    |
-| Other                   |          | 75    |
-| **Total**               |          |**445**|
+| JSON/Binary Conversion  | Complete | 23    |
+| Serde Integration       | Complete | 22    |
+| Other                   |          | 84    |
+| **Total**               |          |**612**|
 
 ---
 
@@ -41,8 +44,8 @@ Implemented:
 - `--rust-serialize`, `--rust-module-root-file` (accepted, warn not yet implemented)
 - `--no-warnings`, `--warnings-as-errors`, `--version`
 
-**Files changed:** `compiler/src/main.rs`, `compiler/src/codegen/mod.rs`,
-`compiler/src/codegen/rust_gen.rs`, `compiler/src/codegen/ts_gen.rs`
+**Files changed:** `compiler/src/main.rs`, `codegen/src/lib.rs`,
+`codegen/src/rust_gen.rs`, `codegen/src/ts_gen.rs`
 
 ---
 
@@ -98,9 +101,10 @@ Empty `= []` is still accepted (matches C++ flatc behavior).
 Full audit completed 2026-02-28 across all 6 subsystems: parser, analyzer, Rust codegen,
 TypeScript codegen, compiler orchestration, and schema representation.
 
-**Verdict:** All CRITICAL (G1) and HIGH (G2) items resolved. 445 tests passing. Suitable
-for production use where schemas are authored by the same team. Remaining MEDIUM (G3)
-items are edge cases that can be addressed incrementally.
+**Verdict:** All CRITICAL (G1) and HIGH (G2) items resolved. 612 tests passing. Suitable
+for production use where schemas are authored by the same team. Many MEDIUM (G3) items
+have been fixed (see status below). Remaining open items are edge cases that can be
+addressed incrementally.
 
 ### G1: CRITICAL -- Crash and Wrong Output
 
@@ -131,32 +135,32 @@ items are edge cases that can be addressed incrementally.
 
 ### G3: MEDIUM -- Edge Cases and Robustness
 
-| # | Location | Description |
-|---|----------|-------------|
-| G3.1 | `analyzer.rs:196` | Union field `id: 0` causes `saturating_sub(1)` = 0, colliding with companion `_type` field. Should require union IDs >= 1. |
-| G3.2 | `analyzer.rs:609-633` | Empty enums not validated (C++ flatc rejects them). |
-| G3.3 | `analyzer.rs:377-448` | Union NONE variant position/value not validated. |
-| G3.4 | `analyzer.rs:597-700` | `key` attribute not validated (single key per table, must be scalar/string, not deprecated). |
-| G3.5 | `analyzer.rs:820` | Invalid `force_align` values silently ignored when `val.parse::<i64>()` fails. |
-| G3.6 | `type_index.rs:86-105` | No parent namespace walking. `A.B.C` won't resolve types defined in `A.B`. Differs from C++ flatc. |
-| G3.7 | `struct_layout.rs:162-211` | Unbounded recursion in topological sort. Deeply nested structs cause stack overflow. |
-| G3.8 | `compiler.rs:146-196` | No include depth limit. Deep non-circular chain causes stack overflow. |
-| G3.9 | `table_gen.rs:168-173,742-744` | Unhandled `BaseType` variants in Rust codegen emit `// TODO` comments instead of errors. |
-| G3.10 | `table_gen.rs:937` | Vector-of-unknown-type silently generates `Vector<'a, u8>` fallback. |
-| G3.11 | `compiler.rs:264-276` | Conflicting `file_identifier`/`root_type` across includes: last-one-wins with no warning. |
-| G3.12 | `main.rs:200-203` | `fs::canonicalize` failure silently drops files from `--gen-all` filter. |
-| G3.13 | `main.rs:117-124` | Non-atomic file writes. Interrupted process leaves partial output. |
-| G3.14 | `codegen/*.rs` | ~40 instances of `.unwrap_or(0) as usize`. Silent wrong-type reference if index is `None`. |
-| G3.15 | `schema/src/lib.rs:312,421` | `root_table` and RPC `request`/`response` are deep clones; stale after `compute_struct_layouts`. |
-| G3.16 | `schema/src/lib.rs:408` | `objects`/`enums` arrays not sorted. Binary schema consumers expect alphabetical order. |
-| G3.17 | `ts_type_map.rs` | 8 `panic!()` calls behind `catch_unwind`. Breaks silently with `panic=abort` compilation. |
-| G3.18 | `parser.rs:362-364` | Fixed array length `i64 as u32` silent truncation for values > `u32::MAX`. |
-| G3.19 | `parser.rs:73-81` | No tree-sitter timeout. Pathological input could stall indefinitely. |
-| G3.20 | `compiler.rs` | No limit on schema size. Millions of fields cause OOM with no bound. |
-| G3.21 | `struct_gen.rs:532-535` | Object API silently skips structs with array fields (documented as deferred). |
-| G3.22 | `analyzer.rs:851` | `ulong` enum/default range capped at `i64::MAX` (matches C++ flatc limitation). |
-| G3.23 | `parser.rs:198` | `_other` catch-all silently ignores unrecognized top-level node types. |
-| G3.24 | `grammar.js:153-163` | `object` grammar rule passes wrong arg count to `comma_separate`. Effectively broken. |
+| # | Location | Description | Status |
+|---|----------|-------------|--------|
+| G3.1 | `analyzer.rs` | Union field `id: 0` causes collision with companion `_type` field. | **DONE** -- `UnionFieldIdZero` validation error |
+| G3.2 | `analyzer.rs` | Empty enums not validated (C++ flatc rejects them). | Open |
+| G3.3 | `analyzer.rs` | Union NONE variant position/value not validated. | Open |
+| G3.4 | `analyzer.rs` | `key` attribute not validated (single key per table, must be scalar/string, not deprecated). | Open |
+| G3.5 | `analyzer.rs` | Invalid `force_align` values silently ignored when `val.parse::<i64>()` fails. | Open |
+| G3.6 | `type_index.rs` | No parent namespace walking. | **DONE** -- `TypeIndex.resolve()` walks parent namespaces |
+| G3.7 | `struct_layout.rs` | Unbounded recursion in topological sort. | **DONE** -- depth limit (256) + `StructDepthLimitExceeded` error |
+| G3.8 | `compiler.rs` | No include depth limit. | **DONE** -- 64-level depth limit, 1000 file limit |
+| G3.9 | `table_gen.rs` | Unhandled `BaseType` variants in Rust codegen emit `// TODO` comments instead of errors. | Partially addressed (warnings added) |
+| G3.10 | `table_gen.rs` | Vector-of-unknown-type silently generates `Vector<'a, u8>` fallback. | Open |
+| G3.11 | `compiler.rs` | Conflicting `file_identifier`/`root_type` across includes: last-one-wins with no warning. | Open |
+| G3.12 | `main.rs` | `fs::canonicalize` failure silently drops files from `--gen-all` filter. | Open |
+| G3.13 | `main.rs` | Non-atomic file writes. | **DONE** -- uses temp file + rename for atomic output |
+| G3.14 | `codegen/*.rs` | ~40 instances of `.unwrap_or(0) as usize`. | **DONE** -- proper error handling throughout |
+| G3.15 | `schema/src/lib.rs` | `root_table` deep clone goes stale after layout computation. | **DONE** -- `root_table_index` added, refreshed after layout |
+| G3.16 | `schema/src/lib.rs` | `objects`/`enums` arrays not sorted. Binary schema consumers expect alphabetical order. | Open |
+| G3.17 | `ts_type_map.rs` | `panic!()` calls behind `catch_unwind`. | **Partially fixed** -- Rust codegen uses `Result`; TS codegen still uses `catch_unwind` as safety net |
+| G3.18 | `parser.rs` | Fixed array length `i64 as u32` silent truncation for values > `u32::MAX`. | Open |
+| G3.19 | `parser.rs` | No parse timeout. Pathological input could stall indefinitely. | **DONE** -- 10-second parse timeout added |
+| G3.20 | `compiler.rs` | No limit on schema size. Millions of fields cause OOM with no bound. | **DONE** -- 10K objects, 10K enums, 100K fields, 100K enum values, 1K files |
+| G3.21 | `struct_gen.rs` | Object API silently skips structs with array fields (documented as deferred). | Open (warning added) |
+| G3.22 | `analyzer.rs` | `ulong` enum/default range capped at `i64::MAX` (matches C++ flatc limitation). | Open (by design) |
+| G3.23 | `parser.rs` | `_other` catch-all silently ignores unrecognized top-level node types. | Open |
+| G3.24 | `grammar.js` | `object` grammar rule passes wrong arg count to `comma_separate`. Effectively broken. | Open |
 
 ### G4: Recommended Fix Order
 
@@ -172,8 +176,8 @@ items are edge cases that can be addressed incrementally.
 10. ~~**G2.9** (octal escapes)~~ -- **DONE**
 11. ~~**G2.10** (serde renames)~~ -- **DONE**
 12. ~~**G2.4** (include path traversal)~~ -- **DONE**
-13. **G3.1** (union field ID validation) -- 15 min, fixes union ID collisions
-14. **G3.14** (unwrap_or(0) elimination) -- 1 hr, eliminates silent wrong-type references
+13. ~~**G3.1** (union field ID validation)~~ -- **DONE**
+14. ~~**G3.14** (unwrap_or(0) elimination)~~ -- **DONE**
 
 ---
 
@@ -217,7 +221,7 @@ Make flatc-rs pleasant to use when schemas have errors.
 
 Implemented:
 - `Span { file: Option<String>, line: u32, col: u32 }` added to `Schema` types
-- `FbsParser` now extracts position info from tree-sitter nodes
+- `FbsParser` now extracts position info from parser nodes
 - `AnalyzeError` variants include `Span` for precise error reporting
 - `IncludeResolver` passes file paths to the parser for multi-file span support
 
@@ -241,32 +245,33 @@ Implemented:
 
 ### F1: Binary schema (.bfbs) output (#84)
 
-**Priority:** P3 | **Effort:** Large | **Status:** Not started
+**Priority:** P3 | **Effort:** Large | **Status:** DONE
 
-Serialize the schema itself as a FlatBuffer using `reflection.fbs`. Enables runtime
-schema introspection.
+Implemented in `compiler/src/bfbs.rs`. CLI flag: `-b`/`--schema`. Serializes the
+schema as a FlatBuffer using `reflection.fbs`. Supporting flags: `--bfbs-comments`,
+`--bfbs-filenames`, `--bfbs-absolute-paths`.
 
-**Prerequisites from audit (G1.3, G1.4):** Before implementing binary schema output:
-- G1.3: Add `#[repr(u8)]` to `BaseType` with explicit discriminants matching the official
-  reflection.fbs values. Remove `UNSPECIFIED`, merge `TABLE`/`STRUCT` back to `Obj` (or
-  add a mapping layer).
-- G1.4: Replace `AdvancedFeatures` struct with a `u64` bitmask enum. Add missing
-  `AdvancedUnionFeatures` (bit 1).
-- ~~G2.10: Add `#[serde(rename)]` for 8 field name mismatches vs official schema.~~ **DONE**
+**Prerequisite G1.3 (BaseType discriminants):** Resolved -- `BaseType` now has
+`#[repr(u8)]` with explicit discriminants matching official `reflection.fbs` and
+a `to_reflection_byte()` method for wire-format serialization.
+
+**Prerequisite G1.4 (AdvancedFeatures):** Deferred -- latent, only needed if advanced
+feature flags are used.
 
 ### F2: gRPC service stub generation (#85)
 
-**Priority:** P3 | **Effort:** Large | **Status:** Not started
+**Priority:** P3 | **Effort:** Large | **Status:** DONE (feature-gated)
 
-Generate Rust gRPC trait definitions + client/server stubs (tonic) from
-`rpc_service` declarations.
+Implemented in `codegen/src/service_gen.rs`. Compile with `--features grpc` on the
+`flatc-rs-codegen` crate. Uses `grpc-codegen` from [pure-grpc-rs](https://github.com/shuozeli/pure-grpc-rs).
+Generates server traits and client stubs from `rpc_service` declarations.
 
 ### F3: Additional language backends (#86)
 
 **Priority:** P3 | **Effort:** Large per language | **Status:** Not started
 
 Go, C++, Python, Java codegen. Architecture supports it -- each backend is a separate
-`*_gen.rs` module under `compiler/src/codegen/`.
+`*_gen.rs` module under `codegen/src/`.
 
 ---
 
