@@ -1,5 +1,5 @@
 mod builder;
-mod helpers;
+pub(crate) mod helpers;
 mod object_api;
 mod reader;
 

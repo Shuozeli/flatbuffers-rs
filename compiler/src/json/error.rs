@@ -1,5 +1,4 @@
 use flatc_rs_schema::buf_reader::BoundsError;
-use flatc_rs_schema::BaseType;
 
 #[derive(Debug, thiserror::Error)]
 pub enum JsonError {
@@ -76,16 +75,6 @@ pub fn json_type_name(v: &serde_json::Value) -> String {
         serde_json::Value::Array(_) => "array".to_string(),
         serde_json::Value::Object(_) => "object".to_string(),
     }
-}
-
-/// Return the byte size of a scalar BaseType.
-pub fn scalar_byte_size(bt: BaseType) -> usize {
-    bt.scalar_byte_size()
-}
-
-/// Return true if the BaseType is a scalar (including bool).
-pub fn is_scalar(bt: BaseType) -> bool {
-    bt.is_scalar()
 }
 
 impl From<BoundsError> for JsonError {

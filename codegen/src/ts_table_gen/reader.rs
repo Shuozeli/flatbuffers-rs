@@ -323,7 +323,7 @@ fn gen_scalar_vector_accessor(
 ) {
     let ts_type = ts_type_map::scalar_ts_type(et);
     let read_method = ts_type_map::bb_read_method(et);
-    let elem_size = ts_type_map::scalar_size(et);
+    let elem_size = et.scalar_byte_size();
 
     // Check for enum element type
     let return_type = if type_map::has_enum_index(field) {

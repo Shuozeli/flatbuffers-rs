@@ -13,11 +13,6 @@ pub fn get_element_type(ty: &ResolvedType) -> BaseType {
     ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE)
 }
 
-/// Extract the type index from a ResolvedType.
-pub fn get_index(ty: &ResolvedType) -> Option<i32> {
-    ty.index
-}
-
 /// Returns true if a field's type has a non-negative index, indicating it
 /// references an enum (or union) definition in `schema.enums`.
 pub fn has_enum_index(field: &ResolvedField) -> bool {

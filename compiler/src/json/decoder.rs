@@ -10,7 +10,7 @@ use flatc_rs_schema::resolved::{
 use flatc_rs_schema::BaseType;
 use serde_json::{json, Map, Value};
 
-use super::error::{is_scalar, scalar_byte_size, JsonError};
+use super::error::JsonError;
 
 const MAX_DEPTH: usize = 64;
 
@@ -394,7 +394,7 @@ impl<'a> Decoder<'a> {
                     let v = self.reader.read_u8(field_offset)?;
                     result.insert(fname, Value::Bool(v != 0));
                 }
-                bt if is_scalar(bt) => {
+                bt if bt.is_scalar() => {
                     let val = self.read_scalar_value(field_offset, bt, field_ty)?;
                     result.insert(fname, val);
                 }
@@ -421,8 +421,8 @@ impl<'a> Decoder<'a> {
         let mut arr = Vec::with_capacity(fixed_len);
 
         match elem_bt {
-            bt if is_scalar(bt) => {
-                let elem_size = scalar_byte_size(bt);
+            bt if bt.is_scalar() => {
+                let elem_size = bt.scalar_byte_size();
                 for i in 0..fixed_len {
                     let elem_offset = offset + i * elem_size;
                     let val = self.read_scalar_value(elem_offset, bt, ty)?;
@@ -463,8 +463,8 @@ impl<'a> Decoder<'a> {
         let mut arr = Vec::with_capacity(count);
 
         match elem_bt {
-            bt if is_scalar(bt) => {
-                let elem_size = scalar_byte_size(bt);
+            bt if bt.is_scalar() => {
+                let elem_size = bt.scalar_byte_size();
                 for i in 0..count {
                     let elem_offset = data_start + i * elem_size;
                     let val = self.read_scalar_value(elem_offset, bt, ty)?;

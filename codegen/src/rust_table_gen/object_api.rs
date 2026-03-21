@@ -139,13 +139,10 @@ fn table_owned_field_type(
             let ename = type_map::resolve_enum_name(schema, current_ns, idx);
             Ok(format!("{ename}T"))
         }
-        other => {
-            eprintln!(
-                "warning: unknown base type {:?} for field '{}', defaulting to u8",
-                other, &field.name,
-            );
-            Ok("u8".to_string())
-        }
+        other => Err(CodeGenError::Internal(format!(
+            "unsupported base type {:?} for Object API field '{}'",
+            other, &field.name,
+        ))),
     }
 }
 
@@ -177,13 +174,10 @@ fn vector_owned_element_type(
             let sname = type_map::resolve_object_name(schema, current_ns, idx);
             Ok(format!("{sname}T"))
         }
-        other => {
-            eprintln!(
-                "warning: unknown vector element base type {:?} for field '{}', defaulting to u8",
-                other, &field.name,
-            );
-            Ok("u8".to_string())
-        }
+        other => Err(CodeGenError::Internal(format!(
+            "unsupported vector element base type {:?} for Object API field '{}'",
+            other, &field.name,
+        ))),
     }
 }
 

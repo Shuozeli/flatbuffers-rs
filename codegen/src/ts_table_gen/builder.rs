@@ -123,7 +123,7 @@ pub(super) fn gen_vector_helpers(
 
     if type_map::is_scalar(et) {
         // createXxxVector for scalar types
-        let elem_size = ts_type_map::scalar_size(et);
+        let elem_size = et.scalar_byte_size();
         let add_method = ts_type_map::builder_add_method(et);
         let ts_type = ts_type_map::scalar_ts_type(et);
         let array_name = ts_type_map::typed_array_name(et);
@@ -151,7 +151,7 @@ pub(super) fn gen_vector_helpers(
     // startXxxVector for all vector types
     let (elem_size, alignment) = match et {
         et if type_map::is_scalar(et) => {
-            let s = ts_type_map::scalar_size(et);
+            let s = et.scalar_byte_size();
             (s, s)
         }
         BaseType::BASE_TYPE_STRING | BaseType::BASE_TYPE_TABLE => (4, 4),

@@ -498,7 +498,7 @@ fn array_element_info(schema: &ResolvedSchema, field: &ResolvedField) -> (BaseTy
         let idx = type_index(ty, "array element struct lookup").unwrap();
         obj_byte_size(&schema.objects[idx]).unwrap()
     } else {
-        ts_type_map::scalar_size(et)
+        et.scalar_byte_size()
     };
 
     (et, fixed_len, elem_size)

@@ -2,7 +2,7 @@ mod binary_walker;
 mod formatter;
 pub mod region;
 
-pub use binary_walker::{is_scalar, scalar_byte_size, BinaryWalker};
+pub use binary_walker::BinaryWalker;
 pub use formatter::format_afb;
 pub use region::{AnnotatedRegion, RegionType, WalkError};
 

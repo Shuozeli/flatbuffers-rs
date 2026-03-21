@@ -6,7 +6,7 @@ use flatc_rs_schema::resolved::{
 use flatc_rs_schema::BaseType;
 use serde_json::Value;
 
-use super::error::{is_scalar, json_type_name, scalar_byte_size, JsonError};
+use super::error::{json_type_name, JsonError};
 
 const MAX_DEPTH: usize = 64;
 
@@ -499,7 +499,7 @@ impl<'a> Encoder<'a> {
                 Ok(v.to_le_bytes().to_vec())
             }
 
-            _ => Ok(vec![0; scalar_byte_size(bt)]),
+            _ => Ok(vec![0; bt.scalar_byte_size()]),
         }
     }
 
@@ -657,8 +657,8 @@ impl<'a> Encoder<'a> {
         let elem_bt = ty.element_type.unwrap_or(BaseType::BASE_TYPE_U_BYTE);
 
         match elem_bt {
-            bt if is_scalar(bt) => {
-                let elem_size = scalar_byte_size(bt);
+            bt if bt.is_scalar() => {
+                let elem_size = bt.scalar_byte_size();
                 let alignment = elem_size.max(4);
                 self.align(alignment);
                 let pos = self.buf.len();

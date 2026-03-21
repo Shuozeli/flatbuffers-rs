@@ -13,7 +13,7 @@ use super::{CodeGenError, CodeGenOptions};
 pub struct RustGenerator<'a> {
     pub schema: &'a ResolvedSchema,
     pub w: CodeWriter,
-    pub _opts: &'a CodeGenOptions,
+    pub opts: &'a CodeGenOptions,
 }
 
 impl<'a> RustGenerator<'a> {
@@ -21,7 +21,7 @@ impl<'a> RustGenerator<'a> {
         Self {
             schema,
             w: CodeWriter::new(),
-            _opts: opts,
+            opts,
         }
     }
 
@@ -39,14 +39,14 @@ impl<'a> RustGenerator<'a> {
         self.w.line("// @generated");
         self.w.blank();
         self.w.line("extern crate alloc;");
-        if self._opts.rust_serialize {
+        if self.opts.rust_serialize {
             self.w.line("extern crate serde;");
         }
     }
 
     /// Group all types by namespace and emit nested `pub mod` blocks.
     fn gen_body(&mut self) -> Result<(), CodeGenError> {
-        let root = namespace_tree::build_namespace_tree(self.schema, &self._opts.gen_only_files);
+        let root = namespace_tree::build_namespace_tree(self.schema, &self.opts.gen_only_files);
 
         // Emit root-level types first
         if !root.types.is_empty() {
@@ -68,7 +68,7 @@ impl<'a> RustGenerator<'a> {
         self.w.line("#[allow(unused_imports, dead_code)]");
         self.w.line(&format!("pub mod {mod_name} {{"));
         self.w.indent();
-        if !self._opts.no_includes {
+        if !self.opts.no_includes {
             self.w.line("use super::*;");
         }
 
@@ -92,15 +92,15 @@ impl<'a> RustGenerator<'a> {
         for entry in entries {
             match entry {
                 TypeEntry::Enum(idx) => {
-                    enum_gen::generate(&mut self.w, self.schema, *idx, self._opts)?;
+                    enum_gen::generate(&mut self.w, self.schema, *idx, self.opts)?;
                     self.w.blank();
                 }
                 TypeEntry::Struct(idx) => {
-                    struct_gen::generate(&mut self.w, self.schema, *idx, self._opts)?;
+                    struct_gen::generate(&mut self.w, self.schema, *idx, self.opts)?;
                     self.w.blank();
                 }
                 TypeEntry::Table(idx) => {
-                    rust_table_gen::generate(&mut self.w, self.schema, *idx, self._opts)?;
+                    rust_table_gen::generate(&mut self.w, self.schema, *idx, self.opts)?;
                     self.w.blank();
                 }
             }

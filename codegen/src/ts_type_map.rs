@@ -124,20 +124,6 @@ pub fn typed_array_name(bt: BaseType) -> &'static str {
     }
 }
 
-/// Returns the byte size for a scalar BaseType.
-pub fn scalar_size(bt: BaseType) -> usize {
-    match bt {
-        BaseType::BASE_TYPE_BOOL
-        | BaseType::BASE_TYPE_BYTE
-        | BaseType::BASE_TYPE_U_BYTE
-        | BaseType::BASE_TYPE_U_TYPE => 1,
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => 2,
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => 4,
-        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => 8,
-        _ => panic!("no size for BaseType: {bt:?}"),
-    }
-}
-
 /// Format a default value for a scalar BaseType in TypeScript.
 pub fn format_default_ts(value: i64, bt: BaseType) -> String {
     match bt {

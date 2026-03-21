@@ -506,19 +506,11 @@ fn has_array_fields(obj: &ResolvedObject) -> bool {
         .any(|f| get_base_type(&f.type_) == BaseType::BASE_TYPE_ARRAY)
 }
 
-/// Check if a field has the `key` attribute.
-fn has_key_attribute(field: &ResolvedField) -> bool {
-    field.attributes.as_ref().is_some_and(|attrs| {
-        attrs
-            .entries
-            .iter()
-            .any(|e| e.key.as_deref() == Some("key"))
-    })
-}
-
 /// Find the key field in a struct.
 fn find_key_field(obj: &ResolvedObject) -> Option<&ResolvedField> {
-    obj.fields.iter().find(|f| has_key_attribute(f))
+    obj.fields
+        .iter()
+        .find(|f| super::rust_table_gen::helpers::has_key_attribute(f))
 }
 
 /// Generate the Object API for a struct: owned `{Name}T` type with `pack`/`unpack`.

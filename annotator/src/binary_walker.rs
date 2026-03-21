@@ -362,7 +362,7 @@ impl<'a> BinaryWalker<'a> {
             | BaseType::BASE_TYPE_U_LONG
             | BaseType::BASE_TYPE_FLOAT
             | BaseType::BASE_TYPE_DOUBLE => {
-                let size = scalar_byte_size(bt);
+                let size = bt.scalar_byte_size();
                 let value = self.read_scalar_display(offset, bt, ty)?;
                 let region = self.add_region(
                     offset..offset + size,
@@ -559,7 +559,7 @@ impl<'a> BinaryWalker<'a> {
                     )?;
                 }
                 _ => {
-                    let size = scalar_byte_size(field_bt);
+                    let size = field_bt.scalar_byte_size();
                     if size > 0 {
                         let value = self.read_scalar_display(field_offset, field_bt, field_ty)?;
                         let region = self.add_region(
@@ -599,8 +599,8 @@ impl<'a> BinaryWalker<'a> {
         let fixed_len = ty.fixed_length.unwrap_or(0) as usize;
 
         match elem_bt {
-            bt if is_scalar(bt) => {
-                let elem_size = scalar_byte_size(bt);
+            bt if bt.is_scalar() => {
+                let elem_size = bt.scalar_byte_size();
                 let total = elem_size * fixed_len;
                 let arr_region = self.add_region(
                     offset..offset + total,
@@ -692,8 +692,8 @@ impl<'a> BinaryWalker<'a> {
         let data_start = vec_start + 4;
 
         match elem_bt {
-            bt if is_scalar(bt) => {
-                let elem_size = scalar_byte_size(bt);
+            bt if bt.is_scalar() => {
+                let elem_size = bt.scalar_byte_size();
                 for i in 0..count {
                     let elem_offset = data_start + i * elem_size;
                     let value = self.read_scalar_display(elem_offset, bt, ty)?;
@@ -1046,12 +1046,4 @@ fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, WalkErr
         .ok_or_else(|| WalkError::MissingTypeIndex {
             context: context.to_string(),
         })
-}
-
-pub fn scalar_byte_size(bt: BaseType) -> usize {
-    bt.scalar_byte_size()
-}
-
-pub fn is_scalar(bt: BaseType) -> bool {
-    bt.is_scalar()
 }

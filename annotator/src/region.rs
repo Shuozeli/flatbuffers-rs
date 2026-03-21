@@ -189,7 +189,6 @@ pub enum WalkError {
     #[error("root type '{name}' not found in schema")]
     RootTypeNotFound { name: String },
     #[error("invalid offset at 0x{offset:04X}: points to 0x{target:04X} which is out of bounds")]
-    #[allow(dead_code)]
     InvalidOffset { offset: usize, target: usize },
     #[error("walk depth exceeded maximum of {max}")]
     MaxDepthExceeded { max: usize },

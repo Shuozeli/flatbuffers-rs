@@ -263,7 +263,7 @@ pub(super) fn find_table_by_name(schema: &ResolvedSchema, name: &str) -> Option<
 }
 
 /// Check if a field has the `key` attribute.
-pub(super) fn has_key_attribute(field: &ResolvedField) -> bool {
+pub(crate) fn has_key_attribute(field: &ResolvedField) -> bool {
     field.attributes.as_ref().is_some_and(|attrs| {
         attrs
             .entries
