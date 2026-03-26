@@ -1,5 +1,4 @@
 use crate::field_type_index;
-use crate::type_map::{get_base_type, get_element_type};
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
@@ -58,7 +57,7 @@ pub(super) fn gen_builder(
                     w.line("let o = self.fbb_.end_table(self.start_);");
                     // Required field assertions (explicit required or string key fields)
                     for field in &obj.fields {
-                        let fbt = get_base_type(&field.type_);
+                        let fbt = field.type_.base_type;
                         let is_key_string = helpers::has_key_attribute(field) && fbt == BaseType::BASE_TYPE_STRING;
                         if field.is_required || is_key_string {
                             let fname = &field.name;
@@ -89,7 +88,7 @@ fn gen_builder_add_method(
     let accessor = type_map::to_snake_case(&escaped);
     let upper = type_map::to_upper_snake_case(&escaped);
 
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     w.line("#[inline]");
 
@@ -156,7 +155,7 @@ fn gen_builder_add_method(
             w.line("}");
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let element_bt = get_element_type(&field.type_);
+            let element_bt = field.type_.element_type_or_none();
             let vec_inner =
                 helpers::vector_element_type(schema, field, element_bt, "'b", current_ns)?;
             w.line(&format!(
@@ -198,7 +197,7 @@ pub(super) fn gen_args_struct(
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
     let needs_lifetime = obj.fields.iter().any(|f| {
-        let bt = get_base_type(&f.type_);
+        let bt = f.type_.base_type;
         matches!(
             bt,
             BaseType::BASE_TYPE_STRING
@@ -255,7 +254,7 @@ pub(super) fn gen_args_struct(
 /// Generate the standalone `create*()` function.
 pub(super) fn gen_create_fn(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let needs_lifetime = obj.fields.iter().any(|f| {
-        let bt = get_base_type(&f.type_);
+        let bt = f.type_.base_type;
         matches!(
             bt,
             BaseType::BASE_TYPE_STRING
@@ -285,7 +284,7 @@ pub(super) fn gen_create_fn(w: &mut CodeWriter, obj: &ResolvedObject, name: &str
     let mut scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
 
     for (i, field) in obj.fields.iter().enumerate() {
-        let bt = get_base_type(&field.type_);
+        let bt = field.type_.base_type;
         if type_map::is_scalar(bt) {
             scalar_fields.push((i, field));
         } else {
@@ -305,8 +304,8 @@ pub(super) fn gen_create_fn(w: &mut CodeWriter, obj: &ResolvedObject, name: &str
 
     // Scalar fields: sort by alignment size desc then index desc (matches C++ ordering)
     scalar_fields.sort_by(|a, b| {
-        let sz_a = helpers::scalar_alignment_size(get_base_type(&a.1.type_));
-        let sz_b = helpers::scalar_alignment_size(get_base_type(&b.1.type_));
+        let sz_a = helpers::scalar_alignment_size(a.1.type_.base_type);
+        let sz_b = helpers::scalar_alignment_size(b.1.type_.base_type);
         sz_b.cmp(&sz_a).then(b.0.cmp(&a.0))
     });
 

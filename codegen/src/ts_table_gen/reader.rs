@@ -43,7 +43,7 @@ pub(super) fn gen_field_accessor(
     field: &ResolvedField,
 ) {
     let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
-    let bt = type_map::get_base_type(&field.type_);
+    let bt = field.type_.base_type;
     let slot = field_id(field).unwrap();
     let vt_offset = 4 + 2 * slot;
 
@@ -53,7 +53,7 @@ pub(super) fn gen_field_accessor(
         }
         bt if type_map::is_scalar(bt) => {
             // Check for enum type
-            if type_map::has_enum_index(field) {
+            if type_map::has_type_index(field) {
                 gen_enum_accessor(w, schema, &fname, bt, field, vt_offset);
             } else {
                 gen_scalar_accessor(w, &fname, bt, field, vt_offset, schema);
@@ -282,7 +282,7 @@ fn gen_vector_accessor(
     field: &ResolvedField,
     vt_offset: u32,
 ) {
-    let et = type_map::get_element_type(&field.type_);
+    let et = field.type_.element_type_or_none();
 
     match et {
         et if type_map::is_scalar(et) => {
@@ -326,7 +326,7 @@ fn gen_scalar_vector_accessor(
     let elem_size = et.scalar_byte_size();
 
     // Check for enum element type
-    let return_type = if type_map::has_enum_index(field) {
+    let return_type = if type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
         schema.enums[enum_idx].name.clone()
     } else {
@@ -446,7 +446,7 @@ pub(super) fn gen_field_mutator(
     field: &ResolvedField,
 ) {
     let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
-    let bt = type_map::get_base_type(&field.type_);
+    let bt = field.type_.base_type;
     let slot = field_id(field).unwrap();
     let vt_offset = 4 + 2 * slot;
 

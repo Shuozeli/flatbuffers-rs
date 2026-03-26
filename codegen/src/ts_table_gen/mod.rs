@@ -100,7 +100,7 @@ pub fn generate(
                 if field.is_deprecated {
                     continue;
                 }
-                let bt = type_map::get_base_type(&field.type_);
+                let bt = field.type_.base_type;
                 if type_map::is_scalar(bt) || bt == BaseType::BASE_TYPE_BOOL {
                     reader::gen_field_mutator(w, schema, field);
                     w.blank();
@@ -120,7 +120,7 @@ pub fn generate(
             w.blank();
 
             // Vector create/start helpers
-            let bt = type_map::get_base_type(&field.type_);
+            let bt = field.type_.base_type;
             if bt == BaseType::BASE_TYPE_VECTOR {
                 builder::gen_vector_helpers(w, schema, field);
                 w.blank();

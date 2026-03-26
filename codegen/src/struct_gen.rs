@@ -1,4 +1,4 @@
-use super::type_map::{escape_keyword, get_base_type, get_element_type, has_enum_index};
+use super::type_map::{escape_keyword, has_type_index};
 use super::{field_offset, field_type_index, obj_byte_size, obj_min_align, type_index};
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
@@ -201,7 +201,7 @@ fn gen_constructor(
         .iter()
         .map(|f| {
             let fname = escape_keyword(&type_map::to_snake_case(&f.name));
-            let bt = get_base_type(&f.type_);
+            let bt = f.type_.base_type;
             if bt == BaseType::BASE_TYPE_ARRAY {
                 let (elem_type_str, fixed_len) = array_element_info(schema, f)?;
                 Ok(format!("{fname}: &[{elem_type_str}; {fixed_len}]"))
@@ -236,7 +236,7 @@ fn gen_field_getter(
     let fname = escape_keyword(&type_map::to_snake_case(&field.name));
     let offset = field_offset(field)?;
 
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     // Array fields return ::flatbuffers::Array<'a, T, N>
     if bt == BaseType::BASE_TYPE_ARRAY {
@@ -273,7 +273,7 @@ fn gen_field_getter(
     }
 
     // Check if this is an enum-typed field (scalar base type with index)
-    if type_map::is_scalar(bt) && has_enum_index(field) {
+    if type_map::is_scalar(bt) && has_type_index(field) {
         let enum_idx = field_type_index(field)?;
         let enum_name = &schema.enums[enum_idx].name;
 
@@ -335,11 +335,11 @@ fn gen_field_setter(
     let fname = escape_keyword(&type_map::to_snake_case(&field.name));
     let offset = field_offset(field)?;
 
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     // Array fields
     if bt == BaseType::BASE_TYPE_ARRAY {
-        let et = get_element_type(&field.type_);
+        let et = field.type_.element_type_or_none();
         let (elem_type_str, fixed_len) = array_element_info(schema, field)?;
 
         if et == BaseType::BASE_TYPE_STRUCT {
@@ -398,7 +398,7 @@ fn gen_field_setter(
     let ftype = field_rust_type(schema, field)?;
 
     // Enum-typed field: use EndianScalar trait to avoid private field access (bitflags)
-    if type_map::is_scalar(bt) && has_enum_index(field) {
+    if type_map::is_scalar(bt) && has_type_index(field) {
         let enum_idx = field_type_index(field)?;
         let enum_name = &schema.enums[enum_idx].name;
 
@@ -451,7 +451,7 @@ fn gen_field_setter(
 
 /// Get the Rust type string for a struct field (scalars only, or nested struct reference).
 fn field_rust_type(schema: &ResolvedSchema, field: &ResolvedField) -> Result<String, CodeGenError> {
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field)?;
@@ -459,7 +459,7 @@ fn field_rust_type(schema: &ResolvedSchema, field: &ResolvedField) -> Result<Str
     }
 
     // Check if this is an enum-typed field
-    if type_map::is_scalar(bt) && has_enum_index(field) {
+    if type_map::is_scalar(bt) && has_type_index(field) {
         let enum_idx = field_type_index(field)?;
         return Ok(schema.enums[enum_idx].name.clone());
     }
@@ -503,7 +503,7 @@ fn array_element_info(
 fn has_array_fields(obj: &ResolvedObject) -> bool {
     obj.fields
         .iter()
-        .any(|f| get_base_type(&f.type_) == BaseType::BASE_TYPE_ARRAY)
+        .any(|f| f.type_.base_type == BaseType::BASE_TYPE_ARRAY)
 }
 
 /// Find the key field in a struct.
@@ -539,7 +539,7 @@ fn gen_object_api(
         .fields
         .iter()
         .map(|field| {
-            let bt = get_base_type(&field.type_);
+            let bt = field.type_.base_type;
             struct_owned_field_type(schema, field, bt)
         })
         .collect::<Result<Vec<_>, CodeGenError>>()?;
@@ -569,7 +569,7 @@ fn gen_object_api(
                 .iter()
                 .map(|f| {
                     let fname = escape_keyword(&type_map::to_snake_case(&f.name));
-                    let bt = get_base_type(&f.type_);
+                    let bt = f.type_.base_type;
                     if bt == BaseType::BASE_TYPE_STRUCT {
                         // Nested struct: pack and pass by reference
                         format!("&self.{fname}.pack()")
@@ -590,7 +590,7 @@ fn gen_object_api(
             w.indent();
             for field in &obj.fields {
                 let fname = escape_keyword(&type_map::to_snake_case(&field.name));
-                let bt = get_base_type(&field.type_);
+                let bt = field.type_.base_type;
                 if bt == BaseType::BASE_TYPE_STRUCT {
                     w.line(&format!("{fname}: self.{fname}().unpack(),"));
                 } else {
@@ -616,7 +616,7 @@ fn struct_owned_field_type(
         Ok(format!("{struct_name}T"))
     } else if type_map::is_scalar(bt) {
         // Check for enum-typed field
-        if has_enum_index(field) {
+        if has_type_index(field) {
             let enum_idx = field_type_index(field)?;
             Ok(schema.enums[enum_idx].name.clone())
         } else {

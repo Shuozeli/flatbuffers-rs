@@ -59,16 +59,7 @@ struct Encoder<'a> {
 
 impl<'a> Encoder<'a> {
     fn new(schema: &'a ResolvedSchema, opts: &'a EncoderOptions) -> Self {
-        let mut object_index = std::collections::HashMap::new();
-        for (i, obj) in schema.objects.iter().enumerate() {
-            let name = obj.name.as_str();
-            object_index.entry(name).or_insert(i);
-            if let Some(short) = name.rsplit('.').next() {
-                if short != name {
-                    object_index.entry(short).or_insert(i);
-                }
-            }
-        }
+        let object_index = schema.build_object_index();
         Self {
             schema,
             opts,

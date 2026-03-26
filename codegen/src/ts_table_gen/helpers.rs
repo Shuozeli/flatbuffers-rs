@@ -12,7 +12,7 @@ pub(super) fn scalar_field_ts_type(
     field: &ResolvedField,
     bt: BaseType,
 ) -> String {
-    if type_map::has_enum_index(field) {
+    if type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
         schema.enums[enum_idx].name.clone()
     } else {
@@ -32,7 +32,7 @@ pub(super) fn scalar_default_value(
             .default_real
             .unwrap_or_else(|| field.default_integer.unwrap_or(0) as f64);
         ts_type_map::format_default_real_ts(val, bt)
-    } else if type_map::has_enum_index(field) {
+    } else if type_map::has_type_index(field) {
         // Enum default: check default_string first (e.g., "Blue"), format as EnumName.ValueName
         let enum_idx = field_type_index(field).unwrap();
         let enum_def = &schema.enums[enum_idx];
@@ -72,7 +72,7 @@ pub(super) fn object_api_field_type_and_default(
     schema: &ResolvedSchema,
     field: &ResolvedField,
 ) -> (String, String) {
-    let bt = type_map::get_base_type(&field.type_);
+    let bt = field.type_.base_type;
     let is_optional = field.is_optional;
 
     match bt {
@@ -80,7 +80,7 @@ pub(super) fn object_api_field_type_and_default(
             let ts_type = ts_type_map::scalar_ts_type(bt);
 
             // Check for enum type
-            let type_name = if type_map::has_enum_index(field) {
+            let type_name = if type_map::has_type_index(field) {
                 let enum_idx = field_type_index(field).unwrap();
                 schema.enums[enum_idx].name.clone()
             } else {
@@ -118,10 +118,10 @@ pub(super) fn object_api_field_type_and_default(
             (format!("{table_name}T|null"), "null".to_string())
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let et = type_map::get_element_type(&field.type_);
+            let et = field.type_.element_type_or_none();
             let elem_type = match et {
                 et if type_map::is_scalar(et) => {
-                    if type_map::has_enum_index(field) {
+                    if type_map::has_type_index(field) {
                         let enum_idx = field_type_index(field).unwrap();
                         schema.enums[enum_idx].name.clone()
                     } else {

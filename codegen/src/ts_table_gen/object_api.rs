@@ -52,7 +52,7 @@ pub(super) fn gen_unpack_to(
 
 fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
     let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
-    let bt = type_map::get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     match bt {
         BaseType::BASE_TYPE_STRUCT => {
@@ -65,7 +65,7 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
             format!("this.{fname}()")
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let et = type_map::get_element_type(&field.type_);
+            let et = field.type_.element_type_or_none();
             match et {
                 et if type_map::is_scalar(et) => {
                     format!(
@@ -159,7 +159,7 @@ pub(super) fn gen_object_api_class(
                         }
                         let fname =
                             ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
-                        let bt = type_map::get_base_type(&field.type_);
+                        let bt = field.type_.base_type;
                         match bt {
                             BaseType::BASE_TYPE_STRING => {
                                 w.line(&format!(
@@ -186,7 +186,7 @@ pub(super) fn gen_object_api_class(
                             ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
                         let pascal =
                             ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
-                        let bt = type_map::get_base_type(&field.type_);
+                        let bt = field.type_.base_type;
 
                         match bt {
                             bt if type_map::is_scalar(bt) => {
@@ -234,7 +234,7 @@ pub(super) fn gen_object_api_class(
 }
 
 fn gen_pack_vector(w: &mut CodeWriter, field: &ResolvedField, fname: &str, table_name: &str) {
-    let et = type_map::get_element_type(&field.type_);
+    let et = field.type_.element_type_or_none();
     let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
 
     match et {

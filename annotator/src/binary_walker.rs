@@ -38,16 +38,7 @@ pub struct BinaryWalker<'a> {
 impl<'a> BinaryWalker<'a> {
     pub fn new(buf: &'a [u8], schema: &'a ResolvedSchema) -> Self {
         let len = buf.len();
-        let mut object_index = std::collections::HashMap::new();
-        for (i, obj) in schema.objects.iter().enumerate() {
-            let name = obj.name.as_str();
-            object_index.entry(name).or_insert(i);
-            if let Some(short) = name.rsplit('.').next() {
-                if short != name {
-                    object_index.entry(short).or_insert(i);
-                }
-            }
-        }
+        let object_index = schema.build_object_index();
         Self {
             reader: BufReader::new(buf),
             schema,

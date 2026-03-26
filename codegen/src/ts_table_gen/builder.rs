@@ -27,7 +27,7 @@ pub(super) fn gen_add_method(
 ) {
     let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
     let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
-    let bt = type_map::get_base_type(&field.type_);
+    let bt = field.type_.base_type;
     let slot = field_id(field).unwrap();
 
     match bt {
@@ -119,7 +119,7 @@ pub(super) fn gen_vector_helpers(
     field: &ResolvedField,
 ) {
     let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
-    let et = type_map::get_element_type(&field.type_);
+    let et = field.type_.element_type_or_none();
 
     if type_map::is_scalar(et) {
         // createXxxVector for scalar types
@@ -208,7 +208,7 @@ pub(super) fn gen_create_fn(
         .filter(|f| !f.is_deprecated)
         .map(|f| {
             let fname = ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&f.name));
-            let bt = type_map::get_base_type(&f.type_);
+            let bt = f.type_.base_type;
             let is_optional = f.is_optional;
             let param_type = helpers::create_fn_param_type(schema, f, bt);
             if is_optional && type_map::is_scalar(bt) {
@@ -245,7 +245,7 @@ pub(super) fn gen_create_fn(
                     ts_type_map::escape_ts_keyword(&ts_type_map::to_camel_case(&field.name));
                 let pascal =
                     ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
-                let bt = type_map::get_base_type(&field.type_);
+                let bt = field.type_.base_type;
                 let is_optional = field.is_optional;
 
                 match bt {

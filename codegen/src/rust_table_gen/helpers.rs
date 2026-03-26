@@ -1,5 +1,5 @@
 use crate::field_type_index;
-use crate::type_map::{get_base_type, get_element_type, has_enum_index};
+use crate::type_map::has_type_index;
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
@@ -25,7 +25,7 @@ pub(super) fn vector_element_type(
     match element_bt {
         bt if type_map::is_scalar(bt) => {
             // Check if vector of enum
-            if has_enum_index(field) {
+            if has_type_index(field) {
                 let enum_idx = field_type_index(field)?;
                 if enum_idx < schema.enums.len() {
                     return Ok(type_map::resolve_enum_name(schema, current_ns, enum_idx));
@@ -63,11 +63,11 @@ pub(super) fn verifier_type_str(
     field: &ResolvedField,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     match bt {
         bt if type_map::is_scalar(bt) => {
-            if has_enum_index(field) {
+            if has_type_index(field) {
                 let idx = field_type_index(field)?;
                 Ok(type_map::resolve_enum_name(schema, current_ns, idx))
             } else {
@@ -85,7 +85,7 @@ pub(super) fn verifier_type_str(
             Ok(format!("::flatbuffers::ForwardsUOffset<{tname}>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let element_bt = get_element_type(&field.type_);
+            let element_bt = field.type_.element_type_or_none();
             let inner = vector_element_type(schema, field, element_bt, "'_", current_ns)?;
             Ok(format!(
                 "::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>"
@@ -127,7 +127,7 @@ pub(super) fn scalar_builder_type(
 ) -> Result<(String, bool), CodeGenError> {
     let is_optional = field.is_optional;
 
-    if has_enum_index(field) {
+    if has_type_index(field) {
         let idx = field_type_index(field)?;
         let enum_name = type_map::resolve_enum_name(schema, current_ns, idx);
         Ok((enum_name, !is_optional))
@@ -143,7 +143,7 @@ pub(super) fn scalar_builder_default(
     bt: BaseType,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    if has_enum_index(field) {
+    if has_type_index(field) {
         let idx = field_type_index(field)?;
         let enum_name = type_map::resolve_enum_name(schema, current_ns, idx);
         let is_bitflags = type_map::is_bitflags_enum(schema, idx);
@@ -168,12 +168,12 @@ pub(super) fn args_field_type(
     field: &ResolvedField,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
     let is_optional = field.is_optional;
 
     match bt {
         bt if type_map::is_scalar(bt) => {
-            let base = if has_enum_index(field) {
+            let base = if has_type_index(field) {
                 let idx = field_type_index(field)?;
                 type_map::resolve_enum_name(schema, current_ns, idx)
             } else {
@@ -197,7 +197,7 @@ pub(super) fn args_field_type(
             Ok(format!("Option<::flatbuffers::WIPOffset<{tname}<'a>>>"))
         }
         BaseType::BASE_TYPE_VECTOR => {
-            let element_bt = get_element_type(&field.type_);
+            let element_bt = field.type_.element_type_or_none();
             let inner = vector_element_type(schema, field, element_bt, "'a", current_ns)?;
             Ok(format!(
                 "Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, {inner}>>>"
@@ -216,7 +216,7 @@ pub(super) fn args_field_default(
     field: &ResolvedField,
     current_ns: &str,
 ) -> Result<String, CodeGenError> {
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     match bt {
         bt if type_map::is_scalar(bt) => {
@@ -261,18 +261,18 @@ pub(crate) fn has_key_attribute(field: &ResolvedField) -> bool {
 
 /// Check if a field's type is a union.
 pub(super) fn is_union_field(field: &ResolvedField) -> bool {
-    get_base_type(&field.type_) == BaseType::BASE_TYPE_UNION
+    field.type_.base_type == BaseType::BASE_TYPE_UNION
 }
 
 /// Check if a field is a union type discriminator (the `_type` field for a union).
 /// Returns false if the field type index cannot be resolved (should not happen
 /// after analyzer validation).
 pub(super) fn is_union_type_field(schema: &ResolvedSchema, field: &ResolvedField) -> bool {
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
     if !type_map::is_scalar(bt) {
         return false;
     }
-    if !has_enum_index(field) {
+    if !has_type_index(field) {
         return false;
     }
     let idx = match field_type_index(field) {
@@ -292,7 +292,7 @@ pub(super) fn is_field_required(field: &ResolvedField) -> bool {
     }
     // String key fields are implicitly required (C++ flatc behavior)
     if field.is_key {
-        let bt = get_base_type(&field.type_);
+        let bt = field.type_.base_type;
         if bt == BaseType::BASE_TYPE_STRING {
             return true;
         }

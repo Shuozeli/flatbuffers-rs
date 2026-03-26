@@ -1,22 +1,10 @@
-use flatc_rs_schema::resolved::{
-    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
-};
+use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-/// Extract BaseType from a ResolvedType.
-pub fn get_base_type(ty: &ResolvedType) -> BaseType {
-    ty.base_type
-}
-
-/// Extract element BaseType from a ResolvedType's element_type field.
-pub fn get_element_type(ty: &ResolvedType) -> BaseType {
-    ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE)
-}
-
-/// Returns true if a field's type has a non-negative index, indicating it
-/// references an enum (or union) definition in `schema.enums`.
-pub fn has_enum_index(field: &ResolvedField) -> bool {
-    field.type_.index.map(|i| i >= 0).unwrap_or(false)
+/// Returns true if a field's type has an index, indicating it references
+/// a user-defined type (enum, union, table, or struct) in the schema.
+pub fn has_type_index(field: &ResolvedField) -> bool {
+    field.type_.index.is_some()
 }
 
 /// Returns the Rust type name for a scalar BaseType.

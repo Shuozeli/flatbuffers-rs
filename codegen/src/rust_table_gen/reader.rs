@@ -1,4 +1,4 @@
-use crate::type_map::{get_base_type, get_element_type, has_enum_index};
+use crate::type_map::has_type_index;
 use crate::{field_id, field_type_index, union_variant_type_index};
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
@@ -108,7 +108,7 @@ fn gen_field_accessor(
     let accessor_name = type_map::to_snake_case(&escaped);
     let upper = type_map::to_upper_snake_case(&escaped);
 
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     let is_required = helpers::is_field_required(field);
     let is_optional_scalar = field.is_optional;
@@ -202,7 +202,7 @@ fn gen_scalar_accessor(
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
     // Check if this is an enum field (has index pointing to an enum)
-    if has_enum_index(field) {
+    if has_type_index(field) {
         let enum_idx = field_type_index(field)?;
         let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
         let is_bitflags = type_map::is_bitflags_enum(schema, enum_idx);
@@ -381,7 +381,7 @@ fn gen_vector_accessor(
     table_name: &str,
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
-    let element_bt = get_element_type(&field.type_);
+    let element_bt = field.type_.element_type_or_none();
     let has_default = field.default_string.is_some();
 
     let vector_inner = helpers::vector_element_type(schema, field, element_bt, "'a", current_ns)?;
@@ -549,7 +549,7 @@ pub(super) fn gen_verifiable_impl(
         .fields
         .iter()
         .map(|field| {
-            let bt = get_base_type(&field.type_);
+            let bt = field.type_.base_type;
             if bt == BaseType::BASE_TYPE_UNION {
                 return Ok(None);
             }
@@ -646,7 +646,7 @@ pub(super) fn gen_debug_impl(
 /// Generate the inline `create()` method inside the impl block (C++ flatc style).
 fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let needs_lifetime = obj.fields.iter().any(|f| {
-        let bt = get_base_type(&f.type_);
+        let bt = f.type_.base_type;
         matches!(
             bt,
             BaseType::BASE_TYPE_STRING
@@ -674,7 +674,7 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let mut scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
 
     for (i, field) in obj.fields.iter().enumerate() {
-        let bt = get_base_type(&field.type_);
+        let bt = field.type_.base_type;
         if type_map::is_scalar(bt) {
             scalar_fields.push((i, field));
         } else {
@@ -694,8 +694,8 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
 
     // Sort scalars by alignment size descending, then field index descending
     scalar_fields.sort_by(|a, b| {
-        let sz_a = helpers::scalar_alignment_size(get_base_type(&a.1.type_));
-        let sz_b = helpers::scalar_alignment_size(get_base_type(&b.1.type_));
+        let sz_a = helpers::scalar_alignment_size(a.1.type_.base_type);
+        let sz_b = helpers::scalar_alignment_size(b.1.type_.base_type);
         sz_b.cmp(&sz_a).then(b.0.cmp(&a.0))
     });
 
@@ -728,13 +728,13 @@ fn gen_key_methods(
     let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
     let accessor = type_map::to_snake_case(&escaped);
-    let bt = get_base_type(&field.type_);
+    let bt = field.type_.base_type;
 
     // Determine the key type and comparison style
     let (key_type, is_string) = if bt == BaseType::BASE_TYPE_STRING {
         ("& str".to_string(), true)
     } else if type_map::is_scalar(bt) {
-        if has_enum_index(field) {
+        if has_type_index(field) {
             let idx = field_type_index(field)?;
             (type_map::resolve_enum_name(schema, current_ns, idx), false)
         } else {

@@ -347,7 +347,13 @@ fn main() {
 
     if cli.dump_schema {
         // For dump_schema, serialize the legacy schema for backward compat
-        let legacy_schema = schema.as_legacy();
+        let legacy_schema = match schema.as_legacy() {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("error: failed to convert schema: {e}");
+                process::exit(1);
+            }
+        };
         match serde_json::to_string_pretty(&legacy_schema) {
             Ok(json) => println!("{json}"),
             Err(e) => {

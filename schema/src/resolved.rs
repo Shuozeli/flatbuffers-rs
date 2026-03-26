@@ -5,6 +5,8 @@
 //! non-optional, and transient parsing artifacts (like stub Objects on RpcCall)
 //! are dropped entirely.
 
+use std::collections::HashMap;
+
 use super::{AdvancedFeatures, Attributes, BaseType, Documentation, Namespace, SchemaFile, Span};
 
 // ---------------------------------------------------------------------------
@@ -45,6 +47,11 @@ pub struct ResolvedType {
 }
 
 impl ResolvedType {
+    /// Returns the element type, defaulting to `BASE_TYPE_NONE` if not set.
+    pub fn element_type_or_none(&self) -> BaseType {
+        self.element_type.unwrap_or(BaseType::BASE_TYPE_NONE)
+    }
+
     /// Convert back to the parsed `Type` representation.
     /// Used by [`ResolvedSchema::as_legacy()`] -- prefer working with
     /// `ResolvedType` directly when possible.
@@ -178,6 +185,28 @@ pub struct ResolvedSchema {
     pub services: Vec<ResolvedService>,
     pub advanced_features: AdvancedFeatures,
     pub fbs_files: Vec<SchemaFile>,
+}
+
+impl ResolvedSchema {
+    /// Build a lookup table mapping object names (both FQN and short names)
+    /// to their index in `self.objects`.
+    ///
+    /// For objects with dotted names (e.g., "MyGame.Sample.Monster"), both
+    /// the FQN and the short name ("Monster") are indexed. The first entry
+    /// wins for duplicate short names.
+    pub fn build_object_index(&self) -> HashMap<&str, usize> {
+        let mut index = HashMap::new();
+        for (i, obj) in self.objects.iter().enumerate() {
+            let name = obj.name.as_str();
+            index.entry(name).or_insert(i);
+            if let Some(short) = name.rsplit('.').next() {
+                if short != name {
+                    index.entry(short).or_insert(i);
+                }
+            }
+        }
+        index
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +437,7 @@ impl ResolvedSchema {
     /// (e.g., codegen, JSON conversion, BFBS serialization). The transient
     /// parsing artifacts like `RpcCall.request`/`response` stub objects are
     /// not restored; callers should use index-based lookups instead.
-    pub fn as_legacy(&self) -> super::Schema {
+    pub fn as_legacy(&self) -> Result<super::Schema, ResolveError> {
         let objects = self
             .objects
             .iter()
@@ -477,37 +506,54 @@ impl ResolvedSchema {
         let services = self
             .services
             .iter()
-            .map(|s| super::Service {
-                name: Some(s.name.clone()),
-                calls: s
+            .map(|s| {
+                let calls = s
                     .calls
                     .iter()
-                    .map(|c| super::RpcCall {
-                        name: Some(c.name.clone()),
-                        request_index: Some(
-                            i32::try_from(c.request_index).expect("RPC request index overflow"),
-                        ),
-                        response_index: Some(
-                            i32::try_from(c.response_index).expect("RPC response index overflow"),
-                        ),
-                        request: None,
-                        response: None,
-                        attributes: c.attributes.clone(),
-                        documentation: c.documentation.clone(),
-                        span: c.span.clone(),
+                    .map(|c| {
+                        let request_index =
+                            i32::try_from(c.request_index).map_err(|_| ResolveError {
+                                field: "request_index",
+                                context: format!(
+                                    "RpcCall '{}': index {} overflows i32",
+                                    c.name, c.request_index
+                                ),
+                            })?;
+                        let response_index =
+                            i32::try_from(c.response_index).map_err(|_| ResolveError {
+                                field: "response_index",
+                                context: format!(
+                                    "RpcCall '{}': index {} overflows i32",
+                                    c.name, c.response_index
+                                ),
+                            })?;
+                        Ok(super::RpcCall {
+                            name: Some(c.name.clone()),
+                            request_index: Some(request_index),
+                            response_index: Some(response_index),
+                            request: None,
+                            response: None,
+                            attributes: c.attributes.clone(),
+                            documentation: c.documentation.clone(),
+                            span: c.span.clone(),
+                        })
                     })
-                    .collect(),
-                attributes: s.attributes.clone(),
-                documentation: s.documentation.clone(),
-                declaration_file: s.declaration_file.clone(),
-                namespace: s.namespace.clone(),
-                span: s.span.clone(),
+                    .collect::<Result<Vec<_>, ResolveError>>()?;
+                Ok(super::Service {
+                    name: Some(s.name.clone()),
+                    calls,
+                    attributes: s.attributes.clone(),
+                    documentation: s.documentation.clone(),
+                    declaration_file: s.declaration_file.clone(),
+                    namespace: s.namespace.clone(),
+                    span: s.span.clone(),
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, ResolveError>>()?;
 
         let root_table = self.root_table_index.map(|idx| objects[idx].clone());
 
-        super::Schema {
+        Ok(super::Schema {
             objects,
             enums,
             file_ident: self.file_ident.clone(),
@@ -517,7 +563,7 @@ impl ResolvedSchema {
             services,
             advanced_features: self.advanced_features,
             fbs_files: self.fbs_files.clone(),
-        }
+        })
     }
 
     /// Convert a parsed `Schema` into a `ResolvedSchema`, returning an error

@@ -9,7 +9,7 @@ use flatc_rs_compiler::compile_single;
 
 fn compile_and_generate(fbs: &str, seed: u64) -> String {
     let result = compile_single(fbs).expect("schema should compile");
-    let legacy = result.schema.as_legacy();
+    let legacy = result.schema.as_legacy().expect("as_legacy should succeed");
     let root_type = legacy
         .root_table
         .as_ref()
@@ -21,7 +21,7 @@ fn compile_and_generate(fbs: &str, seed: u64) -> String {
 
 fn compile_and_generate_config(fbs: &str, seed: u64, config: DataGenConfig) -> String {
     let result = compile_single(fbs).expect("schema should compile");
-    let legacy = result.schema.as_legacy();
+    let legacy = result.schema.as_legacy().expect("as_legacy should succeed");
     let root_type = legacy
         .root_table
         .as_ref()
@@ -340,7 +340,7 @@ fn error_root_type_not_found() {
     "#;
     let result = compile_single(fbs).unwrap();
     let err = generate_json(
-        &result.schema.as_legacy(),
+        &result.schema.as_legacy().expect("as_legacy should succeed"),
         "NonExistent",
         42,
         DataGenConfig::default(),
@@ -399,7 +399,10 @@ fn roundtrip_with_random_schemas() {
             }
         };
 
-        let legacy = compile_result.schema.as_legacy();
+        let legacy = compile_result
+            .schema
+            .as_legacy()
+            .expect("as_legacy should succeed");
         let root_type = match legacy.root_table.as_ref().and_then(|t| t.name.as_deref()) {
             Some(n) => n.to_string(),
             None => {
