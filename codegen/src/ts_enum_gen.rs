@@ -156,8 +156,7 @@ fn gen_union_to_helper(
                 ));
             }
             BaseType::BASE_TYPE_STRING => {
-                variant_lines
-                    .push(format!("case '{vname}': return accessor('') as string;"));
+                variant_lines.push(format!("case '{vname}': return accessor('') as string;"));
             }
             _ => {}
         }

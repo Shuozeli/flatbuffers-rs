@@ -187,4 +187,3 @@ pub fn generate_typescript(
     let gen = TsGenerator::new(schema, opts);
     gen.generate()
 }
-
