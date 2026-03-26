@@ -17,7 +17,6 @@ impl<C: Chooser> SchemaBuilder<C> {
         self.unions.push(UnionInfo {
             name,
             qualified_name,
-            variant_tables,
         });
     }
 }

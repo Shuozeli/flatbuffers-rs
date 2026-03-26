@@ -71,17 +71,44 @@ impl BaseType {
         )
     }
 
-    /// Returns the byte size of a scalar type, or 0 for non-scalar types.
-    pub fn scalar_byte_size(self) -> usize {
+    /// Returns the wire-format byte size for every base type whose size is
+    /// statically known.  Returns `None` for `TABLE` and `ARRAY` whose sizes
+    /// depend on context.
+    ///
+    /// This is the **single canonical source** for type-to-size mapping.
+    /// Scalar types return their natural size; offset types (`STRING`,
+    /// `VECTOR`, `STRUCT`, `UNION`) return their offset width (4 bytes for
+    /// `uoffset_t`); `VECTOR64` returns 8.
+    pub fn byte_size(self) -> Option<u32> {
         match self {
-            Self::BASE_TYPE_BOOL
+            Self::BASE_TYPE_NONE
+            | Self::BASE_TYPE_BOOL
             | Self::BASE_TYPE_BYTE
             | Self::BASE_TYPE_U_BYTE
-            | Self::BASE_TYPE_U_TYPE => 1,
-            Self::BASE_TYPE_SHORT | Self::BASE_TYPE_U_SHORT => 2,
-            Self::BASE_TYPE_INT | Self::BASE_TYPE_U_INT | Self::BASE_TYPE_FLOAT => 4,
-            Self::BASE_TYPE_LONG | Self::BASE_TYPE_U_LONG | Self::BASE_TYPE_DOUBLE => 8,
-            _ => 0,
+            | Self::BASE_TYPE_U_TYPE => Some(1),
+            Self::BASE_TYPE_SHORT | Self::BASE_TYPE_U_SHORT => Some(2),
+            Self::BASE_TYPE_INT | Self::BASE_TYPE_U_INT | Self::BASE_TYPE_FLOAT => Some(4),
+            Self::BASE_TYPE_LONG | Self::BASE_TYPE_U_LONG | Self::BASE_TYPE_DOUBLE => Some(8),
+            // Offset types: 4 bytes (uoffset_t)
+            Self::BASE_TYPE_STRING
+            | Self::BASE_TYPE_VECTOR
+            | Self::BASE_TYPE_STRUCT
+            | Self::BASE_TYPE_UNION => Some(4),
+            Self::BASE_TYPE_VECTOR64 => Some(8),
+            // Context-dependent
+            Self::BASE_TYPE_TABLE | Self::BASE_TYPE_ARRAY => None,
+        }
+    }
+
+    /// Returns the byte size of a scalar type, or 0 for non-scalar types.
+    ///
+    /// Delegates to [`Self::byte_size()`] but returns `usize` and maps
+    /// non-scalar types to 0 for backward compatibility.
+    pub fn scalar_byte_size(self) -> usize {
+        if self.is_scalar() {
+            self.byte_size().unwrap_or(0) as usize
+        } else {
+            0
         }
     }
 
@@ -217,6 +244,20 @@ pub struct Attributes {
 impl Attributes {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Returns `true` if an attribute with the given key exists.
+    pub fn has(&self, key: &str) -> bool {
+        self.entries.iter().any(|e| e.key.as_deref() == Some(key))
+    }
+
+    /// Returns the value of the attribute with the given key, or `None` if
+    /// the key is not present or has no value.
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.entries
+            .iter()
+            .find(|e| e.key.as_deref() == Some(key))
+            .and_then(|e| e.value.as_deref())
     }
 }
 

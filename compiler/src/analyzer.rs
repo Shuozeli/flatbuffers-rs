@@ -67,7 +67,7 @@ pub fn analyze(output: ParseOutput) -> Result<ResolvedSchema> {
     resolve_field_types(&mut schema, &index)?;
 
     // 2b. Insert companion _type fields for union fields in tables
-    insert_union_type_fields(&mut schema);
+    insert_union_type_fields(&mut schema)?;
 
     // 3. Assign sequential enum values
     assign_enum_values(&mut schema)?;
@@ -218,7 +218,7 @@ fn resolve_field_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result
 ///
 /// This function inserts these companion fields after type resolution, adjusting
 /// field IDs so the discriminant precedes its union value in the vtable.
-fn insert_union_type_fields(schema: &mut schema::Schema) {
+fn insert_union_type_fields(schema: &mut schema::Schema) -> Result<()> {
     for obj_idx in 0..schema.objects.len() {
         if schema.objects[obj_idx].is_struct {
             continue; // structs can't have union fields
@@ -247,6 +247,21 @@ fn insert_union_type_fields(schema: &mut schema::Schema) {
                 let union_name = union_field.name.as_deref().unwrap_or("");
                 let union_field_id = union_field.id;
                 let enum_index = union_field.type_.as_ref().and_then(|t| t.index);
+
+                // Reject union fields with explicit id: 0 early, since the
+                // companion _type field would need id: -1 which is invalid.
+                if union_field_id == Some(0) {
+                    let table_name = schema.objects[obj_idx]
+                        .name
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_string();
+                    return Err(AnalyzeError::UnionFieldIdZero {
+                        table_name,
+                        field_name: union_name.to_string(),
+                        span: union_field.span.clone(),
+                    });
+                }
 
                 // Determine underlying type of the union enum
                 let underlying_bt = enum_index
@@ -280,7 +295,7 @@ fn insert_union_type_fields(schema: &mut schema::Schema) {
                 // For tables with explicit IDs, the companion type field
                 // gets the ID immediately before the union value field.
                 if let Some(uid) = union_field_id {
-                    type_field.id = Some(uid.saturating_sub(1));
+                    type_field.id = Some(uid - 1);
                 }
 
                 insertions.push((field_idx, type_field));
@@ -303,6 +318,7 @@ fn insert_union_type_fields(schema: &mut schema::Schema) {
             }
         }
     }
+    Ok(())
 }
 
 /// Fully resolve a single Type: lookup by name, set index, and correct base_type.
@@ -391,15 +407,14 @@ fn resolve_type(
     Ok(())
 }
 
+/// Returns the byte size if `bt` is a scalar type, `None` otherwise.
+///
+/// Delegates to [`BaseType::byte_size()`] but restricts to scalars only.
 fn scalar_size(bt: BaseType) -> Option<u32> {
-    match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => Some(1),
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => Some(2),
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => Some(4),
-        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => {
-            Some(8)
-        }
-        _ => None,
+    if bt.is_scalar() {
+        bt.byte_size()
+    } else {
+        None
     }
 }
 

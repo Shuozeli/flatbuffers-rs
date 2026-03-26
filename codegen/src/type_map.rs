@@ -20,6 +20,11 @@ pub fn has_enum_index(field: &ResolvedField) -> bool {
 }
 
 /// Returns the Rust type name for a scalar BaseType.
+///
+/// # Panics
+///
+/// Panics if `bt` is not a scalar type. The analyzer guarantees that only
+/// scalar types reach codegen call sites, so this is considered unreachable.
 pub fn scalar_rust_type(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL => "bool",
@@ -229,12 +234,9 @@ pub fn resolve_object_name(schema: &ResolvedSchema, current_ns: &str, obj_idx: u
 /// Check if an enum at a given index is a bitflags enum.
 pub fn is_bitflags_enum(schema: &ResolvedSchema, enum_idx: usize) -> bool {
     let e = &schema.enums[enum_idx];
-    e.attributes.as_ref().is_some_and(|attrs| {
-        attrs
-            .entries
-            .iter()
-            .any(|entry| entry.key.as_deref() == Some("bit_flags"))
-    })
+    e.attributes
+        .as_ref()
+        .is_some_and(|attrs| attrs.has("bit_flags"))
 }
 
 /// Resolve a qualified enum name relative to the current namespace.

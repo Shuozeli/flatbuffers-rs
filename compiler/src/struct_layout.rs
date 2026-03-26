@@ -107,15 +107,10 @@ pub fn compute_struct_layouts(schema: &mut schema::Schema) -> Result<()> {
 
 /// Extract the `force_align` attribute value from a struct, if present.
 fn get_force_align(obj: &schema::Object) -> Option<u32> {
-    obj.attributes.as_ref().and_then(|attrs| {
-        attrs.entries.iter().find_map(|e| {
-            if e.key.as_deref() == Some("force_align") {
-                e.value.as_deref().and_then(|v| v.parse::<u32>().ok())
-            } else {
-                None
-            }
-        })
-    })
+    obj.attributes
+        .as_ref()
+        .and_then(|attrs| attrs.get("force_align"))
+        .and_then(|v| v.parse::<u32>().ok())
 }
 
 /// Validate and convert a type index to `usize`, returning an error if out of range.

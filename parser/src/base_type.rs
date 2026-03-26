@@ -22,33 +22,10 @@ pub fn lookup_base_type(name: &str) -> Option<BaseType> {
 
 /// Size in bytes for a base type. Returns None for types whose size depends on
 /// context (TABLE, ARRAY).
+///
+/// Delegates to [`BaseType::byte_size()`] -- the canonical source of truth.
 pub fn base_type_size(bt: BaseType) -> Option<u32> {
-    match bt {
-        BaseType::BASE_TYPE_BOOL
-        | BaseType::BASE_TYPE_BYTE
-        | BaseType::BASE_TYPE_U_BYTE
-        | BaseType::BASE_TYPE_NONE
-        | BaseType::BASE_TYPE_U_TYPE => Some(1),
-
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => Some(2),
-
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => Some(4),
-
-        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => {
-            Some(8)
-        }
-
-        // Offset types: 4 bytes (uoffset_t)
-        BaseType::BASE_TYPE_STRING
-        | BaseType::BASE_TYPE_VECTOR
-        | BaseType::BASE_TYPE_STRUCT
-        | BaseType::BASE_TYPE_UNION => Some(4),
-
-        BaseType::BASE_TYPE_VECTOR64 => Some(8),
-
-        // Context-dependent
-        BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_ARRAY => None,
-    }
+    bt.byte_size()
 }
 
 #[cfg(test)]

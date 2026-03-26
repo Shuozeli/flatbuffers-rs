@@ -24,8 +24,6 @@ pub(crate) struct EnumInfo {
     pub name: String,
     /// Fully-qualified name including namespace (e.g., "Game.Items.Color").
     pub qualified_name: String,
-    #[allow(dead_code)]
-    pub underlying: String,
     pub value_names: Vec<String>,
 }
 
@@ -42,6 +40,4 @@ pub(crate) struct TableInfo {
 pub(crate) struct UnionInfo {
     pub name: String,
     pub qualified_name: String,
-    #[allow(dead_code)]
-    pub variant_tables: Vec<String>,
 }

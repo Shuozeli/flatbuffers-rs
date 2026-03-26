@@ -107,9 +107,11 @@ impl<'src> FbsParser<'src> {
                 "file_identifier" => self.parse_file_identifier()?,
                 "attribute" => self.parse_attribute_decl()?,
                 "rpc_service" => self.parse_rpc_decl(doc_comments, &span_token)?,
-                _ => {
-                    // Unknown top-level token -- skip it gracefully
-                    self.advance();
+                other => {
+                    return Err(ParseError::UnexpectedContent {
+                        found: other.to_string(),
+                        context: "unknown top-level declaration".to_string(),
+                    });
                 }
             }
         }

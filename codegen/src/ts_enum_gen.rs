@@ -4,17 +4,24 @@ use flatc_rs_schema::BaseType;
 use super::code_writer::CodeWriter;
 use super::ts_type_map;
 use super::union_variant_type_index;
+use super::CodeGenError;
 
 /// Generate TypeScript code for the enum at `schema.enums[index]`.
-pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, gen_object_api: bool) {
+pub fn generate(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    index: usize,
+    gen_object_api: bool,
+) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let is_union = enum_def.is_union;
 
     if is_union {
-        generate_union_enum(w, schema, index, gen_object_api);
+        generate_union_enum(w, schema, index, gen_object_api)?;
     } else {
         generate_regular_enum(w, enum_def);
     }
+    Ok(())
 }
 
 /// Generate a regular TypeScript enum.
@@ -43,7 +50,7 @@ fn generate_union_enum(
     schema: &ResolvedSchema,
     index: usize,
     gen_object_api: bool,
-) {
+) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let name = &enum_def.name;
 
@@ -65,21 +72,25 @@ fn generate_union_enum(
     w.blank();
 
     // Generate unionToXxx helper function
-    gen_union_to_helper(w, schema, enum_def, name);
+    gen_union_to_helper(w, schema, enum_def, name)?;
     w.blank();
 
     // Generate unionListToXxx helper function
-    gen_union_list_to_helper(w, schema, enum_def, name);
+    gen_union_list_to_helper(w, schema, enum_def, name)?;
 
     // Object API: union T type
     if gen_object_api {
         w.blank();
-        gen_union_object_api(w, schema, index);
+        gen_union_object_api(w, schema, index)?;
     }
+    Ok(())
 }
 
 /// Collect the union variant type names for use in type signatures.
-fn union_variant_types(schema: &ResolvedSchema, enum_def: &ResolvedEnum) -> Vec<String> {
+fn union_variant_types(
+    schema: &ResolvedSchema,
+    enum_def: &ResolvedEnum,
+) -> Result<Vec<String>, CodeGenError> {
     let mut types = Vec::new();
     for val in &enum_def.values {
         let vname = &val.name;
@@ -93,7 +104,7 @@ fn union_variant_types(schema: &ResolvedSchema, enum_def: &ResolvedEnum) -> Vec<
             .unwrap_or(BaseType::BASE_TYPE_NONE);
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = union_variant_type_index(val).unwrap();
+                let idx = union_variant_type_index(val)?;
                 let obj_name = &schema.objects[idx].name;
                 if !types.contains(obj_name) {
                     types.push(obj_name.clone());
@@ -107,7 +118,7 @@ fn union_variant_types(schema: &ResolvedSchema, enum_def: &ResolvedEnum) -> Vec<
             _ => {}
         }
     }
-    types
+    Ok(types)
 }
 
 /// Generate `unionToXxx(type, accessor)` helper function.
@@ -116,13 +127,41 @@ fn gen_union_to_helper(
     schema: &ResolvedSchema,
     enum_def: &ResolvedEnum,
     name: &str,
-) {
-    let variant_types = union_variant_types(schema, enum_def);
+) -> Result<(), CodeGenError> {
+    let variant_types = union_variant_types(schema, enum_def)?;
     if variant_types.is_empty() {
-        return;
+        return Ok(());
     }
 
     let union_type = variant_types.join("|");
+
+    // Collect variant data before the closure to avoid borrow issues.
+    let mut variant_lines: Vec<String> = Vec::new();
+    for val in &enum_def.values {
+        let vname = &val.name;
+        if vname == "NONE" {
+            continue;
+        }
+        let variant_bt = val
+            .union_type
+            .as_ref()
+            .map(|t| t.base_type)
+            .unwrap_or(BaseType::BASE_TYPE_NONE);
+        match variant_bt {
+            BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                let idx = union_variant_type_index(val)?;
+                let obj_name = &schema.objects[idx].name;
+                variant_lines.push(format!(
+                    "case '{vname}': return accessor(new {obj_name}())! as {obj_name};"
+                ));
+            }
+            BaseType::BASE_TYPE_STRING => {
+                variant_lines
+                    .push(format!("case '{vname}': return accessor('') as string;"));
+            }
+            _ => {}
+        }
+    }
 
     w.block(
         &format!(
@@ -131,34 +170,14 @@ fn gen_union_to_helper(
         |w| {
             w.block(&format!("switch({name}[type])"), |w| {
                 w.line("case 'NONE': return null;");
-                for val in &enum_def.values {
-                    let vname = &val.name;
-                    if vname == "NONE" {
-                        continue;
-                    }
-                    let variant_bt = val.union_type.as_ref()
-                        .map(|t| t.base_type)
-                        .unwrap_or(BaseType::BASE_TYPE_NONE);
-                    match variant_bt {
-                        BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                            let idx = union_variant_type_index(val).unwrap();
-                            let obj_name = &schema.objects[idx].name;
-                            w.line(&format!(
-                                "case '{vname}': return accessor(new {obj_name}())! as {obj_name};"
-                            ));
-                        }
-                        BaseType::BASE_TYPE_STRING => {
-                            w.line(&format!(
-                                "case '{vname}': return accessor('') as string;"
-                            ));
-                        }
-                        _ => {}
-                    }
+                for line in &variant_lines {
+                    w.line(line);
                 }
                 w.line("default: return null;");
             });
         },
     );
+    Ok(())
 }
 
 /// Generate `unionListToXxx(type, accessor, index)` helper function.
@@ -167,13 +186,42 @@ fn gen_union_list_to_helper(
     schema: &ResolvedSchema,
     enum_def: &ResolvedEnum,
     name: &str,
-) {
-    let variant_types = union_variant_types(schema, enum_def);
+) -> Result<(), CodeGenError> {
+    let variant_types = union_variant_types(schema, enum_def)?;
     if variant_types.is_empty() {
-        return;
+        return Ok(());
     }
 
     let union_type = variant_types.join("|");
+
+    // Collect variant data before the closure to avoid borrow issues.
+    let mut variant_lines: Vec<String> = Vec::new();
+    for val in &enum_def.values {
+        let vname = &val.name;
+        if vname == "NONE" {
+            continue;
+        }
+        let variant_bt = val
+            .union_type
+            .as_ref()
+            .map(|t| t.base_type)
+            .unwrap_or(BaseType::BASE_TYPE_NONE);
+        match variant_bt {
+            BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                let idx = union_variant_type_index(val)?;
+                let obj_name = &schema.objects[idx].name;
+                variant_lines.push(format!(
+                    "case '{vname}': return accessor(index, new {obj_name}())! as {obj_name};"
+                ));
+            }
+            BaseType::BASE_TYPE_STRING => {
+                variant_lines.push(format!(
+                    "case '{vname}': return accessor(index, '') as string;"
+                ));
+            }
+            _ => {}
+        }
+    }
 
     w.block(
         &format!(
@@ -182,38 +230,22 @@ fn gen_union_list_to_helper(
         |w| {
             w.block(&format!("switch({name}[type])"), |w| {
                 w.line("case 'NONE': return null;");
-                for val in &enum_def.values {
-                    let vname = &val.name;
-                    if vname == "NONE" {
-                        continue;
-                    }
-                    let variant_bt = val.union_type.as_ref()
-                        .map(|t| t.base_type)
-                        .unwrap_or(BaseType::BASE_TYPE_NONE);
-                    match variant_bt {
-                        BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                            let idx = union_variant_type_index(val).unwrap();
-                            let obj_name = &schema.objects[idx].name;
-                            w.line(&format!(
-                                "case '{vname}': return accessor(index, new {obj_name}())! as {obj_name};"
-                            ));
-                        }
-                        BaseType::BASE_TYPE_STRING => {
-                            w.line(&format!(
-                                "case '{vname}': return accessor(index, '') as string;"
-                            ));
-                        }
-                        _ => {}
-                    }
+                for line in &variant_lines {
+                    w.line(line);
                 }
                 w.line("default: return null;");
             });
         },
     );
+    Ok(())
 }
 
 /// Generate the Object API union T class.
-fn gen_union_object_api(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize) {
+fn gen_union_object_api(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    index: usize,
+) -> Result<(), CodeGenError> {
     let enum_def = &schema.enums[index];
     let name = &enum_def.name;
     let t_name = format!("{name}T");
@@ -232,7 +264,7 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &ResolvedSchema, index: usiz
             .unwrap_or(BaseType::BASE_TYPE_NONE);
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                let idx = union_variant_type_index(val).unwrap();
+                let idx = union_variant_type_index(val)?;
                 let obj_name = schema.objects[idx].name.clone();
                 variants.push((vname, obj_name, variant_bt));
             }
@@ -296,4 +328,5 @@ fn gen_union_object_api(w: &mut CodeWriter, schema: &ResolvedSchema, index: usiz
             );
         },
     );
+    Ok(())
 }

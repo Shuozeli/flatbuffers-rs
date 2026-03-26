@@ -8,17 +8,10 @@ use crate::CodeGenError;
 
 /// Returns the alignment/size in bytes of a scalar type.
 /// Used to sort fields for optimal vtable packing (matching C++ flatc ordering).
+///
+/// Delegates to [`BaseType::scalar_byte_size()`] -- the canonical source.
 pub(super) fn scalar_alignment_size(bt: BaseType) -> u32 {
-    match bt {
-        BaseType::BASE_TYPE_BOOL
-        | BaseType::BASE_TYPE_BYTE
-        | BaseType::BASE_TYPE_U_BYTE
-        | BaseType::BASE_TYPE_U_TYPE => 1,
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => 2,
-        BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT | BaseType::BASE_TYPE_FLOAT => 4,
-        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG | BaseType::BASE_TYPE_DOUBLE => 8,
-        _ => 0,
-    }
+    bt.scalar_byte_size() as u32
 }
 
 /// Get the Rust type string for a vector element.
@@ -240,18 +233,14 @@ pub(super) fn args_field_default(
 /// Extract the `nested_flatbuffer` attribute value from a field, if present.
 /// The value is the type name of the nested table (e.g., "Monster").
 pub(super) fn get_nested_flatbuffer_attr(field: &ResolvedField) -> Option<String> {
-    field.attributes.as_ref().and_then(|attrs| {
-        attrs.entries.iter().find_map(|e| {
-            if e.key.as_deref() == Some("nested_flatbuffer") {
-                e.value.as_ref().map(|v| {
-                    // Strip surrounding quotes if present (parser preserves them)
-                    v.trim_matches('"').to_string()
-                })
-            } else {
-                None
-            }
+    field
+        .attributes
+        .as_ref()
+        .and_then(|attrs| attrs.get("nested_flatbuffer"))
+        .map(|v| {
+            // Strip surrounding quotes if present (parser preserves them)
+            v.trim_matches('"').to_string()
         })
-    })
 }
 
 /// Find a table in the schema by its short name (not FQN).
@@ -264,12 +253,10 @@ pub(super) fn find_table_by_name(schema: &ResolvedSchema, name: &str) -> Option<
 
 /// Check if a field has the `key` attribute.
 pub(crate) fn has_key_attribute(field: &ResolvedField) -> bool {
-    field.attributes.as_ref().is_some_and(|attrs| {
-        attrs
-            .entries
-            .iter()
-            .any(|e| e.key.as_deref() == Some("key"))
-    })
+    field
+        .attributes
+        .as_ref()
+        .is_some_and(|attrs| attrs.has("key"))
 }
 
 /// Check if a field's type is a union.

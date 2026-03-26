@@ -14,7 +14,6 @@ mod ts_type_map;
 pub mod type_map;
 
 use std::collections::HashSet;
-use std::panic;
 
 use flatc_rs_schema::resolved::{
     ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
@@ -119,11 +118,7 @@ pub struct CodeGenOptions {
 pub fn type_visibility(attrs: Option<&Attributes>, opts: &CodeGenOptions) -> &'static str {
     if opts.no_leak_private {
         if let Some(attrs) = attrs {
-            if attrs
-                .entries
-                .iter()
-                .any(|kv| kv.key.as_deref() == Some("private"))
-            {
+            if attrs.has("private") {
                 return "pub(crate)";
             }
         }
@@ -185,32 +180,11 @@ pub fn generate_rust(
 ///
 /// The generated code is compatible with the `flatbuffers` npm package and
 /// includes reader classes, builder static methods, and Object API classes.
-///
-/// Panics in the TS codegen are caught and converted to `CodeGenError::Internal`.
 pub fn generate_typescript(
     schema: &ResolvedSchema,
     opts: &TsCodeGenOptions,
 ) -> Result<String, CodeGenError> {
-    catch_codegen_panic(|| {
-        let gen = TsGenerator::new(schema, opts);
-        gen.generate()
-    })
+    let gen = TsGenerator::new(schema, opts);
+    gen.generate()
 }
 
-/// Run a codegen closure, catching any panics and converting them to errors.
-/// Used as a safety net for the TypeScript codegen which has not yet been
-/// converted to use `Result` returns.
-fn catch_codegen_panic<F: FnOnce() -> String + panic::UnwindSafe>(
-    f: F,
-) -> Result<String, CodeGenError> {
-    panic::catch_unwind(f).map_err(|payload| {
-        let msg = if let Some(s) = payload.downcast_ref::<&str>() {
-            s.to_string()
-        } else if let Some(s) = payload.downcast_ref::<String>() {
-            s.clone()
-        } else {
-            "unknown codegen error".to_string()
-        };
-        CodeGenError::Internal(msg)
-    })
-}

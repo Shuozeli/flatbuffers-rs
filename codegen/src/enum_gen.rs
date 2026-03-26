@@ -11,7 +11,7 @@ fn has_attribute(enum_def: &ResolvedEnum, key: &str) -> bool {
     enum_def
         .attributes
         .as_ref()
-        .is_some_and(|attrs| attrs.entries.iter().any(|e| e.key.as_deref() == Some(key)))
+        .is_some_and(|attrs| attrs.has(key))
 }
 
 /// Generate Rust code for the enum at `schema.enums[index]`.

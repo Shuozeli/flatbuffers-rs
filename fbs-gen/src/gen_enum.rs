@@ -49,7 +49,6 @@ impl<C: Chooser> SchemaBuilder<C> {
         self.enums.push(EnumInfo {
             name,
             qualified_name,
-            underlying,
             value_names,
         });
     }

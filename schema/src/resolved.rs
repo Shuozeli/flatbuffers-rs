@@ -44,6 +44,24 @@ pub struct ResolvedType {
     pub fixed_length: Option<u32>,
 }
 
+impl ResolvedType {
+    /// Convert back to the parsed `Type` representation.
+    /// Used by [`ResolvedSchema::as_legacy()`] -- prefer working with
+    /// `ResolvedType` directly when possible.
+    pub fn to_parsed(&self) -> super::Type {
+        super::Type {
+            base_type: Some(self.base_type),
+            base_size: self.base_size,
+            element_size: self.element_size,
+            element_type: self.element_type,
+            index: self.index,
+            fixed_length: self.fixed_length,
+            unresolved_name: None,
+            span: None,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ResolvedField
 // ---------------------------------------------------------------------------
@@ -401,16 +419,7 @@ impl ResolvedSchema {
                     .iter()
                     .map(|f| super::Field {
                         name: Some(f.name.clone()),
-                        type_: Some(super::Type {
-                            base_type: Some(f.type_.base_type),
-                            base_size: f.type_.base_size,
-                            element_size: f.type_.element_size,
-                            element_type: f.type_.element_type,
-                            index: f.type_.index,
-                            fixed_length: f.type_.fixed_length,
-                            unresolved_name: None,
-                            span: None,
-                        }),
+                        type_: Some(f.type_.to_parsed()),
                         id: f.id,
                         offset: f.offset,
                         default_integer: f.default_integer,
@@ -449,32 +458,14 @@ impl ResolvedSchema {
                     .map(|v| super::EnumVal {
                         name: Some(v.name.clone()),
                         value: Some(v.value),
-                        union_type: v.union_type.as_ref().map(|t| super::Type {
-                            base_type: Some(t.base_type),
-                            base_size: t.base_size,
-                            element_size: t.element_size,
-                            element_type: t.element_type,
-                            index: t.index,
-                            fixed_length: t.fixed_length,
-                            unresolved_name: None,
-                            span: None,
-                        }),
+                        union_type: v.union_type.as_ref().map(|t| t.to_parsed()),
                         documentation: v.documentation.clone(),
                         attributes: v.attributes.clone(),
                         span: v.span.clone(),
                     })
                     .collect(),
                 is_union: e.is_union,
-                underlying_type: Some(super::Type {
-                    base_type: Some(e.underlying_type.base_type),
-                    base_size: e.underlying_type.base_size,
-                    element_size: e.underlying_type.element_size,
-                    element_type: e.underlying_type.element_type,
-                    index: e.underlying_type.index,
-                    fixed_length: e.underlying_type.fixed_length,
-                    unresolved_name: None,
-                    span: None,
-                }),
+                underlying_type: Some(e.underlying_type.to_parsed()),
                 attributes: e.attributes.clone(),
                 documentation: e.documentation.clone(),
                 declaration_file: e.declaration_file.clone(),
@@ -493,8 +484,12 @@ impl ResolvedSchema {
                     .iter()
                     .map(|c| super::RpcCall {
                         name: Some(c.name.clone()),
-                        request_index: Some(c.request_index as i32),
-                        response_index: Some(c.response_index as i32),
+                        request_index: Some(
+                            i32::try_from(c.request_index).expect("RPC request index overflow"),
+                        ),
+                        response_index: Some(
+                            i32::try_from(c.response_index).expect("RPC response index overflow"),
+                        ),
                         request: None,
                         response: None,
                         attributes: c.attributes.clone(),

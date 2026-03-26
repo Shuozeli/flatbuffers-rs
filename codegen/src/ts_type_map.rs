@@ -5,6 +5,11 @@ use super::code_writer::CodeWriter;
 use super::type_map;
 
 /// Returns the TypeScript type name for a scalar BaseType.
+///
+/// # Panics
+///
+/// Panics if `bt` is not a scalar type. The analyzer guarantees that only
+/// scalar types reach codegen call sites, so this is considered unreachable.
 pub fn scalar_ts_type(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL => "boolean",
@@ -23,6 +28,9 @@ pub fn scalar_ts_type(bt: BaseType) -> &'static str {
 }
 
 /// Returns the ByteBuffer read method name for a scalar BaseType.
+///
+/// # Panics
+/// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn bb_read_method(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "readInt8",
@@ -40,6 +48,9 @@ pub fn bb_read_method(bt: BaseType) -> &'static str {
 }
 
 /// Returns the ByteBuffer write method name for a scalar BaseType.
+///
+/// # Panics
+/// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn bb_write_method(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "writeInt8",
@@ -57,6 +68,9 @@ pub fn bb_write_method(bt: BaseType) -> &'static str {
 }
 
 /// Returns the Builder addField method name for a scalar BaseType (table fields).
+///
+/// # Panics
+/// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn builder_add_field_method(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => {
@@ -74,6 +88,9 @@ pub fn builder_add_field_method(bt: BaseType) -> &'static str {
 }
 
 /// Returns the Builder inline write method name (for struct creation).
+///
+/// # Panics
+/// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn builder_write_method(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "writeInt8",
@@ -91,6 +108,9 @@ pub fn builder_write_method(bt: BaseType) -> &'static str {
 }
 
 /// Returns the Builder add method name for vector element writes.
+///
+/// # Panics
+/// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn builder_add_method(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => {
@@ -108,6 +128,9 @@ pub fn builder_add_method(bt: BaseType) -> &'static str {
 }
 
 /// Returns the TypedArray constructor name for a scalar BaseType (for vector *Array() methods).
+///
+/// # Panics
+/// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn typed_array_name(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BYTE => "Int8Array",

@@ -5,6 +5,7 @@ use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::ts_enum_gen;
 use super::ts_struct_gen;
 use super::ts_table_gen;
+use super::CodeGenError;
 use super::TsCodeGenOptions;
 
 /// Main TypeScript code generator.
@@ -24,10 +25,10 @@ impl<'a> TsGenerator<'a> {
     }
 
     /// Generate all TypeScript code and return the source string.
-    pub fn generate(mut self) -> String {
+    pub fn generate(mut self) -> Result<String, CodeGenError> {
         self.gen_header();
-        self.gen_body();
-        self.w.finish()
+        self.gen_body()?;
+        Ok(self.w.finish())
     }
 
     fn gen_header(&mut self) {
@@ -43,23 +44,28 @@ impl<'a> TsGenerator<'a> {
     }
 
     /// Group all types by namespace and emit them.
-    fn gen_body(&mut self) {
+    fn gen_body(&mut self) -> Result<(), CodeGenError> {
         let root = namespace_tree::build_namespace_tree(self.schema, &self.opts.gen_only_files);
 
         // Emit root-level types
         if !root.types.is_empty() {
             self.w.blank();
-            self.gen_types(&root.types);
+            self.gen_types(&root.types)?;
         }
 
         // Emit child namespace modules
         for (name, child) in &root.children {
-            self.gen_namespace_node(name, child);
+            self.gen_namespace_node(name, child)?;
         }
+        Ok(())
     }
 
     /// Recursively emit a namespace node as `export namespace` blocks.
-    fn gen_namespace_node(&mut self, name: &str, node: &NamespaceNode) {
+    fn gen_namespace_node(
+        &mut self,
+        name: &str,
+        node: &NamespaceNode,
+    ) -> Result<(), CodeGenError> {
         self.w.blank();
         self.w.line(&format!("export namespace {name} {{"));
         self.w.indent();
@@ -67,24 +73,25 @@ impl<'a> TsGenerator<'a> {
         // Types at this namespace level
         if !node.types.is_empty() {
             self.w.blank();
-            self.gen_types(&node.types);
+            self.gen_types(&node.types)?;
         }
 
         // Child namespaces
         for (child_name, child_node) in &node.children {
-            self.gen_namespace_node(child_name, child_node);
+            self.gen_namespace_node(child_name, child_node)?;
         }
 
         self.w.dedent();
         self.w.line(&format!("}} // {name}"));
+        Ok(())
     }
 
-    fn gen_types(&mut self, entries: &[TypeEntry]) {
+    fn gen_types(&mut self, entries: &[TypeEntry]) -> Result<(), CodeGenError> {
         let gen_object_api = self.opts.gen_object_api;
         for entry in entries {
             match entry {
                 TypeEntry::Enum(idx) => {
-                    ts_enum_gen::generate(&mut self.w, self.schema, *idx, gen_object_api);
+                    ts_enum_gen::generate(&mut self.w, self.schema, *idx, gen_object_api)?;
                     self.w.blank();
                 }
                 TypeEntry::Struct(idx) => {
@@ -97,5 +104,6 @@ impl<'a> TsGenerator<'a> {
                 }
             }
         }
+        Ok(())
     }
 }
