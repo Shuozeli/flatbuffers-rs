@@ -1,6 +1,6 @@
 # Code Quality Findings
 
-*Last audit: 2026-03-26*
+*Last audit: 2026-04-04* (Phase 1 pipeline audit)
 
 ## 1. Duplication
 
@@ -98,3 +98,58 @@
 
 ### 8.1 Inconsistent error handling -- DONE (previous audit)
 ### 8.2 Keyword check duplication -- SKIPPED (previous audit)
+
+## 9. NEW: Duplication (Dart vs TypeScript)
+
+### 9.1 Duplicate `to_camel_case` and `to_pascal_case` functions
+- **Location:** `codegen/src/ts_type_map.rs:184-216`, `codegen/src/dart_type_map.rs:65-96`
+- **Problem:** Nearly identical implementations in both files.
+- **Fix:** Extract into a shared helper in `codegen/src/type_map.rs` or a new `common_type_map.rs`.
+
+### 9.2 Duplicate `gen_doc_comment` functions
+- **Location:** `codegen/src/ts_type_map.rs:281-295`, `codegen/src/dart_type_map.rs:208-220`
+- **Problem:** Both generate documentation comments with only minor formatting differences (JSDoc `/** */` vs DartDoc `///`).
+- **Fix:** Extract shared logic, keep language-specific formatting in each module.
+
+### 9.3 Duplicate `build_fqn` functions
+- **Location:** `codegen/src/ts_type_map.rs:298-306`, `codegen/src/dart_type_map.rs:223-231`
+- **Problem:** Identical implementations.
+- **Fix:** Move to shared `type_map.rs`.
+
+## 10. NEW: Silent Failures (Dart Codegen)
+
+### 10.1 Union accessor always returns null
+- **Location:** `codegen/src/dart_gen.rs:376-388`
+- **Problem:** `return null;` is hardcoded - the union accessor never returns actual data.
+- **Fix:** Implement proper union type resolution and return the correct type.
+
+### 10.2 Wildcard match arms silently ignore unhandled BaseTypes
+- **Location:** `codegen/src/dart_gen.rs:389`, `dart_gen.rs:439`, `dart_gen.rs:507`, `dart_gen.rs:596`
+- **Problem:** `_ => {}` patterns mean new BaseType variants silently produce no code.
+- **Fix:** Replace with `unimplemented!()` or proper error handling.
+
+## 11. NEW: Incorrect Write Methods (Dart Type Map)
+
+### 11.1 U_BYTE uses writeInt16 instead of writeUint8
+- **Location:** `codegen/src/dart_type_map.rs:53`
+- **Problem:** `BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => "writeInt16"` should be `writeUint8`.
+- **Fix:** Change to `"writeUint8"`.
+
+### 11.2 U_SHORT uses writeInt16 instead of writeUint16
+- **Location:** `codegen/src/dart_type_map.rs:53`
+- **Problem:** `BaseType::BASE_TYPE_U_SHORT => "writeInt16"` should be `writeUint16`.
+- **Fix:** Change to `"writeUint16"`.
+
+## 12. NEW: Missing Abstractions
+
+### 12.1 Repetitive field accessor naming pattern
+- **Location:** Across `dart_gen.rs`, `ts_struct_gen.rs`, `dart_struct_gen.rs`
+- **Problem:** `dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name))` repeated dozens of times.
+- **Fix:** Add a helper function like `field_name(field: &ResolvedField) -> String`.
+
+## 13. NEW: Low-Priority Issues
+
+### 13.1 CLI uses String error type instead of proper error enum
+- **Location:** `compiler/src/main.rs:187-219`
+- **Problem:** `fn output_file_path(...) -> Result<PathBuf, String>` should use a proper `CliError` enum.
+- **Fix:** Define a `CliError` enum and use it consistently.

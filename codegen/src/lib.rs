@@ -1,4 +1,8 @@
 mod code_writer;
+mod dart_enum_gen;
+mod dart_gen;
+mod dart_struct_gen;
+mod dart_type_map;
 mod enum_gen;
 mod namespace_tree;
 mod rust_gen;
@@ -15,6 +19,7 @@ pub mod type_map;
 
 use std::collections::HashSet;
 
+use dart_gen::DartGenerator;
 use flatc_rs_schema::resolved::{
     ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
 };
@@ -98,8 +103,9 @@ pub struct CodeGenOptions {
     /// Generate Object API types (owned `*T` structs with `pack`/`unpack` methods).
     /// Requires `--gen-object-api` to enable (matches C++ flatc behavior).
     pub gen_object_api: bool,
-    /// Implement serde::Serialize on generated Rust types (--rust-serialize).
-    /// Not yet implemented; accepted for forward compatibility.
+    /// Implement serde::Serialize/Deserialize on generated Rust types (--rust-serialize).
+    /// Generates manual Serialize/Deserialize for enums and bitflags, derived impls
+    /// for Object API types, and manual Serialize for struct readers.
     pub rust_serialize: bool,
     /// When set, only generate code for types whose `declaration_file` matches
     /// one of these paths. When `None`, generate for all types (--gen-all).
@@ -137,6 +143,17 @@ pub struct TsCodeGenOptions {
     pub gen_only_files: Option<HashSet<String>>,
     /// Generate `mutate_*` methods for scalar fields in TypeScript (--gen-mutable).
     pub gen_mutable: bool,
+}
+
+/// Options for Dart code generation.
+#[derive(Default)]
+pub struct DartCodeGenOptions {
+    /// Generate Object API types (`*T` classes with `pack`/`unpack` methods).
+    /// Requires `--gen-object-api` to enable (matches C++ flatc behavior).
+    pub gen_object_api: bool,
+    /// When set, only generate code for types whose `declaration_file` matches
+    /// one of these paths. When `None`, generate for all types (--gen-all).
+    pub gen_only_files: Option<HashSet<String>>,
 }
 
 /// Check if a type should be included based on its declaration file and the filter.
@@ -185,5 +202,17 @@ pub fn generate_typescript(
     opts: &TsCodeGenOptions,
 ) -> Result<String, CodeGenError> {
     let gen = TsGenerator::new(schema, opts);
+    gen.generate()
+}
+
+/// Generate Dart source code from a fully resolved FlatBuffers schema.
+///
+/// The generated code is compatible with the `flatbuffers` Dart package and
+/// includes reader classes, builder classes, and Object API classes.
+pub fn generate_dart(
+    schema: &ResolvedSchema,
+    opts: &DartCodeGenOptions,
+) -> Result<String, CodeGenError> {
+    let gen = DartGenerator::new(schema, opts);
     gen.generate()
 }

@@ -7,7 +7,10 @@ use clap::Parser;
 use flatc_rs_compiler::{
     bfbs::serialize_schema,
     check_private_leak,
-    codegen::{generate_rust, generate_typescript, CodeGenOptions, TsCodeGenOptions},
+    codegen::{
+        generate_dart, generate_rust, generate_typescript, CodeGenOptions, DartCodeGenOptions,
+        TsCodeGenOptions,
+    },
     compile,
     conform::check_conform,
     json::{binary_to_json, json_to_binary_with_opts, EncoderOptions, JsonOptions},
@@ -41,6 +44,10 @@ struct Cli {
     /// Generate TypeScript code for tables/structs.
     #[arg(short = 'T', long = "ts")]
     ts: bool,
+
+    /// Generate Dart code for tables/structs.
+    #[arg(short = 'D', long = "dart")]
+    dart: bool,
 
     // -- Codegen options --
     /// Generate an additional object-based API.
@@ -229,6 +236,7 @@ fn main() {
 
     let has_action = cli.rust
         || cli.ts
+        || cli.dart
         || cli.binary_schema
         || cli.dump_schema
         || cli.to_json
@@ -236,7 +244,7 @@ fn main() {
         || cli.conform.is_some();
     if !has_action {
         eprintln!(
-            "error: no action specified, use --rust, --ts, --json, --schema, --annotate, --conform, or --dump-schema"
+            "error: no action specified, use --rust, --ts, --dart, --json, --schema, --annotate, --conform, or --dump-schema"
         );
         process::exit(1);
     }
@@ -669,6 +677,36 @@ fn main() {
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("ts");
             let code = match generate_typescript(&result.schema, &ts_opts) {
+                Ok(code) => code,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+            };
+            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir)
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+            };
+
+            if cli.file_names_only {
+                println!("{}", out_path.display());
+            } else if let Err(e) = write_output(&out_path, &code) {
+                eprintln!("error: {e}");
+                process::exit(1);
+            }
+        }
+
+        if cli.dart {
+            let dart_opts = DartCodeGenOptions {
+                gen_object_api: cli.gen_object_api,
+                gen_only_files: gen_only_files.clone(),
+            };
+            let ext = cli.filename_ext.as_deref().unwrap_or("dart");
+            let code = match generate_dart(&result.schema, &dart_opts) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {e}");
