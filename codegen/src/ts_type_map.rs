@@ -1,8 +1,6 @@
-use flatc_rs_schema::resolved::ResolvedObject;
 use flatc_rs_schema::{BaseType, Documentation};
 
 use super::code_writer::CodeWriter;
-use super::type_map;
 
 /// Returns the TypeScript type name for a scalar BaseType.
 ///
@@ -179,41 +177,8 @@ pub fn format_default_real_ts(value: f64, _bt: BaseType) -> String {
     }
 }
 
-/// Convert a name to camelCase (first letter lowercase).
-/// "my_field" -> "myField", "MyField" -> "myField", "pos" -> "pos"
-pub fn to_camel_case(name: &str) -> String {
-    let snake = super::type_map::to_snake_case(name);
-    let mut result = String::with_capacity(snake.len());
-    let mut capitalize_next = false;
-    for (i, ch) in snake.chars().enumerate() {
-        if ch == '_' {
-            if i > 0 {
-                capitalize_next = true;
-            }
-        } else if capitalize_next {
-            result.push(ch.to_uppercase().next().unwrap());
-            capitalize_next = false;
-        } else {
-            result.push(ch);
-        }
-    }
-    result
-}
-
-/// Convert a name to PascalCase (first letter uppercase).
-/// "my_field" -> "MyField", "pos" -> "Pos"
-pub fn to_pascal_case(name: &str) -> String {
-    let camel = to_camel_case(name);
-    let mut chars = camel.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(c) => {
-            let mut s = c.to_uppercase().collect::<String>();
-            s.extend(chars);
-            s
-        }
-    }
-}
+// Re-export shared functions from type_map
+pub use super::type_map::{to_camel_case, to_pascal_case};
 
 /// Returns true if the given identifier is a TypeScript keyword that needs escaping.
 pub fn is_ts_keyword(name: &str) -> bool {
@@ -294,16 +259,8 @@ pub fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&Documentation>) {
     w.line(" */");
 }
 
-/// Build FQN like "MyGame.Example.Monster".
-pub fn build_fqn(obj: &ResolvedObject) -> String {
-    let name = &obj.name;
-    let ns = type_map::object_namespace(obj);
-    if ns.is_empty() {
-        name.to_string()
-    } else {
-        format!("{ns}.{name}")
-    }
-}
+// Re-export shared functions from type_map
+pub use super::type_map::build_fqn;
 
 #[cfg(test)]
 mod tests {

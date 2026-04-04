@@ -6,6 +6,15 @@ use super::dart_type_map;
 use super::type_map;
 use super::{field_offset, field_type_index, obj_byte_size, type_index};
 
+/// Context for generating struct field write code.
+struct StructFieldWriteCtx<'a> {
+    schema: &'a ResolvedSchema,
+    field: &'a ResolvedField,
+    /// If true, use underscore-prefixed private field names (e.g., `_x`).
+    /// If false, use public field names (e.g., `x`).
+    use_underscore_prefix: bool,
+}
+
 /// Generate Dart code for the struct at `schema.objects[index]`.
 pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, gen_object_api: bool) {
     let obj = &schema.objects[index];
@@ -120,9 +129,22 @@ pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, gen_o
     w.blank();
     w.line(&format!("class {name}Builder {{"));
     w.indent();
-    w.line(&format!("{name}Builder(this.fbBuilder);"));
+    w.line(&format!(
+        "{name}Builder(this.fbBuilder, this._{});",
+        obj.fields
+            .iter()
+            .map(|f| dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name)))
+            .collect::<Vec<_>>()
+            .join(", this._")
+    ));
     w.blank();
     w.line("final fb.Builder fbBuilder;");
+    for field in &obj.fields {
+        let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
+        let bt = field.type_.base_type;
+        let dart_type = field_dart_type(schema, field, bt);
+        w.line(&format!("final {dart_type} _{fname};"));
+    }
     w.blank();
 
     gen_struct_builder_methods(w, schema, obj);
@@ -219,15 +241,19 @@ fn gen_array_accessor(
 }
 
 /// Generate builder methods for a struct.
-fn gen_struct_builder_methods(w: &mut CodeWriter, _schema: &ResolvedSchema, obj: &ResolvedObject) {
-    let _name = &obj.name;
-    let _byte_size = obj_byte_size(obj).unwrap();
-
-    // finish method
-    w.line("int finish(int a, int b) {");
+fn gen_struct_builder_methods(w: &mut CodeWriter, schema: &ResolvedSchema, obj: &ResolvedObject) {
+    // finish method - writes all fields in reverse order (FlatBuffers convention)
+    w.line("int finish() {");
     w.indent();
-    w.line("fbBuilder.putInt32(b);");
-    w.line("fbBuilder.putInt32(a);");
+    // Write fields in reverse order - Builder uses private fields with underscore prefix
+    for field in obj.fields.iter().rev() {
+        let ctx = StructFieldWriteCtx {
+            schema,
+            field,
+            use_underscore_prefix: true,
+        };
+        gen_struct_field_write(w, &ctx);
+    }
     w.line("return fbBuilder.offset;");
     w.dedent();
     w.line("}");
@@ -290,8 +316,14 @@ fn gen_object_api_class(
     w.line("int pack(fb.Builder fbBuilder) {");
     w.indent();
     // Write fields in reverse order (FlatBuffers convention)
+    // T class uses public field names (no underscore prefix)
     for field in obj.fields.iter().rev() {
-        gen_struct_field_write(w, schema, field);
+        let ctx = StructFieldWriteCtx {
+            schema,
+            field,
+            use_underscore_prefix: false,
+        };
+        gen_struct_field_write(w, &ctx);
     }
     w.line("return fbBuilder.offset;");
     w.dedent();
@@ -320,20 +352,26 @@ fn gen_object_api_class(
 }
 
 /// Generate a field write in the pack method (structs are written in reverse).
-fn gen_struct_field_write(w: &mut CodeWriter, _schema: &ResolvedSchema, field: &ResolvedField) {
-    let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
-    let bt = field.type_.base_type;
+fn gen_struct_field_write(w: &mut CodeWriter, ctx: &StructFieldWriteCtx) {
+    let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&ctx.field.name));
+    let field_ref = if ctx.use_underscore_prefix {
+        format!("_{}", fname)
+    } else {
+        fname.to_string()
+    };
+    let bt = ctx.field.type_.base_type;
 
     if bt == BaseType::BASE_TYPE_STRUCT {
         // Nested struct: pack and write
         w.line(&format!(
-            "fbBuilder.putInt32({fname}?.pack(fbBuilder) ?? 0);"
+            "fbBuilder.putInt32({}?.pack(fbBuilder) ?? 0);",
+            field_ref
         ));
         return;
     }
 
     if bt == BaseType::BASE_TYPE_ARRAY {
-        // Array field - handled separately
+        gen_array_field_write(w, ctx, &fname);
         return;
     }
 
@@ -341,10 +379,46 @@ fn gen_struct_field_write(w: &mut CodeWriter, _schema: &ResolvedSchema, field: &
 
     if bt == BaseType::BASE_TYPE_BOOL {
         w.line(&format!(
-            "fbBuilder.{write_method}({fname} == true ? 1 : 0);",
+            "fbBuilder.{write_method}({field_ref} == true ? 1 : 0);",
         ));
     } else {
-        w.line(&format!("fbBuilder.{write_method}({fname});"));
+        w.line(&format!("fbBuilder.{write_method}({field_ref});"));
+    }
+}
+
+/// Generate field write code for an array field (writes elements in reverse order).
+fn gen_array_field_write(w: &mut CodeWriter, ctx: &StructFieldWriteCtx, fname: &str) {
+    let (et, fixed_len, _elem_size) = array_element_info(ctx.schema, ctx.field);
+    let field_ref = if ctx.use_underscore_prefix {
+        format!("_{}", fname)
+    } else {
+        fname.to_string()
+    };
+
+    if et == BaseType::BASE_TYPE_STRUCT {
+        let _idx = field_type_index(ctx.field).unwrap();
+        // Write struct array elements in reverse order
+        w.line(&format!("for (int i = {fixed_len} - 1; i >= 0; i--) {{"));
+        w.indent();
+        w.line(&format!(
+            "fbBuilder.putInt32({field_ref}?[i]?.pack(fbBuilder) ?? 0);"
+        ));
+        w.dedent();
+        w.line("}");
+    } else {
+        let write_method = dart_type_map::bb_write_method(et);
+        // Write scalar array elements in reverse order
+        w.line(&format!("for (int i = {fixed_len} - 1; i >= 0; i--) {{"));
+        w.indent();
+        if et == BaseType::BASE_TYPE_BOOL {
+            w.line(&format!(
+                "fbBuilder.{write_method}({field_ref}?[i] == true ? 1 : 0);"
+            ));
+        } else {
+            w.line(&format!("fbBuilder.{write_method}({field_ref}?[i] ?? 0);"));
+        }
+        w.dedent();
+        w.line("}");
     }
 }
 
@@ -353,6 +427,19 @@ fn field_dart_type(schema: &ResolvedSchema, field: &ResolvedField, bt: BaseType)
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
         return schema.objects[idx].name.clone();
+    }
+
+    if bt == BaseType::BASE_TYPE_STRING {
+        return "String".to_string();
+    }
+
+    if bt == BaseType::BASE_TYPE_UNION {
+        return "dynamic".to_string();
+    }
+
+    if bt == BaseType::BASE_TYPE_ARRAY {
+        let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
+        return format!("{}?", array_elem_dart_type(schema, field, et));
     }
 
     // Check for enum type
@@ -385,6 +472,8 @@ fn object_api_field_type_and_default(
         let idx = field_type_index(field).unwrap();
         let struct_name = &schema.objects[idx].name;
         (format!("{struct_name}T?"), "null".to_string())
+    } else if bt == BaseType::BASE_TYPE_UNION {
+        ("dynamic".to_string(), "null".to_string())
     } else {
         let dart_type = field_dart_type(schema, field, bt);
         let default = field_default(field, bt);
@@ -421,6 +510,18 @@ fn array_element_info(schema: &ResolvedSchema, field: &ResolvedField) -> (BaseTy
 
 /// Get the Dart type name for an array element.
 fn array_elem_dart_type(schema: &ResolvedSchema, field: &ResolvedField, et: BaseType) -> String {
+    if et == BaseType::BASE_TYPE_STRUCT {
+        let idx = field_type_index(field).unwrap();
+        return schema.objects[idx].name.clone();
+    }
+
+    if et == BaseType::BASE_TYPE_ARRAY {
+        // Nested array - get element type from the array's element type
+        let ty = &field.type_;
+        let inner_et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+        return format!("{}?", array_elem_dart_type(schema, field, inner_et));
+    }
+
     // Check for enum index on the array type
     if type_map::is_scalar(et) && type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
@@ -453,27 +554,19 @@ fn gen_object_builder(
     }
     w.blank();
 
-    // Constructor
-    let _ctor_params: Vec<String> = obj
-        .fields
-        .iter()
-        .map(|f| {
-            let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name));
-            let bt = f.type_.base_type;
-            let dart_type = field_dart_type(schema, f, bt);
-            format!("required {dart_type} {fname}")
-        })
-        .collect();
-
+    // Constructor - use positional parameters to initialize private fields
     w.line(&format!("{name}ObjectBuilder("));
-    w.line("{");
     w.indent();
-    for field in obj.fields.iter() {
+    for (i, field) in obj.fields.iter().enumerate() {
         let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
-        w.line(&format!(": _{fname} = {fname},"));
+        if i < obj.fields.len() - 1 {
+            w.line(&format!("this._{fname},"));
+        } else {
+            w.line(&format!("this._{fname}"));
+        }
     }
     w.dedent();
-    w.line("});");
+    w.line(");");
     w.blank();
 
     // finish method
@@ -481,8 +574,14 @@ fn gen_object_builder(
     w.line("int finish(fb.Builder fbBuilder) {");
     w.indent();
     // Write fields in reverse order (FlatBuffers convention)
+    // ObjectBuilder uses private field names (with underscore prefix)
     for field in obj.fields.iter().rev() {
-        gen_struct_field_write(w, schema, field);
+        let ctx = StructFieldWriteCtx {
+            schema,
+            field,
+            use_underscore_prefix: true,
+        };
+        gen_struct_field_write(w, &ctx);
     }
     w.line("return fbBuilder.offset;");
     w.dedent();

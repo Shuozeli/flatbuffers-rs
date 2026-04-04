@@ -55,7 +55,7 @@ impl<'src> FbsParser<'src> {
             file_name: None,
             tokens: Vec::new(),
             pos: 0,
-            schema: schema::Schema::new(),
+            schema: schema::Schema::default(),
             state: ParserState::default(),
             namespace: None,
             deadline: None,
@@ -230,8 +230,9 @@ impl<'src> FbsParser<'src> {
         if doc_tokens.is_empty() {
             return None;
         }
-        let mut doc = schema::Documentation::new();
-        doc.lines = doc_tokens.iter().map(|t| t.text.clone()).collect();
+        let doc = schema::Documentation {
+            lines: doc_tokens.iter().map(|t| t.text.clone()).collect(),
+        };
         Some(doc)
     }
 
@@ -244,8 +245,10 @@ impl<'src> FbsParser<'src> {
         let name_tok = self.expect_kind(TokenKind::StringLit)?;
         let filename = unescape_string(&name_tok.text)?;
         self.expect_kind(TokenKind::Semicolon)?;
-        let mut sf = schema::SchemaFile::new();
-        sf.filename = Some(filename);
+        let sf = schema::SchemaFile {
+            filename: Some(filename),
+            ..Default::default()
+        };
         self.schema.fbs_files.push(sf);
         Ok(())
     }
@@ -265,8 +268,9 @@ impl<'src> FbsParser<'src> {
         self.expect_ident("namespace")?;
         let ns_text = self.parse_full_ident()?;
         self.expect_kind(TokenKind::Semicolon)?;
-        let mut ns = schema::Namespace::new();
-        ns.namespace = Some(ns_text);
+        let ns = schema::Namespace {
+            namespace: Some(ns_text),
+        };
         self.namespace = Some(ns);
         Ok(())
     }
@@ -288,8 +292,9 @@ impl<'src> FbsParser<'src> {
     // Type declaration (table / struct)
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_type_decl(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<()> {
-        let mut obj = schema::Object::new();
+        let mut obj = schema::Object::default();
         obj.span = Some(self.get_span(span_token));
         obj.documentation = Self::make_documentation(&doc);
 
@@ -330,8 +335,9 @@ impl<'src> FbsParser<'src> {
     // Field
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_field(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<schema::Field> {
-        let mut field = schema::Field::new();
+        let mut field = schema::Field::default();
         field.span = Some(self.get_span(span_token));
         field.documentation = Self::make_documentation(&doc);
 
@@ -400,8 +406,9 @@ impl<'src> FbsParser<'src> {
     // Type parsing
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_type(&mut self) -> Result<schema::Type> {
-        let mut fb_type = schema::Type::new();
+        let mut fb_type = schema::Type::default();
         let type_start = self.peek().clone();
         fb_type.span = Some(self.get_span(&type_start));
 
@@ -614,8 +621,9 @@ impl<'src> FbsParser<'src> {
     // Enum declaration
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_enum_decl(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<()> {
-        let mut enum_decl = schema::Enum::new();
+        let mut enum_decl = schema::Enum::default();
         enum_decl.span = Some(self.get_span(span_token));
         enum_decl.documentation = Self::make_documentation(&doc);
 
@@ -631,7 +639,7 @@ impl<'src> FbsParser<'src> {
         let type_tok = self.expect_ident_any()?;
         let bt = lookup_base_type(&type_tok.text)
             .ok_or_else(|| ParseError::UnknownBaseType(type_tok.text.clone()))?;
-        let mut underlying = schema::Type::new();
+        let mut underlying = schema::Type::default();
         underlying.base_type = Some(bt);
         enum_decl.underlying_type = Some(underlying);
 
@@ -663,7 +671,7 @@ impl<'src> FbsParser<'src> {
                 self.peek().clone()
             };
 
-            let mut eval = schema::EnumVal::new();
+            let mut eval = schema::EnumVal::default();
             eval.span = Some(self.get_span(&val_span_token));
             eval.documentation = Self::make_documentation(&val_docs);
 
@@ -710,8 +718,9 @@ impl<'src> FbsParser<'src> {
     // Union declaration
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_union_decl(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<()> {
-        let mut union_decl = schema::Enum::new();
+        let mut union_decl = schema::Enum::default();
         union_decl.span = Some(self.get_span(span_token));
         union_decl.is_union = true;
         union_decl.documentation = Self::make_documentation(&doc);
@@ -729,12 +738,12 @@ impl<'src> FbsParser<'src> {
             let type_tok = self.expect_ident_any()?;
             let bt = lookup_base_type(&type_tok.text)
                 .ok_or_else(|| ParseError::UnknownBaseType(type_tok.text.clone()))?;
-            let mut underlying = schema::Type::new();
+            let mut underlying = schema::Type::default();
             underlying.base_type = Some(bt);
             union_decl.underlying_type = Some(underlying);
         } else {
             // Default: UType (uint8 discriminator)
-            let mut utype = schema::Type::new();
+            let mut utype = schema::Type::default();
             utype.base_type = Some(BaseType::BASE_TYPE_U_TYPE);
             union_decl.underlying_type = Some(utype);
         }
@@ -745,7 +754,7 @@ impl<'src> FbsParser<'src> {
         self.expect_kind(TokenKind::LBrace)?;
 
         // Add NONE sentinel at index 0
-        let mut none_val = schema::EnumVal::new();
+        let mut none_val = schema::EnumVal::default();
         none_val.name = Some("NONE".to_string());
         none_val.value = Some(0);
         union_decl.values.push(none_val);
@@ -773,7 +782,7 @@ impl<'src> FbsParser<'src> {
                 self.peek().clone()
             };
 
-            let mut eval = schema::EnumVal::new();
+            let mut eval = schema::EnumVal::default();
             eval.span = Some(self.get_span(&var_span_token));
             eval.documentation = Self::make_documentation(&var_docs);
             eval.value = Some(index);
@@ -789,7 +798,7 @@ impl<'src> FbsParser<'src> {
                 eval.union_type = Some(variant_type);
             } else {
                 // Positional: variant name IS the type name (no span)
-                let mut variant_type = schema::Type::new();
+                let mut variant_type = schema::Type::default();
                 variant_type.base_type = Some(BaseType::BASE_TYPE_TABLE);
                 variant_type.base_size = Some(4);
                 variant_type.unresolved_name = Some(key_text);
@@ -885,8 +894,9 @@ impl<'src> FbsParser<'src> {
     // RPC service
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_rpc_decl(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<()> {
-        let mut service = schema::Service::new();
+        let mut service = schema::Service::default();
         service.span = Some(self.get_span(span_token));
         service.documentation = Self::make_documentation(&doc);
 
@@ -920,8 +930,9 @@ impl<'src> FbsParser<'src> {
         Ok(())
     }
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_rpc_method(&mut self, doc: Vec<Token>, span_token: &Token) -> Result<schema::RpcCall> {
-        let mut call = schema::RpcCall::new();
+        let mut call = schema::RpcCall::default();
         call.span = Some(self.get_span(span_token));
         call.documentation = Self::make_documentation(&doc);
 
@@ -930,7 +941,7 @@ impl<'src> FbsParser<'src> {
 
         self.expect_kind(TokenKind::LParen)?;
         let param_tok = self.expect_ident_any()?;
-        let mut req = schema::Object::new();
+        let mut req = schema::Object::default();
         req.name = Some(param_tok.text.clone());
         call.request = Some(req);
         self.expect_kind(TokenKind::RParen)?;
@@ -938,7 +949,7 @@ impl<'src> FbsParser<'src> {
         self.expect_kind(TokenKind::Colon)?;
 
         let return_tok = self.expect_ident_any()?;
-        let mut resp = schema::Object::new();
+        let mut resp = schema::Object::default();
         resp.name = Some(return_tok.text.clone());
         call.response = Some(resp);
 
@@ -953,13 +964,14 @@ impl<'src> FbsParser<'src> {
     // Metadata (attributes in parentheses)
     // -----------------------------------------------------------------------
 
+    #[allow(clippy::field_reassign_with_default)]
     fn parse_optional_metadata(&mut self) -> Result<Option<schema::Attributes>> {
         if *self.peek_kind() != TokenKind::LParen {
             return Ok(None);
         }
         self.advance(); // (
 
-        let mut attrs = schema::Attributes::new();
+        let mut attrs = schema::Attributes::default();
         let mut first = true;
         while *self.peek_kind() != TokenKind::RParen && !self.at_eof() {
             if !first {
@@ -977,7 +989,7 @@ impl<'src> FbsParser<'src> {
                 None
             };
 
-            let mut entry = schema::KeyValue::new();
+            let mut entry = schema::KeyValue::default();
             entry.key = Some(key);
             entry.value = value;
             attrs.entries.push(entry);

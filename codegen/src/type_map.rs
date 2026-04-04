@@ -72,6 +72,53 @@ pub fn to_upper_snake_case(name: &str) -> String {
     to_snake_case(name).to_uppercase()
 }
 
+/// Convert a name to camelCase (first letter lowercase).
+/// "my_field" -> "myField", "MyField" -> "myField", "pos" -> "pos"
+pub fn to_camel_case(name: &str) -> String {
+    let snake = to_snake_case(name);
+    let mut result = String::with_capacity(snake.len());
+    let mut capitalize_next = false;
+    for (i, ch) in snake.chars().enumerate() {
+        if ch == '_' {
+            if i > 0 {
+                capitalize_next = true;
+            }
+        } else if capitalize_next {
+            result.push(ch.to_uppercase().next().unwrap());
+            capitalize_next = false;
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
+/// Convert a name to PascalCase (first letter uppercase).
+/// "my_field" -> "MyField", "pos" -> "Pos"
+pub fn to_pascal_case(name: &str) -> String {
+    let camel = to_camel_case(name);
+    let mut chars = camel.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => {
+            let mut s = c.to_uppercase().collect::<String>();
+            s.extend(chars);
+            s
+        }
+    }
+}
+
+/// Build FQN like "MyGame.Example.Monster".
+pub fn build_fqn(obj: &ResolvedObject) -> String {
+    let name = &obj.name;
+    let ns = object_namespace(obj);
+    if ns.is_empty() {
+        name.to_string()
+    } else {
+        format!("{ns}.{name}")
+    }
+}
+
 /// Format a default integer value for a given BaseType.
 pub fn format_default_integer(value: i64, bt: BaseType) -> String {
     match bt {

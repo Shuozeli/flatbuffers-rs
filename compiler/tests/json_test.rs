@@ -294,6 +294,7 @@ fn round_trip_with_defaults_option() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn round_trip_all_scalar_types() {
     let result = compile_single(
         "table AllScalars {
@@ -323,8 +324,8 @@ fn round_trip_all_scalar_types() {
         "f_uint": 3000000000u64,
         "f_long": -9000000000000i64,
         "f_ulong": 18000000000000000000u64,
-        "f_float": 3.14,
-        "f_double": 2.718281828
+        "f_float": 1.23,
+        "f_double": 1.41
     });
 
     let bin = json_to_binary(&input, &result.schema, "AllScalars").unwrap();
@@ -342,10 +343,10 @@ fn round_trip_all_scalar_types() {
 
     // Float precision: f32 round-trip may lose precision
     let f = output["f_float"].as_f64().unwrap();
-    assert!((f - 3.14).abs() < 0.001);
+    assert!((f - 1.23).abs() < 0.001);
 
     let d = output["f_double"].as_f64().unwrap();
-    assert!((d - 2.718281828).abs() < 1e-9);
+    assert!((d - 1.41).abs() < 1e-9);
 }
 
 #[test]

@@ -1,0 +1,6 @@
+table Monster {
+  hp: int = 100;
+  mana: short = 150;
+  alive: bool = true;
+  name: string;
+}

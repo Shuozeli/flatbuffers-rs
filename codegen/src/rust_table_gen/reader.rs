@@ -9,6 +9,18 @@ use crate::{CodeGenError, CodeGenOptions};
 
 use super::helpers;
 
+/// Context for generating a scalar accessor.
+struct GenScalarAccessorContext<'a> {
+    schema: &'a ResolvedSchema,
+    field: &'a ResolvedField,
+    accessor_name: &'a str,
+    upper_name: &'a str,
+    bt: BaseType,
+    is_optional: bool,
+    table_name: &'a str,
+    current_ns: &'a str,
+}
+
 /// `pub enum FooOffset {}`
 pub(super) fn gen_offset_marker(w: &mut CodeWriter, name: &str, vis: &str) {
     w.line(&format!("{vis} enum {name}Offset {{}}"));
@@ -123,14 +135,16 @@ fn gen_field_accessor(
         bt if type_map::is_scalar(bt) => {
             gen_scalar_accessor(
                 w,
-                schema,
-                field,
-                &accessor_name,
-                &upper,
-                bt,
-                is_optional_scalar,
-                table_name,
-                current_ns,
+                GenScalarAccessorContext {
+                    schema,
+                    field,
+                    accessor_name: &accessor_name,
+                    upper_name: &upper,
+                    bt,
+                    is_optional: is_optional_scalar,
+                    table_name,
+                    current_ns,
+                },
             )?;
         }
         BaseType::BASE_TYPE_STRING => {
@@ -192,26 +206,19 @@ fn gen_field_accessor(
 #[allow(clippy::too_many_arguments)]
 fn gen_scalar_accessor(
     w: &mut CodeWriter,
-    schema: &ResolvedSchema,
-    field: &ResolvedField,
-    accessor_name: &str,
-    upper_name: &str,
-    bt: BaseType,
-    is_optional: bool,
-    table_name: &str,
-    current_ns: &str,
+    ctx: GenScalarAccessorContext<'_>,
 ) -> Result<(), CodeGenError> {
     // Check if this is an enum field (has index pointing to an enum)
-    if has_type_index(field) {
-        let enum_idx = field_type_index(field)?;
-        let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
-        let is_bitflags = type_map::is_bitflags_enum(schema, enum_idx);
+    if has_type_index(ctx.field) {
+        let enum_idx = field_type_index(ctx.field)?;
+        let enum_name = type_map::resolve_enum_name(ctx.schema, ctx.current_ns, enum_idx);
+        let is_bitflags = type_map::is_bitflags_enum(ctx.schema, enum_idx);
 
         // Determine default
-        let default = if let Some(ref ds) = field.default_string {
+        let default = if let Some(ref ds) = ctx.field.default_string {
             format!("{enum_name}::{ds}")
         } else {
-            let dv = field.default_integer.unwrap_or(0);
+            let dv = ctx.field.default_integer.unwrap_or(0);
             if is_bitflags {
                 format!("{enum_name}::from_bits_retain({dv})")
             } else {
@@ -219,52 +226,64 @@ fn gen_scalar_accessor(
             }
         };
 
-        if is_optional {
+        if ctx.is_optional {
             w.line(&format!(
-                "pub fn {accessor_name}(&self) -> Option<{enum_name}> {{"
+                "pub fn {}(&self) -> Option<{enum_name}> {{",
+                ctx.accessor_name
             ));
             w.indent();
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
             w.line(&format!(
-                "unsafe {{ self._tab.get::<{enum_name}>({table_name}::VT_{upper_name}, None) }}"
+                "unsafe {{ self._tab.get::<{enum_name}>({}::VT_{}, None) }}",
+                ctx.table_name, ctx.upper_name
             ));
         } else {
-            w.line(&format!("pub fn {accessor_name}(&self) -> {enum_name} {{"));
+            w.line(&format!(
+                "pub fn {}(&self) -> {enum_name} {{",
+                ctx.accessor_name
+            ));
             w.indent();
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
             w.line(&format!(
-                "unsafe {{ self._tab.get::<{enum_name}>({table_name}::VT_{upper_name}, Some({default})).unwrap()}}"
+                "unsafe {{ self._tab.get::<{enum_name}>({}::VT_{}, Some({default})).unwrap()}}",
+                ctx.table_name, ctx.upper_name
             ));
         }
         w.dedent();
         w.line("}");
     } else {
-        let rust_type = type_map::scalar_rust_type(bt);
-        let default = helpers::scalar_default(field, bt);
+        let rust_type = type_map::scalar_rust_type(ctx.bt);
+        let default = helpers::scalar_default(ctx.field, ctx.bt);
 
-        if is_optional {
+        if ctx.is_optional {
             w.line(&format!(
-                "pub fn {accessor_name}(&self) -> Option<{rust_type}> {{"
+                "pub fn {}(&self) -> Option<{rust_type}> {{",
+                ctx.accessor_name
             ));
             w.indent();
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
             w.line(&format!(
-                "unsafe {{ self._tab.get::<{rust_type}>({table_name}::VT_{upper_name}, None) }}"
+                "unsafe {{ self._tab.get::<{rust_type}>({}::VT_{}, None) }}",
+                ctx.table_name, ctx.upper_name
             ));
         } else {
-            w.line(&format!("pub fn {accessor_name}(&self) -> {rust_type} {{"));
+            w.line(&format!(
+                "pub fn {}(&self) -> {rust_type} {{",
+                ctx.accessor_name
+            ));
             w.indent();
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
             w.line(&format!(
-                "unsafe {{ self._tab.get::<{rust_type}>({table_name}::VT_{upper_name}, Some({default})).unwrap()}}"
+                "unsafe {{ self._tab.get::<{rust_type}>({}::VT_{}, Some({default})).unwrap()}}",
+                ctx.table_name, ctx.upper_name
             ));
         }
         w.dedent();

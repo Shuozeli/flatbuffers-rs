@@ -44,10 +44,10 @@ fn field_default_integer() {
 
 #[test]
 fn field_default_real() {
-    let s = analyze("table T { speed:float = 1.5; ratio:double = 3.14; }");
+    let s = analyze("table T { speed:float = 1.5; ratio:double = 1.41; }");
     let t = &s.objects[0];
     assert_eq!(t.fields[0].default_real, Some(1.5));
-    assert_eq!(t.fields[1].default_real, Some(3.14));
+    assert_eq!(t.fields[1].default_real, Some(1.41));
 }
 
 #[test]

@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_type_size_align_scalars() {
         let objects = vec![];
-        let mut ty = schema::Type::new();
+        let mut ty = schema::Type::default();
 
         ty.base_type = Some(BaseType::BASE_TYPE_BYTE);
         assert_eq!(type_size_align(&ty, &objects, "Test").unwrap(), (1, 1));

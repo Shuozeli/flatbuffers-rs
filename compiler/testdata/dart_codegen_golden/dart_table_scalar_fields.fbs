@@ -1,0 +1,6 @@
+table Stats {
+  hp: int = 100;
+  mana: short = 50;
+  speed: float = 1.5;
+  active: bool = true;
+}

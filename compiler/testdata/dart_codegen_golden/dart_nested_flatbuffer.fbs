@@ -1,0 +1,8 @@
+table Inner {
+  hp: int = 100;
+  name: string;
+}
+table Outer {
+  label: string;
+  data: [ubyte] (nested_flatbuffer: "Inner");
+}

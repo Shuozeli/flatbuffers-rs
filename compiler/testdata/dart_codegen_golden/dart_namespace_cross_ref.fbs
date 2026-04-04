@@ -1,0 +1,15 @@
+namespace Game.Items;
+enum Rarity : byte { Common = 0, Rare = 1, Epic = 2 }
+struct ItemStats { attack: int; defense: int; }
+table Item {
+  name: string;
+  rarity: Rarity = Common;
+  stats: ItemStats;
+}
+
+namespace Game.Player;
+table Inventory {
+  owner: string;
+  items: [Game.Items.Item];
+  favorite: Game.Items.Item;
+}

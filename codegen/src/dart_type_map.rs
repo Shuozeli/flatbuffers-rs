@@ -1,8 +1,6 @@
-use flatc_rs_schema::resolved::ResolvedObject;
 use flatc_rs_schema::{BaseType, Documentation};
 
 use super::code_writer::CodeWriter;
-use super::type_map;
 
 /// Returns the Dart type name for a scalar BaseType.
 ///
@@ -28,18 +26,19 @@ pub fn scalar_dart_type(bt: BaseType) -> &'static str {
 }
 
 /// Returns the ByteBuffer read method name for a scalar BaseType.
+/// These return constructor names (e.g., "Float32Reader"), not method names.
 pub fn bb_read_method(bt: BaseType) -> &'static str {
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "readInt8",
-        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => "readUint8",
-        BaseType::BASE_TYPE_SHORT => "readInt16",
-        BaseType::BASE_TYPE_U_SHORT => "readUint16",
-        BaseType::BASE_TYPE_INT => "readInt32",
-        BaseType::BASE_TYPE_U_INT => "readUint32",
-        BaseType::BASE_TYPE_LONG => "readInt64",
-        BaseType::BASE_TYPE_U_LONG => "readUint64",
-        BaseType::BASE_TYPE_FLOAT => "readFloat32",
-        BaseType::BASE_TYPE_DOUBLE => "readFloat64",
+        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "Int8Reader",
+        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => "Uint8Reader",
+        BaseType::BASE_TYPE_SHORT => "Int16Reader",
+        BaseType::BASE_TYPE_U_SHORT => "Uint16Reader",
+        BaseType::BASE_TYPE_INT => "Int32Reader",
+        BaseType::BASE_TYPE_U_INT => "Uint32Reader",
+        BaseType::BASE_TYPE_LONG => "Int64Reader",
+        BaseType::BASE_TYPE_U_LONG => "Uint64Reader",
+        BaseType::BASE_TYPE_FLOAT => "Float32Reader",
+        BaseType::BASE_TYPE_DOUBLE => "Float64Reader",
         _ => panic!("no BB read method for BaseType: {bt:?}"),
     }
 }
@@ -47,53 +46,22 @@ pub fn bb_read_method(bt: BaseType) -> &'static str {
 /// Returns the ByteBuffer write method name for a scalar BaseType.
 pub fn bb_write_method(bt: BaseType) -> &'static str {
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "writeInt8",
-        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => "writeUint8",
-        BaseType::BASE_TYPE_SHORT => "writeInt16",
-        BaseType::BASE_TYPE_U_SHORT => "writeUint16",
-        BaseType::BASE_TYPE_INT => "writeInt32",
-        BaseType::BASE_TYPE_U_INT => "writeInt32",
-        BaseType::BASE_TYPE_LONG => "writeInt64",
-        BaseType::BASE_TYPE_U_LONG => "writeInt64",
-        BaseType::BASE_TYPE_FLOAT => "writeFloat32",
-        BaseType::BASE_TYPE_DOUBLE => "writeFloat64",
+        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => "putInt8",
+        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => "putUint8",
+        BaseType::BASE_TYPE_SHORT => "putInt16",
+        BaseType::BASE_TYPE_U_SHORT => "putUint16",
+        BaseType::BASE_TYPE_INT => "putInt32",
+        BaseType::BASE_TYPE_U_INT => "putUint32",
+        BaseType::BASE_TYPE_LONG => "putInt64",
+        BaseType::BASE_TYPE_U_LONG => "putUint64",
+        BaseType::BASE_TYPE_FLOAT => "putFloat32",
+        BaseType::BASE_TYPE_DOUBLE => "putFloat64",
         _ => panic!("no BB write method for BaseType: {bt:?}"),
     }
 }
 
-/// Convert a name to camelCase (first letter lowercase).
-pub fn to_camel_case(name: &str) -> String {
-    let snake = type_map::to_snake_case(name);
-    let mut result = String::with_capacity(snake.len());
-    let mut capitalize_next = false;
-    for (i, ch) in snake.chars().enumerate() {
-        if ch == '_' {
-            if i > 0 {
-                capitalize_next = true;
-            }
-        } else if capitalize_next {
-            result.push(ch.to_uppercase().next().unwrap());
-            capitalize_next = false;
-        } else {
-            result.push(ch);
-        }
-    }
-    result
-}
-
-/// Convert a name to PascalCase (first letter uppercase).
-pub fn to_pascal_case(name: &str) -> String {
-    let camel = to_camel_case(name);
-    let mut chars = camel.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(c) => {
-            let mut s = c.to_uppercase().collect::<String>();
-            s.extend(chars);
-            s
-        }
-    }
-}
+// Re-export shared functions from type_map
+pub use super::type_map::{to_camel_case, to_pascal_case};
 
 /// Returns true if the given identifier is a Dart keyword that needs escaping.
 pub fn is_dart_keyword(name: &str) -> bool {
@@ -219,16 +187,8 @@ pub fn gen_doc_comment(w: &mut CodeWriter, doc: Option<&Documentation>) {
     }
 }
 
-/// Build FQN like "NamespaceA.NamespaceB.TypeName".
-pub fn build_fqn(obj: &ResolvedObject) -> String {
-    let name = &obj.name;
-    let ns = type_map::object_namespace(obj);
-    if ns.is_empty() {
-        name.to_string()
-    } else {
-        format!("{ns}.{name}")
-    }
-}
+// Re-export shared functions from type_map
+pub use super::type_map::build_fqn;
 
 #[cfg(test)]
 mod tests {

@@ -1,0 +1,11 @@
+struct Vec2 {
+  x: float;
+  y: float;
+}
+table Monster {
+  hp: int = 100;
+  name: string (required);
+  pos: Vec2;
+  inventory: [ubyte];
+  tags: [string];
+}

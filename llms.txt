@@ -47,9 +47,16 @@ Exists for IDE/editor integration (syntax highlighting, structural queries).
 Code generators for Rust and TypeScript:
 - `rust_gen.rs` -- Rust code generation orchestrator
 - `ts_gen.rs` -- TypeScript code generation orchestrator
-- `enum_gen.rs` -- Enum and bitflags generation
-- `struct_gen.rs` -- Struct generation
-- `rust_table_gen/` -- Table reader, builder, and Object API generation
+- `enum_gen.rs` -- Rust enum and bitflags generation
+- `ts_enum_gen.rs` -- TypeScript enum generation
+- `struct_gen.rs` -- Rust struct generation
+- `ts_struct_gen.rs` -- TypeScript struct generation
+- `rust_table_gen/` -- Rust table reader, builder, Object API, and helpers
+- `ts_table_gen/` -- TypeScript table reader, builder, Object API, and helpers
+- `ts_type_map.rs` -- TypeScript type mapping
+- `type_map.rs` -- Rust type mapping and name conversion
+- `code_writer.rs` -- Shared indentation-aware code writer
+- `namespace_tree.rs` -- Namespace hierarchy handling
 - `service_gen.rs` -- gRPC service stub generation (feature-gated, `grpc`)
 
 ### compiler
@@ -59,6 +66,10 @@ The main orchestrator:
 - `compiler.rs` -- Multi-file include resolution and schema merging
 - `bfbs.rs` -- Binary schema (.bfbs) serialization and deserialization
 - `conform.rs` -- Schema backwards-compatibility checking
+- `error.rs` -- Error types (`AnalyzeError`, etc.)
+- `struct_layout.rs` -- Struct byte layout computation (sizes, alignment, offsets)
+- `type_index.rs` -- Type name resolution with parent namespace walking
+- `reflection.rs` -- Generated FlatBuffers reflection types (from C++ flatc)
 - `json/` -- JSON <-> FlatBuffers binary encoder/decoder
 - `main.rs` -- CLI entry point (`flatc` binary)
 
@@ -82,8 +93,12 @@ Shared golden test framework. Tests are `.fbs` + `.expected` pairs.
 
 ### wasm-api
 
-WASM bindings (via wasm-bindgen) for browser-based compilation. Supports
-Rust/TypeScript codegen, BFBS output, and binary annotation. Single-file only.
+WASM bindings (via wasm-bindgen) for browser-based compilation. Single-file only
+(no `include` directive support). Exports 4 functions:
+- `compile_fbs_to_rust(source, gen_object_api)` -- Schema to Rust code
+- `compile_fbs_to_ts(source, gen_object_api)` -- Schema to TypeScript code
+- `compile_fbs_to_bfbs(source)` -- Schema to binary schema bytes
+- `annotate_flatbuffer(binary, schema_source, root_type_name)` -- Binary annotation
 
 ## CLI Usage
 

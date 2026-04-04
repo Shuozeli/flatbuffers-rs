@@ -68,4 +68,18 @@ fn main() {
         code,
     )
     .unwrap();
+
+    // Dart codegen golden tests
+    let dart_codegen_dir = Path::new("testdata/dart_codegen_golden");
+    println!("cargo:rerun-if-changed=testdata/dart_codegen_golden");
+    let code = generate_tests_for_dir(
+        dart_codegen_dir,
+        "dart_codegen_",
+        "run_single_dart_codegen_golden",
+    );
+    fs::write(
+        Path::new(&out_dir).join("dart_codegen_tests_generated.rs"),
+        code,
+    )
+    .unwrap();
 }

@@ -761,13 +761,13 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
                 None => {
                     // Fallback: create a minimal Object with just the name
                     let (ns, short) = split_fq_name(rt_name);
-                    let mut obj = schema::Object::new();
-                    obj.name = Some(short.to_string());
-                    if let Some(ns_str) = ns {
-                        obj.namespace = Some(schema::Namespace {
+                    let obj = schema::Object {
+                        name: Some(short.to_string()),
+                        namespace: ns.map(|ns_str| schema::Namespace {
                             namespace: Some(ns_str.to_string()),
-                        });
-                    }
+                        }),
+                        ..Default::default()
+                    };
                     (Some(obj), None)
                 }
             }

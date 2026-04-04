@@ -1,0 +1,2 @@
+table Child { value: int; }
+table Parent { child: Child; label: string; }

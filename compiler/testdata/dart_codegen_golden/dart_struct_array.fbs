@@ -1,0 +1,9 @@
+enum TestEnum : byte { A, B, C }
+struct Inner { x: int; y: int; }
+struct Outer {
+  a: [int:3];
+  b: TestEnum;
+  c: [TestEnum:2];
+  d: [Inner:2];
+  e: float;
+}

@@ -205,7 +205,10 @@ impl<C: Chooser> SchemaBuilder<C> {
                 let qname = self.unions[idx].qualified_name.clone();
                 (self.reference_name(&name, &qname), true)
             }
-            _ => unreachable!("pick_weighted returned invalid category"),
+            _ => unreachable!(
+                "pick_weighted returned invalid category {category} with weights {:?}",
+                weights
+            ),
         }
     }
 
@@ -265,7 +268,10 @@ impl<C: Chooser> SchemaBuilder<C> {
                 let ref_name = self.table_ref_name(idx);
                 format!("[{ref_name}]")
             }
-            _ => unreachable!("pick_weighted returned invalid category"),
+            _ => unreachable!(
+                "pick_weighted returned invalid category {category} with weights {:?}",
+                weights
+            ),
         }
     }
 }

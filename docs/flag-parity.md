@@ -1,6 +1,6 @@
 # CLI Flag Parity: C++ flatc vs Rust flatc
 
-Last updated: 2026-03-19
+Last updated: 2026-03-26
 
 This document tracks every C++ `flatc` flag (excluding language backends we don't
 plan to support) and its status in the Rust implementation. Language-specific flags
@@ -55,7 +55,6 @@ Lua, Nim, PHP) are excluded entirely.
 | Flag | Status | Notes |
 |------|--------|-------|
 | `--gen-mutable` | DONE | Generate `mutate_*` methods for scalar fields in TS. Gated behind flag; off by default. |
-| `--object-suffix SUFFIX` | TODO | Customize Object API type suffix (default `T`, e.g. `MonsterT`). C++ flatc's TS generator reads this from opts. Our Rust codegen hardcodes `T`. **Priority: LOW** -- niche customization. |
 
 ## JSON / Binary Conversion Flags
 
@@ -125,9 +124,7 @@ These control details of the `--schema` / `-b` output.
 
 ## gRPC
 
-| Flag | Status | Notes |
-|------|--------|-------|
-| `--grpc` | DONE (feature-gated) | Generate gRPC service stubs. Enabled via `features = ["grpc"]` on `flatc-rs-codegen`. Uses `grpc-codegen` crate to generate server traits and client stubs. Automatically appends service code when the feature is enabled and services are defined in the schema. |
+gRPC service stub generation is enabled via the `features = ["grpc"]` Cargo feature on the `flatc-rs-codegen` crate (compile-time), not a runtime CLI flag. It uses `grpc-codegen` from [pure-grpc-rs](https://github.com/shuozeli/pure-grpc-rs) to generate server traits and client stubs from `rpc_service` declarations. This is intentionally not a CLI flag since it requires a compile-time dependency.
 
 ## Proto Conversion
 

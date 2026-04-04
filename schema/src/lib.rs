@@ -169,12 +169,6 @@ pub struct Namespace {
     pub namespace: Option<String>,
 }
 
-impl Namespace {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Type
 // ---------------------------------------------------------------------------
@@ -206,12 +200,6 @@ pub struct Type {
     pub span: Option<Span>,
 }
 
-impl Type {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // KeyValue (was attributes::Entry in proto)
 // ---------------------------------------------------------------------------
@@ -225,12 +213,6 @@ pub struct KeyValue {
     pub value: Option<String>,
 }
 
-impl KeyValue {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Attributes
 // ---------------------------------------------------------------------------
@@ -242,10 +224,6 @@ pub struct Attributes {
 }
 
 impl Attributes {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Returns `true` if an attribute with the given key exists.
     pub fn has(&self, key: &str) -> bool {
         self.entries.iter().any(|e| e.key.as_deref() == Some(key))
@@ -271,12 +249,6 @@ pub struct Documentation {
     pub lines: Vec<String>,
 }
 
-impl Documentation {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // EnumVal
 // ---------------------------------------------------------------------------
@@ -300,12 +272,6 @@ pub struct EnumVal {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span: Option<Span>,
-}
-
-impl EnumVal {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -340,12 +306,6 @@ pub struct Enum {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span: Option<Span>,
-}
-
-impl Enum {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -419,12 +379,6 @@ pub struct Field {
     pub span: Option<Span>,
 }
 
-impl Field {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Object (tables and structs)
 // ---------------------------------------------------------------------------
@@ -463,10 +417,6 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn set_namespace(&mut self, ns: Namespace) {
         self.namespace = Some(ns);
     }
@@ -511,12 +461,6 @@ pub struct RpcCall {
     pub span: Option<Span>,
 }
 
-impl RpcCall {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -545,12 +489,6 @@ pub struct Service {
     pub span: Option<Span>,
 }
 
-impl Service {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 // ---------------------------------------------------------------------------
 // AdvancedFeatures
 // ---------------------------------------------------------------------------
@@ -566,10 +504,6 @@ impl AdvancedFeatures {
     pub const ADVANCED_UNION_FEATURES: u64 = 2;
     pub const OPTIONAL_SCALARS: u64 = 4;
     pub const DEFAULT_VECTORS_AND_STRINGS: u64 = 8;
-
-    pub fn new() -> Self {
-        Self(0)
-    }
 
     pub fn set(&mut self, flag: u64) {
         self.0 |= flag;
@@ -591,12 +525,6 @@ pub struct SchemaFile {
 
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub included_filenames: Vec<String>,
-}
-
-impl SchemaFile {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -634,10 +562,4 @@ pub struct Schema {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fbs_files: Vec<SchemaFile>,
-}
-
-impl Schema {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }

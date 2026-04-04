@@ -127,7 +127,7 @@ fn cross_more_defaults_off_build_our_read() {
 fn cross_more_defaults_our_build_off_read() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let ints = fbb.create_vector(&[10i32, 20]);
-    let floats = fbb.create_vector(&[3.14f32]);
+    let floats = fbb.create_vector(&[1.23f32]);
     let empty_str = fbb.create_string("test");
     let some_str = fbb.create_string("data");
     let abcs = fbb.create_vector(&[our_more_defaults::ABC::A]);
@@ -148,7 +148,7 @@ fn cross_more_defaults_our_build_off_read() {
 
     let m = flatbuffers::root::<off_more_defaults::MoreDefaults>(buf).unwrap();
     assert_eq!(m.ints().iter().collect::<Vec<_>>(), vec![10, 20]);
-    assert_eq!(m.floats().iter().collect::<Vec<_>>(), vec![3.14]);
+    assert_eq!(m.floats().iter().collect::<Vec<_>>(), vec![1.23]);
     assert_eq!(m.empty_string(), "test");
     assert_eq!(m.some_string(), "data");
     assert_eq!(m.abcs().iter().map(|a| a.0).collect::<Vec<_>>(), vec![0]);

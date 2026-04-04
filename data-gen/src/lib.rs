@@ -53,6 +53,7 @@ pub enum DataGenError {
     ObjectIndexOutOfRange { index: usize, count: usize },
     EnumIndexOutOfRange { index: usize, count: usize },
     NoRootTable,
+    JsonSerialization { source: serde_json::Error },
 }
 
 impl std::fmt::Display for DataGenError {
@@ -71,6 +72,9 @@ impl std::fmt::Display for DataGenError {
                 write!(f, "enum index {index} out of range (have {count} enums)")
             }
             DataGenError::NoRootTable => write!(f, "schema has no root_table defined"),
+            DataGenError::JsonSerialization { source } => {
+                write!(f, "JSON serialization failed: {source}")
+            }
         }
     }
 }
@@ -94,7 +98,8 @@ pub fn generate_json(
     let rng = StdRng::seed_from_u64(seed);
     let mut builder = DataBuilder::new(schema, rng, config);
     let value = builder.build_root(root_type)?;
-    Ok(serde_json::to_string_pretty(&value).expect("serde_json::to_string_pretty cannot fail"))
+    serde_json::to_string_pretty(&value)
+        .map_err(|source| DataGenError::JsonSerialization { source })
 }
 
 #[cfg(test)]

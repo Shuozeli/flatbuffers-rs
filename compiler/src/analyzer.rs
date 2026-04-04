@@ -284,14 +284,16 @@ fn insert_union_type_fields(schema: &mut schema::Schema) -> Result<()> {
                     continue;
                 }
 
-                let mut type_field = schema::Field::new();
-                type_field.name = Some(companion_name);
-                type_field.type_ = Some(schema::Type {
-                    base_type: Some(underlying_bt),
-                    base_size: Some(1),
-                    index: enum_index,
-                    ..schema::Type::new()
-                });
+                let mut type_field = schema::Field {
+                    name: Some(companion_name),
+                    type_: Some(schema::Type {
+                        base_type: Some(underlying_bt),
+                        base_size: Some(1),
+                        index: enum_index,
+                        ..schema::Type::default()
+                    }),
+                    ..Default::default()
+                };
                 // For tables with explicit IDs, the companion type field
                 // gets the ID immediately before the union value field.
                 if let Some(uid) = union_field_id {

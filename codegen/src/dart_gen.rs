@@ -274,8 +274,10 @@ impl<'a> DartGenerator<'a> {
         self.w.dedent();
         self.w.line("}");
 
-        // ObjectBuilder class
+        // ObjectBuilder and T class
         if self.opts.gen_object_api {
+            self.w.blank();
+            self.gen_table_object_api_class(obj, name)?;
             self.w.blank();
             self.gen_table_object_builder(obj, name)?;
         }
@@ -307,17 +309,31 @@ impl<'a> DartGenerator<'a> {
                     let enum_name = &enum_def.name;
                     let read_method = dart_type_map::bb_read_method(bt);
                     let default_val = field.default_integer.unwrap_or(0);
-                    self.w.line(&format!(
-                        "{enum_name} get {fname} => {enum_name}.fromValue(",
-                        enum_name = enum_name,
-                        fname = fname
-                    ));
-                    self.w.indent();
-                    self.w.line(&format!(
-                        "const fb.{read_method}().vTableGet(_bc, _bcOffset, {vt_offset}, {default_val}));",
-                        read_method = read_method, vt_offset = vt_offset, default_val = default_val
-                    ));
-                    self.w.dedent();
+                    if field.is_optional {
+                        self.w.line(&format!(
+                            "{enum_name}? get {fname} => {enum_name}._createOrNull(",
+                            enum_name = enum_name,
+                            fname = fname
+                        ));
+                        self.w.indent();
+                        self.w.line(&format!(
+                            "const fb.{read_method}().vTableGetNullable(_bc, _bcOffset, {vt_offset}));",
+                            read_method = read_method, vt_offset = vt_offset
+                        ));
+                        self.w.dedent();
+                    } else {
+                        self.w.line(&format!(
+                            "{enum_name} get {fname} => {enum_name}.fromValue(",
+                            enum_name = enum_name,
+                            fname = fname
+                        ));
+                        self.w.indent();
+                        self.w.line(&format!(
+                            "const fb.{read_method}().vTableGet(_bc, _bcOffset, {vt_offset}, {default_val}));",
+                            read_method = read_method, vt_offset = vt_offset, default_val = default_val
+                        ));
+                        self.w.dedent();
+                    }
                 } else {
                     let dart_type = dart_type_map::scalar_dart_type(bt);
                     let read_method = dart_type_map::bb_read_method(bt);
@@ -333,10 +349,17 @@ impl<'a> DartGenerator<'a> {
                     } else {
                         dart_type_map::format_default(default_val as i64, bt)
                     };
-                    self.w.line(&format!(
-                        "{dart_type} get {fname} => const fb.{read_method}().vTableGet(_bc, _bcOffset, {vt_offset}, {default_str});",
-                        dart_type = dart_type, fname = fname, read_method = read_method, vt_offset = vt_offset, default_str = default_str
-                    ));
+                    if field.is_optional {
+                        self.w.line(&format!(
+                            "{dart_type}? get {fname} => const fb.{read_method}().vTableGetNullable(_bc, _bcOffset, {vt_offset});",
+                            dart_type = dart_type, fname = fname, read_method = read_method, vt_offset = vt_offset
+                        ));
+                    } else {
+                        self.w.line(&format!(
+                            "{dart_type} get {fname} => const fb.{read_method}().vTableGet(_bc, _bcOffset, {vt_offset}, {default_str});",
+                            dart_type = dart_type, fname = fname, read_method = read_method, vt_offset = vt_offset, default_str = default_str
+                        ));
+                    }
                 }
             }
             BaseType::BASE_TYPE_STRING => {
@@ -385,7 +408,11 @@ impl<'a> DartGenerator<'a> {
                 self.w.dedent();
                 self.w.line("}");
             }
-            _ => {}
+            _ => {
+                return Err(CodeGenError::Internal(format!(
+                    "unexpected base_type {bt:?} in table field accessor"
+                )))
+            }
         }
 
         Ok(())
@@ -435,7 +462,11 @@ impl<'a> DartGenerator<'a> {
                     struct_name = struct_name, fname = fname, vt_offset = vt_offset
                 ));
             }
-            _ => {}
+            _ => {
+                return Err(CodeGenError::Internal(format!(
+                    "unexpected element_type {et:?} in vector accessor"
+                )))
+            }
         }
 
         Ok(())
@@ -503,7 +534,11 @@ impl<'a> DartGenerator<'a> {
                 self.w.dedent();
                 self.w.line("}");
             }
-            _ => {}
+            _ => {
+                return Err(CodeGenError::Internal(format!(
+                    "unexpected base_type {bt:?} in table add method"
+                )))
+            }
         }
 
         Ok(())
@@ -514,8 +549,6 @@ impl<'a> DartGenerator<'a> {
         obj: &flatc_rs_schema::resolved::ResolvedObject,
         name: &str,
     ) -> Result<(), CodeGenError> {
-        let _t_name = format!("{name}T");
-
         self.w.line(&format!(
             "class {name}ObjectBuilder extends fb.ObjectBuilder {{"
         ));
@@ -526,12 +559,24 @@ impl<'a> DartGenerator<'a> {
             let fname =
                 dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
             let bt = field.type_.base_type;
-            let dart_type = dart_type_map::scalar_dart_type(bt);
+            let dart_type = if bt == BaseType::BASE_TYPE_STRING {
+                "String".to_string()
+            } else if bt == BaseType::BASE_TYPE_TABLE
+                || bt == BaseType::BASE_TYPE_STRUCT
+                || bt == BaseType::BASE_TYPE_VECTOR
+                || bt == BaseType::BASE_TYPE_UNION
+            {
+                "int".to_string()
+            } else {
+                dart_type_map::scalar_dart_type(bt).to_string()
+            };
 
             if field.is_optional
                 || bt == BaseType::BASE_TYPE_STRING
                 || bt == BaseType::BASE_TYPE_TABLE
+                || bt == BaseType::BASE_TYPE_STRUCT
                 || bt == BaseType::BASE_TYPE_VECTOR
+                || bt == BaseType::BASE_TYPE_UNION
             {
                 self.w.line(&format!("final {dart_type}? _{fname};"));
             } else {
@@ -578,8 +623,15 @@ impl<'a> DartGenerator<'a> {
                             .line(&format!("fbBuilder.addInt32({}, _{fname});", slot));
                     }
                 }
-                BaseType::BASE_TYPE_STRING
-                | BaseType::BASE_TYPE_TABLE
+                BaseType::BASE_TYPE_STRING => {
+                    self.w.line(&format!(
+                        "final int {fname}Offset = _{fname} != null ? fbBuilder.writeString(_{fname}) : 0;",
+                        fname = fname
+                    ));
+                    self.w
+                        .line(&format!("fbBuilder.addOffset({}, {fname}Offset);", slot));
+                }
+                BaseType::BASE_TYPE_TABLE
                 | BaseType::BASE_TYPE_VECTOR
                 | BaseType::BASE_TYPE_STRUCT
                 | BaseType::BASE_TYPE_UNION => {
@@ -592,7 +644,11 @@ impl<'a> DartGenerator<'a> {
                         slot
                     ));
                 }
-                _ => {}
+                _ => {
+                    return Err(CodeGenError::Internal(format!(
+                        "unexpected base_type {bt:?} in table object builder"
+                    )))
+                }
             }
         }
         self.w.line("return fbBuilder.endTable();");
@@ -616,5 +672,249 @@ impl<'a> DartGenerator<'a> {
         self.w.line("}");
 
         Ok(())
+    }
+
+    /// Generate the Object API T class for a table.
+    /// This class is used with the Object API to create table instances.
+    fn gen_table_object_api_class(
+        &mut self,
+        obj: &flatc_rs_schema::resolved::ResolvedObject,
+        name: &str,
+    ) -> Result<(), CodeGenError> {
+        let t_name = format!("{name}T");
+
+        self.w
+            .line(&format!("class {t_name} implements fb.Packable {{"));
+        self.w.indent();
+
+        // Fields - use public field names (not underscore prefixed)
+        for field in obj.fields.iter().filter(|f| !f.is_deprecated) {
+            let fname =
+                dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
+            let bt = field.type_.base_type;
+            let dart_type = self.table_field_dart_type(field, bt);
+            if self.is_optional_or_reference_type(bt) {
+                self.w.line(&format!("{dart_type}? {fname};"));
+            } else {
+                self.w.line(&format!("{dart_type} {fname};"));
+            }
+        }
+        self.w.blank();
+
+        // Constructor
+        self.w.line(&format!("{t_name}({{"));
+        self.w.indent();
+        for (i, field) in obj.fields.iter().filter(|f| !f.is_deprecated).enumerate() {
+            let fname =
+                dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
+            let bt = field.type_.base_type;
+            let default = self.table_field_default(field, bt);
+            let comma = if i < obj.fields.iter().filter(|f| !f.is_deprecated).count() - 1 {
+                ","
+            } else {
+                ""
+            };
+            if default == "null" {
+                self.w.line(&format!("this.{fname}{comma}"));
+            } else {
+                self.w.line(&format!("this.{fname} = {default}{comma}"));
+            }
+        }
+        self.w.dedent();
+        self.w.line("});");
+        self.w.blank();
+
+        // pack method
+        self.w.line("@override");
+        self.w.line("int pack(fb.Builder fbBuilder) {");
+        self.w.indent();
+
+        // First, pre-create strings and nested structures (get their offsets)
+        // Collect all offsets first
+        for field in obj.fields.iter().filter(|f| !f.is_deprecated) {
+            let fname =
+                dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
+            let bt = field.type_.base_type;
+            if bt == BaseType::BASE_TYPE_STRING {
+                self.w.line(&format!(
+                    "final int {fname}Offset = {fname} != null ? fbBuilder.writeString({fname}) : 0;",
+                    fname = fname
+                ));
+            } else if bt == BaseType::BASE_TYPE_TABLE
+                || bt == BaseType::BASE_TYPE_STRUCT
+                || bt == BaseType::BASE_TYPE_VECTOR
+                || bt == BaseType::BASE_TYPE_UNION
+            {
+                self.w.line(&format!(
+                    "final int? {fname}Offset = {fname}?.pack(fbBuilder);",
+                    fname = fname
+                ));
+            }
+        }
+
+        // Start table
+        self.w.line(&format!(
+            "fbBuilder.startTable({});",
+            obj.fields.iter().filter(|f| !f.is_deprecated).count()
+        ));
+
+        // Add fields in order (not reverse for tables)
+        for field in obj.fields.iter().filter(|f| !f.is_deprecated) {
+            let fname =
+                dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&field.name));
+            let bt = field.type_.base_type;
+            let slot = field_id(field).unwrap();
+
+            match bt {
+                bt if type_map::is_scalar(bt) => {
+                    if field.is_optional {
+                        self.w.line(&format!(
+                            "if ({fname} != null) fbBuilder.addInt32({}, {fname});",
+                            slot,
+                            fname = fname
+                        ));
+                    } else {
+                        self.w.line(&format!(
+                            "fbBuilder.addInt32({}, {fname});",
+                            slot,
+                            fname = fname
+                        ));
+                    }
+                }
+                BaseType::BASE_TYPE_STRING => {
+                    self.w.line(&format!(
+                        "fbBuilder.addOffset({}, {fname}Offset);",
+                        slot,
+                        fname = fname
+                    ));
+                }
+                BaseType::BASE_TYPE_TABLE
+                | BaseType::BASE_TYPE_STRUCT
+                | BaseType::BASE_TYPE_VECTOR
+                | BaseType::BASE_TYPE_UNION => {
+                    self.w.line(&format!(
+                        "fbBuilder.addOffset({}, {fname}Offset ?? 0);",
+                        slot,
+                        fname = fname
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        self.w.line("return fbBuilder.endTable();");
+        self.w.dedent();
+        self.w.line("}");
+        self.w.blank();
+
+        // toString
+        self.w.line("@override");
+        self.w.line("String toString() {");
+        self.w.indent();
+        let fields_str = obj
+            .fields
+            .iter()
+            .filter(|f| !f.is_deprecated)
+            .map(|f| {
+                let fname =
+                    dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name));
+                format!("{fname}: ${{{fname}}}")
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.w.line(&format!("return '{t_name}{{{fields_str}}}';"));
+        self.w.dedent();
+        self.w.line("}");
+
+        self.w.dedent();
+        self.w.line("}");
+
+        Ok(())
+    }
+
+    /// Get the Dart type for a table field.
+    fn table_field_dart_type(
+        &self,
+        field: &flatc_rs_schema::resolved::ResolvedField,
+        bt: BaseType,
+    ) -> String {
+        if bt == BaseType::BASE_TYPE_STRING {
+            return "String".to_string();
+        }
+        if bt == BaseType::BASE_TYPE_STRUCT {
+            let idx = field_type_index(field).unwrap();
+            return self.schema.objects[idx].name.clone();
+        }
+        if bt == BaseType::BASE_TYPE_TABLE {
+            let idx = field_type_index(field).unwrap();
+            return self.schema.objects[idx].name.clone();
+        }
+        if bt == BaseType::BASE_TYPE_VECTOR {
+            let et = field.type_.element_type_or_none();
+            if et == BaseType::BASE_TYPE_STRUCT {
+                let idx = field_type_index(field).unwrap();
+                let struct_name = &self.schema.objects[idx].name;
+                return format!("({struct_name})");
+            }
+            if et == BaseType::BASE_TYPE_TABLE {
+                let idx = field_type_index(field).unwrap();
+                let table_name = &self.schema.objects[idx].name;
+                return format!("({table_name})");
+            }
+            if et == BaseType::BASE_TYPE_STRING {
+                return "(String)".to_string();
+            }
+            // Check for enum in vector
+            if type_map::is_scalar(et) && type_map::has_type_index(field) {
+                let enum_idx = field_type_index(field).unwrap();
+                return format!("({})", self.schema.enums[enum_idx].name);
+            }
+            if et == BaseType::BASE_TYPE_UNION {
+                return "(dynamic)".to_string();
+            }
+            return format!("({})", dart_type_map::scalar_dart_type(et));
+        }
+        if bt == BaseType::BASE_TYPE_UNION {
+            return "dynamic".to_string();
+        }
+        // Check for enum
+        if type_map::is_scalar(bt) && type_map::has_type_index(field) {
+            let enum_idx = field_type_index(field).unwrap();
+            return self.schema.enums[enum_idx].name.clone();
+        }
+        dart_type_map::scalar_dart_type(bt).to_string()
+    }
+
+    /// Check if a field type is optional or a reference type.
+    fn is_optional_or_reference_type(&self, bt: BaseType) -> bool {
+        matches!(
+            bt,
+            BaseType::BASE_TYPE_STRING
+                | BaseType::BASE_TYPE_TABLE
+                | BaseType::BASE_TYPE_STRUCT
+                | BaseType::BASE_TYPE_VECTOR
+                | BaseType::BASE_TYPE_UNION
+        )
+    }
+
+    /// Get the default value for a table field.
+    fn table_field_default(
+        &self,
+        field: &flatc_rs_schema::resolved::ResolvedField,
+        bt: BaseType,
+    ) -> String {
+        if field.is_optional {
+            return "null".to_string();
+        }
+        match bt {
+            BaseType::BASE_TYPE_STRING => "null".to_string(),
+            BaseType::BASE_TYPE_BOOL => "false".to_string(),
+            BaseType::BASE_TYPE_FLOAT | BaseType::BASE_TYPE_DOUBLE => "0.0".to_string(),
+            BaseType::BASE_TYPE_TABLE
+            | BaseType::BASE_TYPE_STRUCT
+            | BaseType::BASE_TYPE_VECTOR
+            | BaseType::BASE_TYPE_UNION => "null".to_string(),
+            _ => "0".to_string(),
+        }
     }
 }

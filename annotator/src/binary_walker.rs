@@ -20,6 +20,17 @@ impl From<BoundsError> for WalkError {
 }
 
 // ---------------------------------------------------------------------------
+// Context structs
+// ---------------------------------------------------------------------------
+
+struct WalkFieldContext<'a> {
+    ty: &'a ResolvedType,
+    bt: BaseType,
+    fname: &'a str,
+    path: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
 // Binary walker
 // ---------------------------------------------------------------------------
 
@@ -68,7 +79,7 @@ impl<'a> BinaryWalker<'a> {
             vec!["root".to_string()],
             format!("-> 0x{root_offset:04X}"),
             0,
-        );
+        )?;
 
         // 2. File identifier (bytes 4..8) if present
         if self.schema.file_ident.is_some() && self.reader.len() >= 8 {
@@ -81,7 +92,7 @@ impl<'a> BinaryWalker<'a> {
                 vec!["file_id".to_string()],
                 format!("\"{id_str}\""),
                 0,
-            );
+            )?;
         }
 
         // 3. Find root table
@@ -161,7 +172,7 @@ impl<'a> BinaryWalker<'a> {
             path.clone(),
             format!("soffset={vtable_soffset} -> vtable@0x{vtable_offset:04X}"),
             depth,
-        );
+        )?;
 
         let vtable_region = if !self.visited_vtables.contains(&vtable_offset) {
             Some(self.walk_vtable(vtable_offset, &fields, &type_name, &path, depth)?)
@@ -226,10 +237,12 @@ impl<'a> BinaryWalker<'a> {
 
             self.walk_field(
                 field_data_offset,
-                ty,
-                bt,
-                &field_path,
-                &fname,
+                WalkFieldContext {
+                    ty,
+                    bt,
+                    fname: &fname,
+                    path: field_path,
+                },
                 depth + 1,
                 &union_type_values,
                 table_region,
@@ -265,7 +278,7 @@ impl<'a> BinaryWalker<'a> {
             path.to_vec(),
             String::new(),
             depth,
-        );
+        )?;
 
         let size_region = self.add_region(
             vtable_offset..vtable_offset + 2,
@@ -274,7 +287,7 @@ impl<'a> BinaryWalker<'a> {
             path.to_vec(),
             format!("{vtable_size}"),
             depth + 1,
-        );
+        )?;
 
         let tsize_region = self.add_region(
             vtable_offset + 2..vtable_offset + 4,
@@ -283,7 +296,7 @@ impl<'a> BinaryWalker<'a> {
             path.to_vec(),
             format!("{table_data_size}"),
             depth + 1,
-        );
+        )?;
 
         self.regions[vt_region].children.push(size_region);
         self.regions[vt_region].children.push(tsize_region);
@@ -317,7 +330,7 @@ impl<'a> BinaryWalker<'a> {
                     format!("offset={field_offset_val}")
                 },
                 depth + 1,
-            );
+            )?;
 
             self.regions[vt_region].children.push(entry_region);
         }
@@ -329,18 +342,18 @@ impl<'a> BinaryWalker<'a> {
     // Field walking
     // -----------------------------------------------------------------------
 
-    #[allow(clippy::too_many_arguments)]
     fn walk_field(
         &mut self,
         offset: usize,
-        ty: &ResolvedType,
-        bt: BaseType,
-        path: &[String],
-        fname: &str,
+        ctx: WalkFieldContext<'_>,
         depth: usize,
         union_type_values: &std::collections::HashMap<String, u8>,
         parent_region: usize,
     ) -> Result<(), WalkError> {
+        let ty = ctx.ty;
+        let bt = ctx.bt;
+        let fname = ctx.fname;
+        let path = &ctx.path;
         match bt {
             BaseType::BASE_TYPE_BOOL
             | BaseType::BASE_TYPE_BYTE
@@ -365,7 +378,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     value,
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(region);
             }
 
@@ -380,7 +393,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("{val}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(region);
             }
 
@@ -396,7 +409,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("-> 0x{str_start:04X}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(off_region);
                 self.walk_string(str_start, path, depth, off_region)?;
             }
@@ -416,7 +429,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("-> 0x{table_start:04X}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(off_region);
 
                 let nested_region = self.walk_table(table_start, obj_idx, path.to_vec(), depth)?;
@@ -443,7 +456,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("-> 0x{vec_start:04X}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(off_region);
 
                 self.walk_vector(vec_start, ty, path, depth, off_region)?;
@@ -462,7 +475,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("-> 0x{data_start:04X}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(off_region);
 
                 if let Some(&discriminant) = union_type_values.get(fname) {
@@ -478,7 +491,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("{bt:?}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(region);
             }
         }
@@ -516,7 +529,7 @@ impl<'a> BinaryWalker<'a> {
             path.to_vec(),
             format!("{byte_size} bytes"),
             depth,
-        );
+        )?;
         self.regions[parent_region].children.push(struct_region);
 
         for field in &fields {
@@ -563,7 +576,7 @@ impl<'a> BinaryWalker<'a> {
                             field_path,
                             value,
                             depth + 1,
-                        );
+                        )?;
                         self.regions[struct_region].children.push(region);
                     }
                 }
@@ -602,7 +615,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("{fixed_len} x {bt:?}"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(arr_region);
 
                 for i in 0..fixed_len {
@@ -615,7 +628,7 @@ impl<'a> BinaryWalker<'a> {
                         path.to_vec(),
                         value,
                         depth + 1,
-                    );
+                    )?;
                     self.regions[arr_region].children.push(elem_region);
                 }
             }
@@ -634,7 +647,7 @@ impl<'a> BinaryWalker<'a> {
                     path.to_vec(),
                     format!("{fixed_len} structs"),
                     depth,
-                );
+                )?;
                 self.regions[parent_region].children.push(arr_region);
 
                 for i in 0..fixed_len {
@@ -676,7 +689,7 @@ impl<'a> BinaryWalker<'a> {
             path.to_vec(),
             format!("{count}"),
             depth + 1,
-        );
+        )?;
         self.regions[parent_region].children.push(len_region);
 
         let elem_bt = ty.element_type.unwrap_or(BaseType::BASE_TYPE_U_BYTE);
@@ -695,7 +708,7 @@ impl<'a> BinaryWalker<'a> {
                         path.to_vec(),
                         value,
                         depth + 1,
-                    );
+                    )?;
                     self.regions[parent_region].children.push(elem_region);
                 }
             }
@@ -713,7 +726,7 @@ impl<'a> BinaryWalker<'a> {
                         path.to_vec(),
                         format!("-> 0x{str_start:04X}"),
                         depth + 1,
-                    );
+                    )?;
                     self.regions[parent_region].children.push(elem_region);
 
                     self.walk_string(str_start, path, depth + 1, elem_region)?;
@@ -734,7 +747,7 @@ impl<'a> BinaryWalker<'a> {
                         path.to_vec(),
                         format!("-> 0x{table_start:04X}"),
                         depth + 1,
-                    );
+                    )?;
                     self.regions[parent_region].children.push(elem_region);
 
                     let mut elem_path = path.to_vec();
@@ -760,7 +773,7 @@ impl<'a> BinaryWalker<'a> {
                         path.to_vec(),
                         String::new(),
                         depth + 1,
-                    );
+                    )?;
                     self.regions[parent_region].children.push(elem_region);
 
                     let mut elem_path = path.to_vec();
@@ -801,7 +814,7 @@ impl<'a> BinaryWalker<'a> {
             path.to_vec(),
             format!("{length}"),
             depth + 1,
-        );
+        )?;
         self.regions[parent_region].children.push(len_region);
 
         if length > 0 {
@@ -822,7 +835,7 @@ impl<'a> BinaryWalker<'a> {
                 path.to_vec(),
                 display,
                 depth + 1,
-            );
+            )?;
             self.regions[parent_region].children.push(data_region);
         }
 
@@ -834,7 +847,7 @@ impl<'a> BinaryWalker<'a> {
                 path.to_vec(),
                 "\\0".to_string(),
                 depth + 1,
-            );
+            )?;
             self.regions[parent_region].children.push(term_region);
         }
 
@@ -911,11 +924,18 @@ impl<'a> BinaryWalker<'a> {
         field_path: Vec<String>,
         value_display: String,
         depth: usize,
-    ) -> usize {
+    ) -> Result<usize, WalkError> {
+        // Validate byte_range is within bounds
+        if byte_range.end > self.annotated.len() {
+            return Err(WalkError::ByteRangeOutOfBounds {
+                start: byte_range.start,
+                end: byte_range.end,
+                buf_len: self.annotated.len(),
+            });
+        }
+
         for i in byte_range.clone() {
-            if i < self.annotated.len() {
-                self.annotated[i] = true;
-            }
+            self.annotated[i] = true;
         }
 
         let idx = self.regions.len();
@@ -929,7 +949,7 @@ impl<'a> BinaryWalker<'a> {
             related_regions: Vec::new(),
             depth,
         });
-        idx
+        Ok(idx)
     }
 
     fn fill_padding(&mut self) {

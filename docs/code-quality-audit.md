@@ -1,6 +1,6 @@
 # flatbuffers-rs Code Quality Audit
 
-**Date:** 2026-03-17
+**Date:** 2026-03-17 (original), updated 2026-03-26
 **Scope:** Full codebase review across all 9 workspace crates (~31,000 lines of Rust)
 **Verdict:** This codebase exhibits strong indicators of AI-generated code and contains
 numerous architectural flaws, code quality issues, and known unfixed bugs that make it
@@ -8,29 +8,34 @@ unsuitable for production use.
 
 ---
 
-## Fixes Applied (2026-03-17)
+## Fixes Applied (2026-03-17 through 2026-03-26)
 
 The following issues from this audit have been **fixed** with all 612 tests passing:
 
 | # | Fix | Status |
 |---|-----|--------|
-| 1.3 | Replaced `catch_unwind` with proper `Result` returns for Rust codegen (9 panic helpers converted, `try_block` added to CodeWriter) | DONE |
-| 1.4 | Simplified `float_to_json` dead logic (identical if/else branches) | DONE |
+| 1.3 | Replaced `catch_unwind` with proper `Result` returns for both Rust and TS codegen. Only `wasm-api` retains `catch_unwind` as a WASM boundary safety net. | DONE |
+| 1.4 | Simplified `float_to_json` dead logic (identical if/else branches removed) | DONE |
 | 2.2 | Fixed `root_table` stale clone: added `root_table_index`, refreshed after layout computation | DONE |
+| 2.3 | Replaced linear O(n) type lookups with HashMap O(1) via `ResolvedSchema::build_object_index()` | DONE |
 | 2.4 | Replaced all `Option<bool>` flags with `bool` + `#[serde(default)]` (7 fields, ~60 call sites) | DONE |
 | 3.1 | Extracted shared `BufReader` into `schema/src/buf_reader.rs` (eliminated 124-line duplication) | DONE |
 | 3.2 | Deduplicated `is_scalar()`/`scalar_byte_size()` into `BaseType` methods (3 copies consolidated) | DONE |
+| 3.4 | Deduplicated `find_object_index` via `ResolvedSchema::build_object_index()` | DONE |
 | 4.1 | Converted 9 panic-based codegen helpers to return `Result<T, CodeGenError>` | DONE |
-| 4.2 | Fixed ~24 `unwrap_or(0) as usize` in decoder, encoder, and annotator with proper error handling | DONE |
+| 4.2 | Reduced `unwrap_or(0) as usize` in codegen. ~27 benign instances remain in decoder/encoder/annotator/data-gen (for padding, byte_size, field offsets where the analyzer guarantees presence). | PARTIALLY DONE |
 | 5.1 | Added `eprintln!` warnings for silently skipped struct Object API and unknown base types | DONE |
 | 6.1 | Fixed unsafe `as char` byte casts in type_map, formatter, gen_meta, names | DONE |
 | 7.1 | Removed 7 unused function parameters in codegen | DONE |
 | 7.2 | Replaced blanket `clippy::all` suppression with specific auditable lint list | DONE |
 | 8 (G3.7) | Fixed struct recursion depth limit to return `StructDepthLimitExceeded` (was incorrectly `CircularStruct`) | DONE |
-| 8 (G3.19) | Added parse timeout (10s deadline) and input size limit (10 MB) to parser | DONE |
+| 8 (G3.19) | Added parse timeout (10s deadline) and input size limit (10 MB) to hand-written parser | DONE |
 | 8 (G3.20) | Added schema size limits: 10K objects, 10K enums, 100K fields, 100K enum values, 1K included files | DONE |
-| 9.16 | Replaced linear O(n) type lookups with HashMap O(1) in decoder, encoder, and annotator | DONE |
 | 9.10 | Fixed inconsistent hardcoded indentation in enum codegen (4 instances converted to CodeWriter blocks) | DONE |
+| 9.13 | Simplified `float_to_json` dead logic | DONE |
+| 9.14 | Added input size limits (G3.20) | DONE |
+| 9.15 | Added parser timeout (10s deadline) | DONE |
+| 9.16 | Built name-to-index HashMap for O(1) type lookup | DONE |
 
 ---
 
@@ -52,10 +57,12 @@ The following issues from this audit have been **fixed** with all 612 tests pass
 
 ### 1.1 Monolithic Commit History
 
-The entire codebase was created in only **8 commits**. The initial commit (`9d1ee99`)
-dropped the full project at once. No human develops a 26,000-line compiler in a single
-commit. Subsequent commits are labeled "sync: update from private repo" and contain
-massive multi-thousand-line diffs with no iterative development history.
+The initial codebase was created in only **8 commits** (the repository now has 18 total).
+The initial commit (`9d1ee99`) dropped the full project at once. No human develops a
+26,000-line compiler in a single commit. Subsequent commits are labeled
+"sync: update from private repo" and contain massive multi-thousand-line diffs with no
+iterative development history. Post-audit commits (10 additional) follow better practices
+with focused, incremental changes.
 
 ```
 9d1ee99 flatbuffers-rs: Pure Rust FlatBuffers compiler          <-- entire codebase
@@ -82,49 +89,23 @@ conditions, and silent data loss scenarios.
 **Improvement:** Convert the ROADMAP into a proper issue tracker. Each G3 item should
 become a tracked issue with an owner and timeline.
 
-### 1.3 `catch_unwind` as Error Handling Strategy -- [FIXED for Rust codegen]
+### 1.3 `catch_unwind` as Error Handling Strategy -- [FIXED]
 
-**Status:** Rust codegen now uses proper `Result<T, CodeGenError>` returns (9 panic
-helpers converted, `try_block` added to CodeWriter). TypeScript codegen still uses
-`catch_unwind` as a safety net at `codegen/src/lib.rs:203-216`.
+**Status:** Both Rust and TS codegen now use proper `Result<T, CodeGenError>` returns.
+The only remaining `catch_unwind` is in `wasm-api/src/lib.rs` where it serves as a WASM
+boundary safety net (appropriate for that context).
 
 **Original issue:** The entire code generation pipeline was wrapped in
 `panic::catch_unwind()` because internal helper functions used `panic!()` for error
 cases.
 
-**Remaining:** TS codegen path still uses `catch_unwind`. Converting TS codegen to
-`Result` returns would eliminate the last use.
+### 1.4 `float_to_json` Dead Logic -- [FIXED]
 
-### 1.4 `float_to_json` Contains Dead Logic
+**Status:** The identical if/else branches have been removed. The function now correctly
+handles NaN/Infinity as null and all other values via `json!(v)`.
 
-**Location:** `compiler/src/json/decoder.rs:844-854`
-
-```rust
-fn float_to_json(v: f64) -> Value {
-    if v.is_nan() || v.is_infinite() {
-        Value::Null
-    } else if v == (v as i64) as f64 && v.abs() < (1i64 << 53) as f64 {
-        json!(v)    // <-- returns json!(v)
-    } else {
-        json!(v)    // <-- also returns json!(v)  -- IDENTICAL to the if branch
-    }
-}
-```
-
-The `if`/`else` branches are identical. The integer range check serves no purpose. This
-is a classic AI artifact -- the model generated plausible-looking logic that does nothing.
-
-**Improvement:** Simplify to:
-
-```rust
-fn float_to_json(v: f64) -> Value {
-    if v.is_nan() || v.is_infinite() {
-        Value::Null
-    } else {
-        json!(v)
-    }
-}
-```
+**Original issue:** `float_to_json` had an integer range check that served no purpose
+because both branches returned `json!(v)`.
 
 ---
 
@@ -154,29 +135,13 @@ These could be made non-optional for stronger guarantees.
 **Original issue:** `root_table` was a full deep clone that went stale after
 `compute_struct_layouts()` modified field offsets.
 
-### 2.3 Linear Object/Enum Lookup
+### 2.3 Linear Object/Enum Lookup -- [FIXED]
 
-**Location:** `compiler/src/json/decoder.rs:223-260`, `annotator/src/binary_walker.rs:212-231`
+**Status:** Fixed via `ResolvedSchema::build_object_index()` which builds a
+`HashMap<&str, usize>` mapping both FQN and short names to indices. Decoder, encoder,
+and annotator all use this shared method for O(1) lookups.
 
-Object lookup is performed by linear scan over `schema.objects`:
-
-```rust
-fn find_object_index(&self, name: &str) -> Result<usize, ...> {
-    for (i, obj) in self.schema.objects.iter().enumerate() {
-        if let Some(ref obj_name) = obj.name {
-            if obj_name == name {
-                return Ok(i);
-            }
-        }
-    }
-    // ... second linear scan for short name match
-}
-```
-
-For schemas with hundreds of types, this is O(n) per lookup.
-
-**Improvement:** Build a `HashMap<String, usize>` name-to-index map once at the start
-of decoding/walking. This makes all lookups O(1).
+**Original issue:** Object lookup was O(n) per lookup via linear scan.
 
 ### 2.4 `Option<bool>` for Boolean Flags -- [FIXED]
 
@@ -187,82 +152,42 @@ of decoding/walking. This makes all lookups O(1).
 
 ## 3. Code Duplication
 
-### 3.1 BufReader Duplicated Verbatim (124 lines x 2)
+### 3.1 BufReader Duplicated Verbatim -- [FIXED]
 
-**Locations:**
-- `compiler/src/json/decoder.rs:58-181`
-- `annotator/src/binary_walker.rs:12-135`
+**Status:** Extracted to `schema/src/buf_reader.rs` as a shared implementation.
+Both decoder and annotator now use this shared `BufReader`.
 
-These are **character-for-character identical** implementations of a safe binary buffer
-reader with methods: `new`, `len`, `check_bounds`, `read_u8`, `read_i8`, `read_u16_le`,
-`read_i16_le`, `read_u32_le`, `read_i32_le`, `read_u64_le`, `read_i64_le`,
-`read_f32_le`, `read_f64_le`, `read_bytes`. The only difference is the error type
-(`JsonError` vs `WalkError`).
+**Original issue:** 124 lines of identical buffer reader code in decoder.rs and
+binary_walker.rs.
 
-**Improvement:** Extract into a shared crate (e.g., `flatc-rs-binary-reader`) or into
-the `schema` crate. Make the error type generic:
+### 3.2 `is_scalar()` and `scalar_byte_size()` Duplicated -- [FIXED]
 
-```rust
-pub struct BufReader<'a, E: From<BoundsError>> {
-    buf: &'a [u8],
-    _phantom: PhantomData<E>,
-}
-```
+**Status:** Consolidated as methods on `BaseType` (`byte_size()`, `is_scalar()`).
 
-Or use a trait for error conversion. This eliminates 124 lines of duplicated code.
-
-### 3.2 `is_scalar()` and `scalar_byte_size()` Duplicated (3 copies)
-
-**Locations:**
-- `codegen/src/type_map.rs:48-64` (`is_scalar`)
-- `compiler/src/json/error.rs` (`is_scalar`, `scalar_byte_size`)
-- `annotator/src/binary_walker.rs:1179-1194` (`is_scalar`, `scalar_byte_size`)
-
-Three independent implementations of the same BaseType classification logic.
-
-**Improvement:** Move `is_scalar()` and `scalar_byte_size()` to `schema/src/lib.rs` as
-methods on `BaseType`:
-
-```rust
-impl BaseType {
-    pub fn is_scalar(self) -> bool { ... }
-    pub fn byte_size(self) -> usize { ... }
-}
-```
+**Original issue:** Three independent implementations across codegen, json/error, and
+annotator.
 
 ### 3.3 `read_scalar_value` vs `decode_field` Duplication
 
-**Location:** `compiler/src/json/decoder.rs:396-502` and `decoder.rs:710-767`
+**Location:** `compiler/src/json/decoder.rs`
 
 `decode_field` contains a full scalar decoding match block for all 12 scalar types.
 `read_scalar_value` contains the **same match block** with slightly different return
 types. Both functions exist in the same file and do the same thing.
 
 **Improvement:** Have `decode_field` delegate to `read_scalar_value` for scalar types
-instead of duplicating the logic:
+instead of duplicating the logic.
 
-```rust
-bt if is_scalar(bt) => {
-    let val = self.read_scalar_value(offset, bt, ty)?;
-    Ok(Some(val))
-}
-```
+### 3.4 `find_object_index` Duplicated -- [FIXED]
 
-### 3.4 `find_object_index` Duplicated (2 copies)
-
-**Locations:**
-- `compiler/src/json/decoder.rs:223-260`
-- `annotator/src/binary_walker.rs:212-231`
-
-Nearly identical linear search logic for finding an object by name.
-
-**Improvement:** Move to a shared utility or make it a method on `Schema`.
+**Status:** Fixed via `ResolvedSchema::build_object_index()`. Both decoder and annotator
+now use the shared HashMap built at initialization.
 
 ### 3.5 Union Type Pre-scan Duplicated (2 copies)
 
 **Locations:**
-- `compiler/src/json/decoder.rs:308-339` (first-pass union type scanning)
-- `annotator/src/binary_walker.rs:311-340` (identical first-pass union type scanning)
+- `compiler/src/json/decoder.rs` (first-pass union type scanning)
+- `annotator/src/binary_walker.rs` (identical first-pass union type scanning)
 
 Both files implement the same two-pass table decode: first scan for `_type`
 discriminator fields, then decode all fields.
@@ -273,70 +198,24 @@ discriminator fields, then decode all fields.
 
 ## 4. Error Handling Failures
 
-### 4.1 Panic-Based Internal APIs (10 functions)
+### 4.1 Panic-Based Internal APIs -- [FIXED]
 
-**Location:** `codegen/src/lib.rs:34-124`
+**Status:** All codegen helper functions now return `Result<T, CodeGenError>` instead
+of panicking. The helpers (`field_type_index`, `type_index`, `union_variant_type_index`,
+`obj_byte_size`, `obj_min_align`, `field_offset`, `field_id`) are in
+`codegen/src/lib.rs` and return proper errors.
 
-Ten functions use `panic!()` with "BUG:" messages for error conditions:
+### 4.2 `unwrap_or(0) as usize` Silent Wrong-Type References -- [PARTIALLY FIXED]
 
-| Function | Line | What It Panics On |
-|----------|------|-------------------|
-| `field_type()` | 34 | Field has no type descriptor |
-| `field_type_index()` | 44 | Type has no index |
-| `type_index()` | 55 | Type has no index in context |
-| `union_variant_type_index()` | 64 | Union variant has no type index |
-| `obj_byte_size()` | 77 | Object has no byte_size |
-| `obj_min_align()` | 87 | Object has no min_align |
-| `field_offset()` | 97 | Field has no offset |
-| `field_id()` | 107 | Field has no id |
-| `enum_val_value()` | 117 | Enum value has no value |
-
-Additionally, `codegen/src/ts_type_map.rs` contains 8 more `panic!()` calls for
-unhandled base types.
-
-**Improvement:** Convert all to `Result<T, CodeGenError>`:
-
-```rust
-fn field_type(field: &schema::Field) -> Result<&schema::Type, CodeGenError> {
-    field.type_.as_ref().ok_or_else(|| {
-        CodeGenError::Internal(format!(
-            "field '{}' has no type descriptor",
-            field.name.as_deref().unwrap_or("<unknown>")
-        ))
-    })
-}
-```
-
-Thread `Result` through all callers using `?`. Remove `catch_unwind`.
-
-### 4.2 `unwrap_or(0) as usize` Silent Wrong-Type References (~40 instances)
-
-**Locations:** Throughout `compiler/src/json/decoder.rs`, `annotator/src/binary_walker.rs`,
-and codegen files.
-
-Examples:
-```rust
-let obj_idx = ty.index.unwrap_or(0) as usize;   // decoder.rs:465,472,534,582,632,674
-let enum_idx = ty.index.unwrap_or(0) as usize;   // decoder.rs:447,674
-```
-
-When `ty.index` is `None` (no type reference), this silently maps to **index 0** --
-the first object or enum in the schema. This produces silently wrong behavior: wrong
-type is decoded, wrong fields are read, wrong code is generated.
-
-This is documented as known bug **G3.14** but remains unfixed.
-
-**Improvement:** Replace with explicit error handling:
-
-```rust
-let obj_idx = ty.index
-    .ok_or(JsonError::MissingTypeIndex { field: fname.to_string() })?
-    as usize;
-```
+**Status:** Codegen instances removed. ~27 instances remain in decoder, encoder,
+annotator, and data-gen. Most remaining instances are for fields where the analyzer
+guarantees presence (padding, byte_size, field offsets), making `unwrap_or(0)` benign
+in practice. However, some type index accesses in data-gen still carry the risk of
+silent wrong-type references.
 
 ### 4.3 String-Based Error Handling in CLI
 
-**Location:** `compiler/src/main.rs:186-213`
+**Location:** `compiler/src/main.rs`
 
 Helper functions return `Result<_, String>` instead of proper error types:
 
@@ -351,38 +230,17 @@ fn write_output(path: &Path, content: &str) -> Result<(), String> { ... }
 
 ## 5. Silent Failures and Data Loss
 
-### 5.1 Object API Silently Skips Structs with Array Fields
+### 5.1 Object API Silently Skips Structs with Array Fields -- [PARTIALLY FIXED]
 
-**Location:** `codegen/src/struct_gen.rs:532-535`
-
-```rust
-if has_array_fields(obj) {
-    return;  // No warning, no error
-}
-```
-
-When `--gen-object-api` is used, structs containing fixed-length array fields
-silently produce no Object API code. The user gets incomplete generated code with no
-indication that anything was skipped.
-
-**Improvement:** Emit a warning to stderr:
-
-```rust
-if has_array_fields(obj) {
-    eprintln!("warning: Object API not generated for struct '{}' (contains array fields)", name);
-    return;
-}
-```
-
-Or implement array support in the Object API.
+**Status:** An `eprintln!` warning is now emitted when structs with array fields are
+skipped. The underlying limitation (no Object API for array fields) remains.
 
 ### 5.2 Parser Silently Drops Unrecognized Tokens
 
-**Location:** `parser/src/parser.rs:111` -- `_ => { self.advance(); }`
+**Location:** `parser/src/parser.rs` -- `_ => { self.advance(); }`
 
-The hand-written recursive-descent parser (which replaced the tree-sitter-based parser
-in commit `2a0039e`) silently skips unrecognized top-level tokens. Invalid schema
-constructs produce no error -- they are simply dropped.
+The hand-written recursive-descent parser silently skips unrecognized top-level tokens.
+Invalid schema constructs produce no error -- they are simply dropped.
 
 **Improvement:** Emit a parse warning or error for unrecognized top-level tokens.
 
@@ -391,11 +249,8 @@ constructs produce no error -- they are simply dropped.
 **Location:** Documented as G3.9
 
 When the Rust codegen encounters an unhandled `BaseType` variant, some code paths
-emit `// TODO` comments in the generated output instead of erroring. The generated
-Rust code compiles but produces incorrect behavior.
-
-**Improvement:** Replace all `// TODO` fallbacks with `panic!()` or `Result::Err()`
-so the issue is caught at generation time rather than silently producing broken code.
+emit `// TODO` comments in the generated output instead of erroring. Warnings are now
+emitted to stderr, but the generated code still contains the TODO comments.
 
 ### 5.4 Vector-of-Unknown-Type Silently Falls Back to `u8`
 
@@ -410,76 +265,27 @@ When the codegen encounters a vector of an unknown element type, it silently gen
 
 ## 6. Unsafe Code Patterns
 
-### 6.1 Raw Byte-to-Char Casts Without UTF-8 Validation
+### 6.1 Raw Byte-to-Char Casts Without UTF-8 Validation -- [FIXED]
 
-**Locations:**
-- `codegen/src/type_map.rs:79,83`
-- `annotator/src/formatter.rs:233,286`
-- `fbs-gen/src/gen_meta.rs:36`
-- `fbs-gen/src/names.rs:89`
-
-```rust
-// type_map.rs:79
-let prev = name.as_bytes()[i - 1] as char;
-// type_map.rs:83
-let next = name.as_bytes()[i + 1] as char;
-```
-
-Casting `u8` to `char` via `as` bypasses Rust's UTF-8 safety guarantees. While these
-happen to work for ASCII identifiers (which is the expected input), the code will
-produce silently wrong results for any non-ASCII input.
-
-**Improvement:** Use `char::from` with explicit validation, or work with bytes directly:
-
-```rust
-let prev = name.as_bytes()[i - 1];
-if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
-    result.push('_');
-}
-```
+**Status:** Fixed with proper byte-level operations instead of `as char` casts.
 
 ### 6.2 `i32 as usize` Unchecked Casts
 
-**Locations:** Throughout codegen and decoder
+**Locations:** Throughout decoder and annotator
 
-`Type.index` is `Option<i32>`, but it is used as a `usize` index into arrays:
+`Type.index` is `Option<i32>`, but it is used as a `usize` index into arrays.
+While `checked_obj_index()` was added in `struct_layout.rs`, some decoder and
+annotator paths still cast directly.
 
-```rust
-ty.index.unwrap_or(0) as usize  // negative i32 becomes a huge usize
-```
-
-While G1.1 added a `checked_obj_index()` in `struct_layout.rs`, the same pattern
-persists in decoder.rs and binary_walker.rs without protection.
-
-**Improvement:** Add bounds checking:
-
-```rust
-let idx = ty.index.filter(|&i| i >= 0).map(|i| i as usize)
-    .ok_or(Error::InvalidTypeIndex)?;
-if idx >= schema.objects.len() {
-    return Err(Error::ObjectIndexOutOfRange { index: idx, count: schema.objects.len() });
-}
-```
+**Improvement:** Add bounds checking at all cast sites.
 
 ---
 
 ## 7. Dead Code and Unused Parameters
 
-### 7.1 Unused Function Parameters
+### 7.1 Unused Function Parameters -- [FIXED]
 
-| File | Line | Parameter |
-|------|------|-----------|
-| `codegen/src/rust_table_gen/reader.rs` | 91 | `_obj: &schema::Object` |
-| `codegen/src/rust_table_gen/reader.rs` | 93 | `_field_idx: usize` |
-| `codegen/src/rust_table_gen/builder.rs` | 82 | `_field_idx: usize` |
-| `codegen/src/rust_table_gen/builder.rs` | 247 | `_schema: &schema::Schema` |
-| `codegen/src/rust_table_gen/builder.rs` | 250 | `_current_ns: &str` |
-| `codegen/src/rust_table_gen/reader.rs` | 565 | `_schema: &schema::Schema` |
-| `codegen/src/rust_table_gen/reader.rs` | 617-620 | `_schema`, `_current_ns` |
-
-**Improvement:** Remove unused parameters or implement the functionality they were
-intended for. The underscore prefix suggests these were planned for future use but
-never implemented.
+**Status:** The 7 unused parameters identified in the original audit have been removed.
 
 ### 7.2 Blanket Lint Suppression on Reflection Module -- [FIXED]
 
@@ -500,8 +306,8 @@ Many bugs listed in the original ROADMAP have been fixed. Updated status:
 |----|----------|-------------|--------|
 | G3.7 | Crash | Unbounded recursion in struct topological sort. | **FIXED** -- depth limit (256) + proper `StructDepthLimitExceeded` error |
 | G3.8 | Crash | No include depth limit. | **FIXED** -- 64-level depth limit, 1000 file limit |
-| G3.14 | Wrong output | ~40 instances of `unwrap_or(0) as usize`. | **FIXED** -- proper error handling throughout decoder/encoder/annotator |
-| G3.17 | Crash | `panic!()` calls in Rust codegen behind `catch_unwind`. | **FIXED** -- Rust codegen converted to `Result<T, CodeGenError>`. TS codegen still uses `catch_unwind` as safety net. |
+| G3.14 | Wrong output | ~40 instances of `unwrap_or(0) as usize`. | **PARTIALLY FIXED** -- codegen instances removed; ~27 benign instances remain in decoder/encoder/annotator/data-gen |
+| G3.17 | Crash | `panic!()` calls in codegen behind `catch_unwind`. | **FIXED** -- Both Rust and TS codegen converted to `Result<T, CodeGenError>`. Only `wasm-api` retains `catch_unwind` as WASM boundary safety. |
 | G3.9 | Wrong output | Unhandled BaseType emits `// TODO` in generated code. | Partially addressed -- warnings added |
 | G3.10 | Wrong output | Vector-of-unknown-type silently generates `Vector<u8>`. | Still open |
 | G3.15 | Wrong output | `root_table` deep clone goes stale. | **FIXED** -- `root_table_index` added, refreshed after layout computation |
@@ -519,8 +325,8 @@ silently drops unrecognized tokens).
 
 ### Priority 1: Correctness -- ALL DONE
 
-1. ~~Replace `unwrap_or(0) as usize` with proper error handling (G3.14)~~ -- DONE
-2. ~~Replace panic-based codegen APIs with `Result` (G3.17)~~ -- DONE (Rust codegen)
+1. ~~Replace `unwrap_or(0) as usize` with proper error handling (G3.14)~~ -- PARTIALLY DONE (codegen fixed, benign instances remain)
+2. ~~Replace panic-based codegen APIs with `Result` (G3.17)~~ -- DONE (both Rust and TS codegen)
 3. ~~Fix `root_table` stale clone (G3.15)~~ -- DONE
 4. ~~Add recursion depth limit to struct topological sort (G3.7)~~ -- DONE
 
@@ -531,42 +337,19 @@ silently drops unrecognized tokens).
 7. ~~Deduplicate `is_scalar()`, `scalar_byte_size()`~~ -- DONE (methods on `BaseType`)
 8. ~~Replace `Option<bool>` flags with `bool`~~ -- DONE
 
-### Priority 3: Code Quality (Nice to Fix)
+### Priority 3: Code Quality -- MOSTLY DONE
 
-9. **Remove unused function parameters**
-   - 7 instances of `_`-prefixed unused parameters
-   - Estimated effort: 30 minutes
+9. ~~Remove unused function parameters~~ -- DONE
+10. ~~Fix inconsistent indentation in code generator~~ -- DONE
+11. ~~Add warnings for silently skipped features~~ -- DONE (struct Object API warning added)
+12. ~~Remove blanket lint suppression on reflection module~~ -- DONE
+13. ~~Simplify `float_to_json` dead logic~~ -- DONE
 
-10. **Fix inconsistent indentation in code generator**
-    - Replace hardcoded `"    "` strings with `CodeWriter` indentation
-    - Estimated effort: 1-2 hours
+### Priority 4: Robustness -- ALL DONE
 
-11. **Add warnings for silently skipped features**
-    - Object API skipping array structs (struct_gen.rs:532)
-    - Parser dropping unrecognized nodes (G3.23)
-    - Estimated effort: 1-2 hours
-
-12. **Remove blanket lint suppression on reflection module**
-    - Fix or individually suppress each warning
-    - Estimated effort: 1-2 hours
-
-13. **Simplify `float_to_json` dead logic**
-    - Remove the identical if/else branches
-    - Estimated effort: 5 minutes
-
-### Priority 4: Robustness (For Production)
-
-14. **Add input size limits** (G3.20)
-    - Cap maximum number of types, fields, and include depth
-    - Estimated effort: 2-4 hours
-
-15. **Add tree-sitter parse timeout** (G3.19)
-    - Prevent pathological input from stalling the compiler
-    - Estimated effort: 1-2 hours
-
-16. **Build name-to-index HashMap for O(1) type lookup**
-    - Replace linear scans in decoder and annotator
-    - Estimated effort: 1-2 hours
+14. ~~Add input size limits (G3.20)~~ -- DONE
+15. ~~Add parser timeout (G3.19)~~ -- DONE
+16. ~~Build name-to-index HashMap for O(1) type lookup~~ -- DONE
 
 ---
 
@@ -576,21 +359,21 @@ Key files mentioned in this audit:
 
 | File | Lines | Role |
 |------|-------|------|
-| `schema/src/lib.rs` | 602 | Schema type definitions (parsed types) |
+| `schema/src/lib.rs` | 643 | Schema type definitions (parsed types) |
 | `schema/src/resolved.rs` | -- | Resolved schema types (non-optional, post-analysis) |
 | `schema/src/buf_reader.rs` | -- | Shared safe binary buffer reader |
-| `codegen/src/lib.rs` | 216 | Codegen entry point (Result for Rust, catch_unwind for TS) |
+| `codegen/src/lib.rs` | 189 | Codegen entry point (Result-based for both Rust and TS) |
 | `codegen/src/rust_table_gen/reader.rs` | -- | Rust table reader generation |
 | `codegen/src/rust_table_gen/builder.rs` | -- | Rust table builder generation |
 | `codegen/src/rust_table_gen/object_api.rs` | -- | Rust Object API generation |
 | `codegen/src/enum_gen.rs` | -- | Rust enum/bitflags generation |
 | `codegen/src/struct_gen.rs` | -- | Rust struct generation |
 | `codegen/src/type_map.rs` | -- | Type mapping and name conversion |
-| `compiler/src/main.rs` | 690 | CLI entry point |
-| `compiler/src/analyzer.rs` | 1349 | 8-step semantic analysis pipeline |
-| `compiler/src/compiler.rs` | 463 | Include resolution and schema merging |
-| `compiler/src/json/decoder.rs` | 718 | FlatBuffer binary to JSON conversion |
-| `compiler/src/json/encoder.rs` | 904 | JSON to FlatBuffer binary conversion |
-| `compiler/src/lib.rs` | 41 | Compiler crate root (specific lint list) |
-| `annotator/src/binary_walker.rs` | 1057 | Binary annotation engine |
+| `compiler/src/main.rs` | 695 | CLI entry point |
+| `compiler/src/analyzer.rs` | 1364 | 8-step semantic analysis pipeline |
+| `compiler/src/compiler.rs` | -- | Include resolution and schema merging |
+| `compiler/src/json/decoder.rs` | 709 | FlatBuffer binary to JSON conversion |
+| `compiler/src/json/encoder.rs` | 895 | JSON to FlatBuffer binary conversion |
+| `compiler/src/lib.rs` | -- | Compiler crate root (specific lint list) |
+| `annotator/src/binary_walker.rs` | 1040 | Binary annotation engine |
 | `ROADMAP.md` | -- | Development roadmap and audit tracking |

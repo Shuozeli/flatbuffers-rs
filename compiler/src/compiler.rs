@@ -302,7 +302,7 @@ impl IncludeResolver {
 
 /// Merge schemas from multiple parsed files into a single `ParseOutput`.
 fn merge_schemas(files: &[ParsedFile]) -> ParseOutput {
-    let mut merged_schema = schema::Schema::new();
+    let mut merged_schema = schema::Schema::default();
     let mut merged_state = ParserState::default();
 
     for file in files {

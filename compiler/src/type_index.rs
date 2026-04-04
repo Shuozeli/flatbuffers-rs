@@ -133,20 +133,20 @@ fn fully_qualified_name(ns: Option<&schema::Namespace>, name: &str) -> String {
 mod tests {
     use super::*;
     fn make_namespace(ns: &str) -> Option<schema::Namespace> {
-        let mut n = schema::Namespace::new();
+        let mut n = schema::Namespace::default();
         n.namespace = Some(ns.to_string());
         Some(n)
     }
 
     #[test]
     fn test_build_and_resolve_simple() {
-        let mut schema = schema::Schema::new();
+        let mut schema = schema::Schema::default();
 
-        let mut obj = schema::Object::new();
+        let mut obj = schema::Object::default();
         obj.name = Some("Monster".into());
         schema.objects.push(obj);
 
-        let mut enum_decl = schema::Enum::new();
+        let mut enum_decl = schema::Enum::default();
         enum_decl.name = Some("Color".into());
         schema.enums.push(enum_decl);
 
@@ -158,9 +158,9 @@ mod tests {
 
     #[test]
     fn test_resolve_with_namespace() {
-        let mut schema = schema::Schema::new();
+        let mut schema = schema::Schema::default();
 
-        let mut obj = schema::Object::new();
+        let mut obj = schema::Object::default();
         obj.name = Some("Monster".into());
         obj.namespace = make_namespace("MyGame.Sample");
         schema.objects.push(obj);
@@ -183,10 +183,10 @@ mod tests {
 
     #[test]
     fn test_resolve_parent_namespace_walking() {
-        let mut schema = schema::Schema::new();
+        let mut schema = schema::Schema::default();
 
         // Type "Weapon" in namespace "A.B"
-        let mut obj = schema::Object::new();
+        let mut obj = schema::Object::default();
         obj.name = Some("Weapon".into());
         obj.namespace = make_namespace("A.B");
         schema.objects.push(obj);
@@ -213,13 +213,13 @@ mod tests {
 
     #[test]
     fn test_duplicate_name_error() {
-        let mut schema = schema::Schema::new();
+        let mut schema = schema::Schema::default();
 
-        let mut obj1 = schema::Object::new();
+        let mut obj1 = schema::Object::default();
         obj1.name = Some("Monster".into());
         schema.objects.push(obj1);
 
-        let mut obj2 = schema::Object::new();
+        let mut obj2 = schema::Object::default();
         obj2.name = Some("Monster".into());
         schema.objects.push(obj2);
 

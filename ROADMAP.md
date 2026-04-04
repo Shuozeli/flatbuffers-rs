@@ -1,6 +1,6 @@
 # flatc-rs Roadmap
 
-Last updated: 2026-03-19
+Last updated: 2026-03-26
 
 ## Current State
 
@@ -112,7 +112,7 @@ addressed incrementally.
 |---|----------|-------------|--------|
 | G1.1 | `struct_layout.rs` | `i32 as usize` unchecked cast panics on negative `Type.index`. | **DONE** -- added `checked_obj_index()` helper, `type_size_align` returns `Result`, new `InvalidTypeIndex` error variant |
 | G1.2 | `ts_table_gen.rs:1328` | Missing `)` in TS `for...of` loop. | **DONE** -- one-char fix |
-| G1.3 | `schema/src/lib.rs:9-31` | `BaseType` enum discriminants don't match official `reflection.fbs`. | **Deferred to Phase F** -- latent, no code uses integer values today |
+| G1.3 | `schema/src/lib.rs:9-31` | `BaseType` enum discriminants don't match official `reflection.fbs`. | **Resolved** -- `#[repr(u8)]` with explicit discriminants, `to_reflection_byte()` method |
 | G1.4 | `schema/src/lib.rs:365-381` | `AdvancedFeatures` modeled as struct instead of bit_flags enum. | **Deferred to Phase F** -- latent, only needed for binary schema output |
 | G1.5 | `analyzer.rs` | Struct array element type not validated. `[string:4]` in struct accepted. | **DONE** -- validates element_type in `validate_struct_field_type`, golden test added |
 
@@ -150,7 +150,7 @@ addressed incrementally.
 | G3.11 | `compiler.rs` | Conflicting `file_identifier`/`root_type` across includes: last-one-wins with no warning. | Open |
 | G3.12 | `main.rs` | `fs::canonicalize` failure silently drops files from `--gen-all` filter. | Open |
 | G3.13 | `main.rs` | Non-atomic file writes. | **DONE** -- uses temp file + rename for atomic output |
-| G3.14 | `codegen/*.rs` | ~40 instances of `.unwrap_or(0) as usize`. | **DONE** -- proper error handling throughout |
+| G3.14 | `codegen/*.rs` | ~40 instances of `.unwrap_or(0) as usize`. | **Partially addressed** -- codegen instances fixed; ~27 benign instances remain in decoder/encoder/annotator/data-gen for fields where the analyzer guarantees presence |
 | G3.15 | `schema/src/lib.rs` | `root_table` deep clone goes stale after layout computation. | **DONE** -- `root_table_index` added, refreshed after layout |
 | G3.16 | `schema/src/lib.rs` | `objects`/`enums` arrays not sorted. Binary schema consumers expect alphabetical order. | Open |
 | G3.17 | `ts_type_map.rs` | `panic!()` calls behind `catch_unwind`. | **Partially fixed** -- Rust codegen uses `Result`; TS codegen still uses `catch_unwind` as safety net |

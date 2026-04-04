@@ -90,7 +90,7 @@ fn table_build_and_read_custom_values() {
     let args = StatsArgs {
         hp: 42,
         mana: -10,
-        speed: 3.14_f32,
+        speed: 1.23_f32,
         active: false,
     };
     let offset = createStats(&mut fbb, &args);
@@ -99,7 +99,7 @@ fn table_build_and_read_custom_values() {
     let stats = ::flatbuffers::root::<Stats>(buf).unwrap();
     assert_eq!(stats.hp(), 42);
     assert_eq!(stats.mana(), -10);
-    assert!((stats.speed() - 3.14_f32).abs() < f32::EPSILON);
+    assert!((stats.speed() - 1.23_f32).abs() < f32::EPSILON);
     assert!(!stats.active());
 }
 
@@ -996,7 +996,7 @@ fn verifier_one_byte_flip_no_crash() {
     let args = StatsArgs {
         hp: 42,
         mana: 10,
-        speed: 3.14,
+        speed: 1.23,
         active: true,
     };
     let offset = createStats(&mut fbb, &args);
