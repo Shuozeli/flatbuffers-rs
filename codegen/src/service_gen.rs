@@ -23,7 +23,8 @@ pub fn generate_services(
     let mut tokens = proc_macro2::TokenStream::new();
 
     for service in &schema.services {
-        let svc_def = service_from_fbs(service, schema, proto_path);
+        let svc_def = service_from_fbs(service, schema, proto_path)
+            .map_err(|e| CodeGenError::Internal(format!("Failed to map service: {e}")))?;
         tokens.extend(server_gen::generate(&svc_def));
         tokens.extend(client_gen::generate(&svc_def));
     }
