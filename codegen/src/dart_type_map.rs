@@ -61,7 +61,7 @@ pub fn bb_write_method(bt: BaseType) -> &'static str {
 }
 
 // Re-export shared functions from type_map
-pub use super::type_map::{to_camel_case, to_pascal_case};
+pub use super::type_map::{to_camel_case, to_pascal_case, to_snake_case};
 
 /// Returns true if the given identifier is a Dart keyword that needs escaping.
 pub fn is_dart_keyword(name: &str) -> bool {

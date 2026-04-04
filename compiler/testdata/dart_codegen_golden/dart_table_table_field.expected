@@ -25,7 +25,7 @@ class Child {
 
   @override
   String toString() {
-    return 'Child{value: ${value}}';
+    return 'Child{value: $value}';
   }
 
   ChildT unpack() => ChildT(value: value?.unpack());
@@ -79,7 +79,7 @@ class ChildT implements fb.Packable {
 
   @override
   String toString() {
-    return 'ChildT{value: ${value}}';
+    return 'ChildT{value: $value}';
   }
 }
 
@@ -124,7 +124,7 @@ class Parent {
 
   @override
   String toString() {
-    return 'Parent{child: ${child}, label: ${label}}';
+    return 'Parent{child: $child, label: $label}';
   }
 
   ParentT unpack() => ParentT(child: child?.unpack(), label: label?.unpack());
@@ -188,7 +188,7 @@ class ParentT implements fb.Packable {
 
   @override
   String toString() {
-    return 'ParentT{child: ${child}, label: ${label}}';
+    return 'ParentT{child: $child, label: $label}';
   }
 }
 

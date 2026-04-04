@@ -89,7 +89,7 @@ class Monster {
 
   @override
   String toString() {
-    return 'Monster{hp: ${hp}, color: ${color}}';
+    return 'Monster{hp: $hp, color: $color}';
   }
 
   MonsterT unpack() => MonsterT(hp: hp?.unpack(), color: color?.unpack());
@@ -151,7 +151,7 @@ class MonsterT implements fb.Packable {
 
   @override
   String toString() {
-    return 'MonsterT{hp: ${hp}, color: ${color}}';
+    return 'MonsterT{hp: $hp, color: $color}';
   }
 }
 

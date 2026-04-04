@@ -84,7 +84,7 @@ class ItemStats {
 
   @override
   String toString() {
-    return 'ItemStats{attack: ${attack}, defense: ${defense}}';
+    return 'ItemStats{attack: $attack, defense: $defense}';
   }
 
   ItemStatsT unpack() => ItemStatsT(attack: attack, defense: defense);
@@ -114,7 +114,7 @@ class ItemStatsT implements fb.Packable {
 
   @override
   String toString() {
-    return 'ItemStatsT{attack: ${attack}, defense: ${defense}}';
+    return 'ItemStatsT{attack: $attack, defense: $defense}';
   }
 }
 
@@ -189,7 +189,7 @@ class Item {
 
   @override
   String toString() {
-    return 'Item{name: ${name}, rarity: ${rarity}, stats: ${stats}}';
+    return 'Item{name: $name, rarity: $rarity, stats: $stats}';
   }
 
   ItemT unpack() => ItemT(name: name?.unpack(), rarity: rarity?.unpack(), stats: stats?.unpack());
@@ -261,7 +261,7 @@ class ItemT implements fb.Packable {
 
   @override
   String toString() {
-    return 'ItemT{name: ${name}, rarity: ${rarity}, stats: ${stats}}';
+    return 'ItemT{name: $name, rarity: $rarity, stats: $stats}';
   }
 }
 
@@ -324,7 +324,7 @@ class Inventory {
 
   @override
   String toString() {
-    return 'Inventory{owner: ${owner}, items: ${items}, favorite: ${favorite}}';
+    return 'Inventory{owner: $owner, items: $items, favorite: $favorite}';
   }
 
   InventoryT unpack() => InventoryT(owner: owner?.unpack(), items: items?.unpack(), favorite: favorite?.unpack());
@@ -397,7 +397,7 @@ class InventoryT implements fb.Packable {
 
   @override
   String toString() {
-    return 'InventoryT{owner: ${owner}, items: ${items}, favorite: ${favorite}}';
+    return 'InventoryT{owner: $owner, items: $items, favorite: $favorite}';
   }
 }
 

@@ -80,7 +80,7 @@ class MoreDefaults {
 
   @override
   String toString() {
-    return 'MoreDefaults{ints: ${ints}, floats: ${floats}, emptyString: ${emptyString}, someString: ${someString}, abcs: ${abcs}, bools: ${bools}}';
+    return 'MoreDefaults{ints: $ints, floats: $floats, emptyString: $emptyString, someString: $someString, abcs: $abcs, bools: $bools}';
   }
 
   MoreDefaultsT unpack() => MoreDefaultsT(ints: ints?.unpack(), floats: floats?.unpack(), emptyString: emptyString?.unpack(), someString: someString?.unpack(), abcs: abcs?.unpack(), bools: bools?.unpack());
@@ -180,7 +180,7 @@ class MoreDefaultsT implements fb.Packable {
 
   @override
   String toString() {
-    return 'MoreDefaultsT{ints: ${ints}, floats: ${floats}, emptyString: ${emptyString}, someString: ${someString}, abcs: ${abcs}, bools: ${bools}}';
+    return 'MoreDefaultsT{ints: $ints, floats: $floats, emptyString: $emptyString, someString: $someString, abcs: $abcs, bools: $bools}';
   }
 }
 

@@ -59,7 +59,7 @@ pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, gen_o
         .iter()
         .map(|f| {
             let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name));
-            format!("{fname}: ${{{fname}}}")
+            format!("{fname}: ${fname}")
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -339,7 +339,7 @@ fn gen_object_api_class(
         .iter()
         .map(|f| {
             let fname = dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name));
-            format!("{fname}: ${{{fname}}}")
+            format!("{fname}: ${fname}")
         })
         .collect::<Vec<_>>()
         .join(", ");

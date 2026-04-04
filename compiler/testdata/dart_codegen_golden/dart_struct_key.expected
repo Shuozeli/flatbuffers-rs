@@ -22,7 +22,7 @@ class Ability {
 
   @override
   String toString() {
-    return 'Ability{id: ${id}, distance: ${distance}}';
+    return 'Ability{id: $id, distance: $distance}';
   }
 
   AbilityT unpack() => AbilityT(id: id, distance: distance);
@@ -52,7 +52,7 @@ class AbilityT implements fb.Packable {
 
   @override
   String toString() {
-    return 'AbilityT{id: ${id}, distance: ${distance}}';
+    return 'AbilityT{id: $id, distance: $distance}';
   }
 }
 

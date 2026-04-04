@@ -31,7 +31,7 @@ class Stats {
 
   @override
   String toString() {
-    return 'Stats{hp: ${hp}, mana: ${mana}, speed: ${speed}, active: ${active}}';
+    return 'Stats{hp: $hp, mana: $mana, speed: $speed, active: $active}';
   }
 
   StatsT unpack() => StatsT(hp: hp?.unpack(), mana: mana?.unpack(), speed: speed?.unpack(), active: active?.unpack());
@@ -109,7 +109,7 @@ class StatsT implements fb.Packable {
 
   @override
   String toString() {
-    return 'StatsT{hp: ${hp}, mana: ${mana}, speed: ${speed}, active: ${active}}';
+    return 'StatsT{hp: $hp, mana: $mana, speed: $speed, active: $active}';
   }
 }
 

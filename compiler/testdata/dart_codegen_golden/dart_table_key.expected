@@ -27,7 +27,7 @@ class Monster {
 
   @override
   String toString() {
-    return 'Monster{name: ${name}, hp: ${hp}}';
+    return 'Monster{name: $name, hp: $hp}';
   }
 
   MonsterT unpack() => MonsterT(name: name?.unpack(), hp: hp?.unpack());
@@ -90,7 +90,7 @@ class MonsterT implements fb.Packable {
 
   @override
   String toString() {
-    return 'MonsterT{name: ${name}, hp: ${hp}}';
+    return 'MonsterT{name: $name, hp: $hp}';
   }
 }
 
@@ -139,7 +139,7 @@ class Stat {
 
   @override
   String toString() {
-    return 'Stat{id: ${id}, count: ${count}}';
+    return 'Stat{id: $id, count: $count}';
   }
 
   StatT unpack() => StatT(id: id?.unpack(), count: count?.unpack());
@@ -202,7 +202,7 @@ class StatT implements fb.Packable {
 
   @override
   String toString() {
-    return 'StatT{id: ${id}, count: ${count}}';
+    return 'StatT{id: $id, count: $count}';
   }
 }
 

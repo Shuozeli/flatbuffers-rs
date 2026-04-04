@@ -204,3 +204,133 @@ fn dart_gen_keyword_escape() {
         "should escape 'class' keyword to 'class_'"
     );
 }
+
+#[test]
+fn dart_gen_service_unary() {
+    let schema = r#"
+namespace helloworld;
+table HelloRequest { name: string; }
+table HelloReply { message: string; }
+rpc_service Greeter {
+    SayHello(HelloRequest): HelloReply;
+}
+"#;
+    let opts = DartCodeGenOptions::default();
+    let code = generate_dart_code(schema, &opts);
+    // Should generate client class extending Client
+    assert!(
+        code.contains("class GreeterClient extends Client"),
+        "should generate GreeterClient class"
+    );
+    // Should generate ClientMethod descriptor
+    assert!(
+        code.contains("static final _say_hello = ClientMethod<HelloRequest, HelloReply>"),
+        "should generate ClientMethod descriptor"
+    );
+    // Should generate unary method
+    assert!(
+        code.contains("Future<HelloReply> sayHello(HelloRequest request"),
+        "should generate sayHello method"
+    );
+    assert!(
+        code.contains("makeUnaryCall(_say_hello, request"),
+        "should use makeUnaryCall"
+    );
+}
+
+#[test]
+fn dart_gen_service_server_streaming() {
+    let schema = r#"
+table Request { id: int; }
+table Response { data: string; }
+rpc_service Streamer {
+    StreamData(Request): Response (streaming: "server");
+}
+"#;
+    let opts = DartCodeGenOptions::default();
+    let code = generate_dart_code(schema, &opts);
+    assert!(
+        code.contains("ResponseStream<Response> streamData(Request request"),
+        "should generate server streaming method"
+    );
+    assert!(
+        code.contains("makeServerStreamingCall(_stream_data, request"),
+        "should use makeServerStreamingCall"
+    );
+}
+
+#[test]
+fn dart_gen_service_client_streaming() {
+    let schema = r#"
+table Request { id: int; }
+table Response { data: string; }
+rpc_service Streamer {
+    UploadData(Request): Response (streaming: "client");
+}
+"#;
+    let opts = DartCodeGenOptions::default();
+    let code = generate_dart_code(schema, &opts);
+    assert!(
+        code.contains("ClientStreamingResponse<Response, Request> uploadData("),
+        "should generate client streaming method"
+    );
+    assert!(
+        code.contains("makeClientStreamingCall(_upload_data, options: options)"),
+        "should use makeClientStreamingCall"
+    );
+}
+
+#[test]
+fn dart_gen_service_bidi_streaming() {
+    let schema = r#"
+table Request { id: int; }
+table Response { data: string; }
+rpc_service Streamer {
+    ChatStream(Request): Response (streaming: "bidi");
+}
+"#;
+    let opts = DartCodeGenOptions::default();
+    let code = generate_dart_code(schema, &opts);
+    assert!(
+        code.contains("ResponseStream<Response> chatStream("),
+        "should generate bidi streaming method"
+    );
+    assert!(
+        code.contains("makeBidiStreamingCall(_chat_stream, options: options)"),
+        "should use makeBidiStreamingCall"
+    );
+}
+
+#[test]
+fn dart_gen_service_import_grpc() {
+    let schema = r#"
+rpc_service Empty {
+    Ping(EmptyRequest): EmptyReply;
+}
+table EmptyRequest {}
+table EmptyReply {}
+"#;
+    let opts = DartCodeGenOptions::default();
+    let code = generate_dart_code(schema, &opts);
+    // Should import grpc package
+    assert!(
+        code.contains("import 'package:grpc/grpc.dart';"),
+        "should import grpc package"
+    );
+}
+
+#[test]
+fn dart_gen_service_no_services() {
+    // Schema with no services should not generate grpc imports
+    let schema = "table Monster { hp: int; } root_type Monster;";
+    let opts = DartCodeGenOptions::default();
+    let code = generate_dart_code(schema, &opts);
+    assert!(
+        !code.contains("import 'package:grpc/grpc.dart';"),
+        "should not import grpc when no services"
+    );
+    assert!(
+        !code.contains("extends Client"),
+        "should not generate Client class"
+    );
+}

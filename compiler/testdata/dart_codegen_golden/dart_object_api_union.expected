@@ -74,7 +74,7 @@ class Sword {
 
   @override
   String toString() {
-    return 'Sword{damage: ${damage}}';
+    return 'Sword{damage: $damage}';
   }
 
   SwordT unpack() => SwordT(damage: damage?.unpack());
@@ -128,7 +128,7 @@ class SwordT implements fb.Packable {
 
   @override
   String toString() {
-    return 'SwordT{damage: ${damage}}';
+    return 'SwordT{damage: $damage}';
   }
 }
 
@@ -171,7 +171,7 @@ class Shield {
 
   @override
   String toString() {
-    return 'Shield{armor: ${armor}}';
+    return 'Shield{armor: $armor}';
   }
 
   ShieldT unpack() => ShieldT(armor: armor?.unpack());
@@ -225,7 +225,7 @@ class ShieldT implements fb.Packable {
 
   @override
   String toString() {
-    return 'ShieldT{armor: ${armor}}';
+    return 'ShieldT{armor: $armor}';
   }
 }
 
@@ -272,12 +272,15 @@ class Hero {
   dynamic get weapon {
     final offset = _bc.offset(_bcOffset, 8);
     if (offset == 0) return null;
-    return null;
+    switch (weaponType?.value) {
+      case 1: return Sword.reader.vTableGetNullable(_bc, _bcOffset, 8);
+      case 2: return Shield.reader.vTableGetNullable(_bc, _bcOffset, 8);
+    }
   }
 
   @override
   String toString() {
-    return 'Hero{name: ${name}, weaponType: ${weaponType}, weapon: ${weapon}}';
+    return 'Hero{name: $name, weaponType: $weaponType, weapon: $weapon}';
   }
 
   HeroT unpack() => HeroT(name: name?.unpack(), weaponType: weaponType?.unpack(), weapon: weapon?.unpack());
@@ -349,7 +352,7 @@ class HeroT implements fb.Packable {
 
   @override
   String toString() {
-    return 'HeroT{name: ${name}, weaponType: ${weaponType}, weapon: ${weapon}}';
+    return 'HeroT{name: $name, weaponType: $weaponType, weapon: $weapon}';
   }
 }
 

@@ -27,7 +27,7 @@ class Greeting {
 
   @override
   String toString() {
-    return 'Greeting{message: ${message}, name: ${name}}';
+    return 'Greeting{message: $message, name: $name}';
   }
 
   GreetingT unpack() => GreetingT(message: message?.unpack(), name: name?.unpack());
@@ -91,7 +91,7 @@ class GreetingT implements fb.Packable {
 
   @override
   String toString() {
-    return 'GreetingT{message: ${message}, name: ${name}}';
+    return 'GreetingT{message: $message, name: $name}';
   }
 }
 

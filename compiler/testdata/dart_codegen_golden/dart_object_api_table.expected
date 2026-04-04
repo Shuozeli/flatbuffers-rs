@@ -22,7 +22,7 @@ class Vec2 {
 
   @override
   String toString() {
-    return 'Vec2{x: ${x}, y: ${y}}';
+    return 'Vec2{x: $x, y: $y}';
   }
 
   Vec2T unpack() => Vec2T(x: x, y: y);
@@ -52,7 +52,7 @@ class Vec2T implements fb.Packable {
 
   @override
   String toString() {
-    return 'Vec2T{x: ${x}, y: ${y}}';
+    return 'Vec2T{x: $x, y: $y}';
   }
 }
 
@@ -130,7 +130,7 @@ class Monster {
 
   @override
   String toString() {
-    return 'Monster{hp: ${hp}, name: ${name}, pos: ${pos}, inventory: ${inventory}, tags: ${tags}}';
+    return 'Monster{hp: $hp, name: $name, pos: $pos, inventory: $inventory, tags: $tags}';
   }
 
   MonsterT unpack() => MonsterT(hp: hp?.unpack(), name: name?.unpack(), pos: pos?.unpack(), inventory: inventory?.unpack(), tags: tags?.unpack());
@@ -220,7 +220,7 @@ class MonsterT implements fb.Packable {
 
   @override
   String toString() {
-    return 'MonsterT{hp: ${hp}, name: ${name}, pos: ${pos}, inventory: ${inventory}, tags: ${tags}}';
+    return 'MonsterT{hp: $hp, name: $name, pos: $pos, inventory: $inventory, tags: $tags}';
   }
 }
 

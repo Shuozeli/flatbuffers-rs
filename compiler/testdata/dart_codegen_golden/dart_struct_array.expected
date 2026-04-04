@@ -67,7 +67,7 @@ class Inner {
 
   @override
   String toString() {
-    return 'Inner{x: ${x}, y: ${y}}';
+    return 'Inner{x: $x, y: $y}';
   }
 
   InnerT unpack() => InnerT(x: x, y: y);
@@ -97,7 +97,7 @@ class InnerT implements fb.Packable {
 
   @override
   String toString() {
-    return 'InnerT{x: ${x}, y: ${y}}';
+    return 'InnerT{x: $x, y: $y}';
   }
 }
 
@@ -171,7 +171,7 @@ class Outer {
 
   @override
   String toString() {
-    return 'Outer{a: ${a}, b: ${b}, c: ${c}, d: ${d}, e: ${e}}';
+    return 'Outer{a: $a, b: $b, c: $c, d: $d, e: $e}';
   }
 
   OuterT unpack() => OuterT(a: a, b: b, c: c, d: d, e: e);
@@ -216,7 +216,7 @@ class OuterT implements fb.Packable {
 
   @override
   String toString() {
-    return 'OuterT{a: ${a}, b: ${b}, c: ${c}, d: ${d}, e: ${e}}';
+    return 'OuterT{a: $a, b: $b, c: $c, d: $d, e: $e}';
   }
 }
 

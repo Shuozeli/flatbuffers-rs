@@ -1,4 +1,6 @@
+use flatc_rs_schema::resolved::ResolvedRpcCall;
 use flatc_rs_schema::resolved::ResolvedSchema;
+use flatc_rs_schema::Attributes;
 use flatc_rs_schema::BaseType;
 
 use super::code_writer::CodeWriter;
@@ -9,6 +11,40 @@ use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::type_map;
 use super::CodeGenError;
 use super::{field_id, field_type_index, DartCodeGenOptions};
+
+/// Parse streaming mode from FlatBuffers attributes.
+///
+/// FlatBuffers uses `streaming: "server"`, `streaming: "client"`,
+/// or `streaming: "bidi"` key-value attributes on RPC methods.
+/// Note: values are stored with escaped quotes, e.g., `"\"server\""`.
+fn parse_streaming(attrs: &Option<Attributes>) -> (bool, bool) {
+    let attrs = match attrs {
+        Some(a) => a,
+        None => return (false, false),
+    };
+
+    for kv in &attrs.entries {
+        if kv.key.as_deref() == Some("streaming") {
+            // Strip surrounding quotes from value (e.g., "\"server\"" -> "server")
+            let value = kv.value.as_deref().map(|v| {
+                let v = v.trim();
+                if v.starts_with('"') && v.ends_with('"') && v.len() >= 2 {
+                    &v[1..v.len() - 1]
+                } else {
+                    v
+                }
+            });
+            return match value {
+                Some("server") => (false, true),
+                Some("client") => (true, false),
+                Some("bidi") => (true, true),
+                _ => (false, false),
+            };
+        }
+    }
+
+    (false, false)
+}
 
 /// Main Dart code generator.
 pub struct DartGenerator<'a> {
@@ -67,6 +103,10 @@ impl<'a> DartGenerator<'a> {
         for (name, child) in &root.children {
             self.gen_namespace(name, child)?;
         }
+
+        // Emit gRPC service clients
+        self.gen_services()?;
+
         Ok(())
     }
 
@@ -104,6 +144,168 @@ impl<'a> DartGenerator<'a> {
             self.gen_namespace(&format!("{name}.{child_name}"), child_node)?;
         }
 
+        Ok(())
+    }
+
+    /// Generate Dart gRPC client classes for all services in the schema.
+    fn gen_services(&mut self) -> Result<(), CodeGenError> {
+        if self.schema.services.is_empty() {
+            return Ok(());
+        }
+
+        self.w.blank();
+        self.w.line("import 'package:grpc/grpc.dart';");
+        self.w.blank();
+
+        for service in &self.schema.services {
+            self.gen_service_client(service)?;
+        }
+
+        Ok(())
+    }
+
+    /// Generate a Dart gRPC client class for a single service.
+    fn gen_service_client(
+        &mut self,
+        service: &flatc_rs_schema::resolved::ResolvedService,
+    ) -> Result<(), CodeGenError> {
+        let service_name = &service.name;
+        let namespace = service
+            .namespace
+            .as_ref()
+            .and_then(|ns| ns.namespace.clone())
+            .unwrap_or_default();
+        let package = if namespace.is_empty() {
+            String::new()
+        } else {
+            namespace.clone()
+        };
+
+        // Client class
+        self.w
+            .line(&format!("class {service_name}Client extends Client {{"));
+        self.w.indent();
+
+        // Constructor
+        self.w.line(&format!(
+            "{service_name}Client(ClientChannel channel) : super(channel);"
+        ));
+        self.w.blank();
+
+        // Generate ClientMethod descriptors and methods for each RPC
+        for call in &service.calls {
+            self.gen_rpc_method(call, service_name, &package)?;
+        }
+
+        self.w.dedent();
+        self.w.line("}");
+        self.w.blank();
+
+        Ok(())
+    }
+
+    /// Generate a single RPC method (ClientMethod descriptor and Dart method).
+    fn gen_rpc_method(
+        &mut self,
+        call: &ResolvedRpcCall,
+        service_name: &str,
+        package: &str,
+    ) -> Result<(), CodeGenError> {
+        let method_name = &call.name;
+        // Dart methods use camelCase (e.g., sayHello), gRPC path uses PascalCase (e.g., SayHello)
+        let camel_method = dart_type_map::to_camel_case(method_name);
+        let pascal_method = dart_type_map::to_pascal_case(method_name);
+
+        // Get request/response type names
+        let request_type = self
+            .schema
+            .objects
+            .get(call.request_index)
+            .map(|o| o.name.clone())
+            .unwrap_or_else(|| "Uint8List".to_string());
+        let response_type = self
+            .schema
+            .objects
+            .get(call.response_index)
+            .map(|o| o.name.clone())
+            .unwrap_or_else(|| "Uint8List".to_string());
+
+        // Parse streaming mode
+        let (client_streaming, server_streaming) = parse_streaming(&call.attributes);
+
+        // gRPC path
+        let fqn = if package.is_empty() {
+            service_name.to_string()
+        } else {
+            format!("{package}.{service_name}")
+        };
+        let grpc_path = format!("/{fqn}/{pascal_method}");
+
+        // ClientMethod field name (snake_case)
+        let client_method_name = format!("_{}", dart_type_map::to_snake_case(method_name));
+
+        // Generate ClientMethod descriptor
+        self.w.line(&format!(
+            "static final {client_method_name} = ClientMethod<{request_type}, {response_type}>("
+        ));
+        self.w.indent();
+        self.w.line(&format!("'{grpc_path}',"));
+        self.w
+            .line(&format!("({request_type} value) => value.writeToBuffer(),"));
+        self.w.line(&format!("{response_type}.fromBuffer,"));
+        self.w.dedent();
+        self.w.line(");");
+        self.w.blank();
+
+        // Generate the Dart method based on streaming mode
+        match (client_streaming, server_streaming) {
+            (false, false) => {
+                // Unary
+                self.w.line(&format!(
+                    "Future<{response_type}> {camel_method}({request_type} request, {{Options? options}}) =>"
+                ));
+                self.w.indent();
+                self.w.line(&format!(
+                    "makeUnaryCall({client_method_name}, request, options: options);"
+                ));
+                self.w.dedent();
+            }
+            (false, true) => {
+                // Server streaming
+                self.w.line(&format!(
+                    "ResponseStream<{response_type}> {camel_method}({request_type} request, {{Options? options}}) =>"
+                ));
+                self.w.indent();
+                self.w.line(&format!(
+                    "makeServerStreamingCall({client_method_name}, request, options: options);"
+                ));
+                self.w.dedent();
+            }
+            (true, false) => {
+                // Client streaming
+                self.w.line(&format!(
+                    "ClientStreamingResponse<{response_type}, {request_type}> {camel_method}({{Options? options}}) =>"
+                ));
+                self.w.indent();
+                self.w.line(&format!(
+                    "makeClientStreamingCall({client_method_name}, options: options);"
+                ));
+                self.w.dedent();
+            }
+            (true, true) => {
+                // Bidi streaming
+                self.w.line(&format!(
+                    "ResponseStream<{response_type}> {camel_method}({{Options? options}}) =>"
+                ));
+                self.w.indent();
+                self.w.line(&format!(
+                    "makeBidiStreamingCall({client_method_name}, options: options);"
+                ));
+                self.w.dedent();
+            }
+        }
+
+        self.w.blank();
         Ok(())
     }
 
@@ -182,7 +384,7 @@ impl<'a> DartGenerator<'a> {
             .map(|f| {
                 let fname =
                     dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name));
-                format!("{fname}: ${{{fname}}}")
+                format!("{fname}: ${fname}")
             })
             .collect::<Vec<_>>()
             .join(", ");
@@ -396,15 +598,44 @@ impl<'a> DartGenerator<'a> {
                 self.gen_vector_accessor(field, vt_offset)?;
             }
             BaseType::BASE_TYPE_UNION => {
-                // Union accessor - simplified for now
-                self.w
-                    .line(&format!("dynamic get {fname} {{", fname = fname));
+                // Union accessor with switch on discriminator
+                let enum_idx = field_type_index(field).unwrap();
+                let union_enum = &self.schema.enums[enum_idx];
+                let discriminator_name = format!("{}Type", fname);
+
+                self.w.line(&format!("dynamic get {fname} {{"));
                 self.w.indent();
                 self.w.line(&format!(
                     "final offset = _bc.offset(_bcOffset, {vt_offset});"
                 ));
                 self.w.line("if (offset == 0) return null;");
-                self.w.line("return null;");
+                self.w
+                    .line(&format!("switch ({discriminator_name}?.value) {{"));
+                self.w.indent();
+
+                for val in &union_enum.values {
+                    if val.name == "NONE" {
+                        continue;
+                    }
+                    // Get the union variant's type
+                    if let Some(ref union_type) = val.union_type {
+                        let variant_idx = union_type.index.ok_or_else(|| {
+                            CodeGenError::Internal(format!(
+                                "union variant '{}' has no type index",
+                                &val.name
+                            ))
+                        })? as usize;
+                        let variant_obj = &self.schema.objects[variant_idx];
+                        let variant_name = &variant_obj.name;
+                        let case_value = val.value;
+                        self.w.line(&format!(
+                            "case {case_value}: return {variant_name}.reader.vTableGetNullable(_bc, _bcOffset, {vt_offset});",
+                        ));
+                    }
+                }
+
+                self.w.dedent();
+                self.w.line("}");
                 self.w.dedent();
                 self.w.line("}");
             }
@@ -818,7 +1049,7 @@ impl<'a> DartGenerator<'a> {
             .map(|f| {
                 let fname =
                     dart_type_map::escape_dart_keyword(&dart_type_map::to_camel_case(&f.name));
-                format!("{fname}: ${{{fname}}}")
+                format!("{fname}: ${fname}")
             })
             .collect::<Vec<_>>()
             .join(", ");

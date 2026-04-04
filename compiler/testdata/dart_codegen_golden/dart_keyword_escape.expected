@@ -29,7 +29,7 @@ class KWTable {
 
   @override
   String toString() {
-    return 'KWTable{type: ${type}, delete: ${delete}, class_: ${class_}}';
+    return 'KWTable{type: $type, delete: $delete, class_: $class_}';
   }
 
   KWTableT unpack() => KWTableT(type: type?.unpack(), delete: delete?.unpack(), class_: class_?.unpack());
@@ -100,7 +100,7 @@ class KWTableT implements fb.Packable {
 
   @override
   String toString() {
-    return 'KWTableT{type: ${type}, delete: ${delete}, class_: ${class_}}';
+    return 'KWTableT{type: $type, delete: $delete, class_: $class_}';
   }
 }
 

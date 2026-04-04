@@ -41,7 +41,7 @@ class ScalarStuff {
 
   @override
   String toString() {
-    return 'ScalarStuff{justI8: ${justI8}, maybeI8: ${maybeI8}, defaultI8: ${defaultI8}, justF64: ${justF64}, maybeF64: ${maybeF64}, defaultF64: ${defaultF64}, justBool: ${justBool}, maybeBool: ${maybeBool}, defaultBool: ${defaultBool}}';
+    return 'ScalarStuff{justI8: $justI8, maybeI8: $maybeI8, defaultI8: $defaultI8, justF64: $justF64, maybeF64: $maybeF64, defaultF64: $defaultF64, justBool: $justBool, maybeBool: $maybeBool, defaultBool: $defaultBool}';
   }
 
   ScalarStuffT unpack() => ScalarStuffT(justI8: justI8?.unpack(), maybeI8: maybeI8?.unpack(), defaultI8: defaultI8?.unpack(), justF64: justF64?.unpack(), maybeF64: maybeF64?.unpack(), defaultF64: defaultF64?.unpack(), justBool: justBool?.unpack(), maybeBool: maybeBool?.unpack(), defaultBool: defaultBool?.unpack());
@@ -159,7 +159,7 @@ class ScalarStuffT implements fb.Packable {
 
   @override
   String toString() {
-    return 'ScalarStuffT{justI8: ${justI8}, maybeI8: ${maybeI8}, defaultI8: ${defaultI8}, justF64: ${justF64}, maybeF64: ${maybeF64}, defaultF64: ${defaultF64}, justBool: ${justBool}, maybeBool: ${maybeBool}, defaultBool: ${defaultBool}}';
+    return 'ScalarStuffT{justI8: $justI8, maybeI8: $maybeI8, defaultI8: $defaultI8, justF64: $justF64, maybeF64: $maybeF64, defaultF64: $defaultF64, justBool: $justBool, maybeBool: $maybeBool, defaultBool: $defaultBool}';
   }
 }
 

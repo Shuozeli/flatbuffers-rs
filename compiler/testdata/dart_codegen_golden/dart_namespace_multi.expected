@@ -34,7 +34,7 @@ class Root {
 
   @override
   String toString() {
-    return 'Root{name: ${name}}';
+    return 'Root{name: $name}';
   }
 
   RootT unpack() => RootT(name: name?.unpack());
@@ -89,7 +89,7 @@ class RootT implements fb.Packable {
 
   @override
   String toString() {
-    return 'RootT{name: ${name}}';
+    return 'RootT{name: $name}';
   }
 }
 
@@ -192,7 +192,7 @@ class Helper {
 
   @override
   String toString() {
-    return 'Helper{count: ${count}}';
+    return 'Helper{count: $count}';
   }
 
   HelperT unpack() => HelperT(count: count?.unpack());
@@ -246,7 +246,7 @@ class HelperT implements fb.Packable {
 
   @override
   String toString() {
-    return 'HelperT{count: ${count}}';
+    return 'HelperT{count: $count}';
   }
 }
 

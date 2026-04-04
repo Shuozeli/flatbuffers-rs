@@ -75,7 +75,7 @@ class Weapon {
 
   @override
   String toString() {
-    return 'Weapon{name: ${name}, color: ${color}, damage: ${damage}}';
+    return 'Weapon{name: $name, color: $color, damage: $damage}';
   }
 
   WeaponT unpack() => WeaponT(name: name?.unpack(), color: color?.unpack(), damage: damage?.unpack());
@@ -146,7 +146,7 @@ class WeaponT implements fb.Packable {
 
   @override
   String toString() {
-    return 'WeaponT{name: ${name}, color: ${color}, damage: ${damage}}';
+    return 'WeaponT{name: $name, color: $color, damage: $damage}';
   }
 }
 

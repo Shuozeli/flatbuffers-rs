@@ -31,7 +31,7 @@ class Monster {
 
   @override
   String toString() {
-    return 'Monster{hp: ${hp}, mana: ${mana}, alive: ${alive}, name: ${name}}';
+    return 'Monster{hp: $hp, mana: $mana, alive: $alive, name: $name}';
   }
 
   MonsterT unpack() => MonsterT(hp: hp?.unpack(), mana: mana?.unpack(), alive: alive?.unpack(), name: name?.unpack());
@@ -110,7 +110,7 @@ class MonsterT implements fb.Packable {
 
   @override
   String toString() {
-    return 'MonsterT{hp: ${hp}, mana: ${mana}, alive: ${alive}, name: ${name}}';
+    return 'MonsterT{hp: $hp, mana: $mana, alive: $alive, name: $name}';
   }
 }
 

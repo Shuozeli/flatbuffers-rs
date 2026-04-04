@@ -81,7 +81,7 @@ class Foo {
 
   @override
   String toString() {
-    return 'Foo{x: ${x}}';
+    return 'Foo{x: $x}';
   }
 
   FooT unpack() => FooT(x: x?.unpack());
@@ -135,7 +135,7 @@ class FooT implements fb.Packable {
 
   @override
   String toString() {
-    return 'FooT{x: ${x}}';
+    return 'FooT{x: $x}';
   }
 }
 
@@ -180,12 +180,15 @@ class Root {
   dynamic get u {
     final offset = _bc.offset(_bcOffset, 6);
     if (offset == 0) return null;
-    return null;
+    switch (uType?.value) {
+      case 1: return Foo.reader.vTableGetNullable(_bc, _bcOffset, 6);
+      case 2: return Bar.reader.vTableGetNullable(_bc, _bcOffset, 6);
+    }
   }
 
   @override
   String toString() {
-    return 'Root{uType: ${uType}, u: ${u}}';
+    return 'Root{uType: $uType, u: $u}';
   }
 
   RootT unpack() => RootT(uType: uType?.unpack(), u: u?.unpack());
@@ -248,7 +251,7 @@ class RootT implements fb.Packable {
 
   @override
   String toString() {
-    return 'RootT{uType: ${uType}, u: ${u}}';
+    return 'RootT{uType: $uType, u: $u}';
   }
 }
 
@@ -303,7 +306,7 @@ class Bar {
 
   @override
   String toString() {
-    return 'Bar{y: ${y}}';
+    return 'Bar{y: $y}';
   }
 
   BarT unpack() => BarT(y: y?.unpack());
@@ -358,7 +361,7 @@ class BarT implements fb.Packable {
 
   @override
   String toString() {
-    return 'BarT{y: ${y}}';
+    return 'BarT{y: $y}';
   }
 }
 

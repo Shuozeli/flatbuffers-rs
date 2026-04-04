@@ -29,7 +29,7 @@ class Inventory {
 
   @override
   String toString() {
-    return 'Inventory{slots: ${slots}, names: ${names}, scores: ${scores}}';
+    return 'Inventory{slots: $slots, names: $names, scores: $scores}';
   }
 
   InventoryT unpack() => InventoryT(slots: slots?.unpack(), names: names?.unpack(), scores: scores?.unpack());
@@ -102,7 +102,7 @@ class InventoryT implements fb.Packable {
 
   @override
   String toString() {
-    return 'InventoryT{slots: ${slots}, names: ${names}, scores: ${scores}}';
+    return 'InventoryT{slots: $slots, names: $names, scores: $scores}';
   }
 }
 
