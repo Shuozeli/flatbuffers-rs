@@ -3,7 +3,7 @@ use crate::type_map::has_type_index;
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use crate::code_writer::CodeWriter;
+use codegen_core::CodeWriter;
 use crate::type_map;
 use crate::{type_visibility, CodeGenError, CodeGenOptions};
 

@@ -1,4 +1,3 @@
-mod code_writer;
 mod dart_enum_gen;
 mod dart_gen;
 mod dart_struct_gen;
@@ -16,6 +15,9 @@ mod ts_struct_gen;
 mod ts_table_gen;
 mod ts_type_map;
 pub mod type_map;
+
+// Re-export CodeWriter from codegen-core
+pub use codegen_core::CodeWriter;
 
 use std::collections::HashSet;
 

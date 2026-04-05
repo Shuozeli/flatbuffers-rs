@@ -1,6 +1,6 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
 
-use super::code_writer::CodeWriter;
+use codegen_core::CodeWriter;
 use super::dart_type_map;
 use super::CodeGenError;
 

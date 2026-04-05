@@ -1,6 +1,6 @@
 use flatc_rs_schema::resolved::ResolvedSchema;
 
-use super::code_writer::CodeWriter;
+use codegen_core::CodeWriter;
 use super::enum_gen;
 use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::rust_table_gen;

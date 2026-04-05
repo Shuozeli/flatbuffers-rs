@@ -1,7 +1,7 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use super::code_writer::CodeWriter;
+use codegen_core::CodeWriter;
 use super::ts_type_map;
 use super::union_variant_type_index;
 use super::CodeGenError;

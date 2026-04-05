@@ -1,6 +1,36 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
+// Re-export case conversion helpers from codegen_writers
+pub use codegen_writers::to_pascal_case;
+
+/// Convert a PascalCase or camelCase identifier to snake_case.
+/// Handles consecutive uppercase letters: "HPMax" -> "hp_max" (not "hpmax")
+pub fn to_snake_case(name: &str) -> String {
+    let mut result = String::with_capacity(name.len() + 4);
+    for (i, ch) in name.chars().enumerate() {
+        if ch.is_uppercase() {
+            if i > 0 {
+                // Don't insert underscore between consecutive uppercase letters
+                // e.g., "HPMax" -> "hp_max" not "h_p_max"
+                let prev = name.as_bytes()[i - 1];
+                if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
+                    result.push('_');
+                } else if prev != b'_' && i + 1 < name.len() {
+                    let next = name.as_bytes()[i + 1];
+                    if next.is_ascii_lowercase() {
+                        result.push('_');
+                    }
+                }
+            }
+            result.push(ch.to_lowercase().next().unwrap());
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
 /// Returns true if a field's type has an index, indicating it references
 /// a user-defined type (enum, union, table, or struct) in the schema.
 pub fn has_type_index(field: &ResolvedField) -> bool {
@@ -41,39 +71,9 @@ pub fn is_float(bt: BaseType) -> bool {
     matches!(bt, BaseType::BASE_TYPE_FLOAT | BaseType::BASE_TYPE_DOUBLE)
 }
 
-/// Convert a PascalCase or camelCase identifier to snake_case.
-pub fn to_snake_case(name: &str) -> String {
-    let mut result = String::with_capacity(name.len() + 4);
-    for (i, ch) in name.chars().enumerate() {
-        if ch.is_uppercase() {
-            if i > 0 {
-                // Don't insert underscore between consecutive uppercase letters
-                // e.g., "HPMax" -> "hp_max" not "h_p_max"
-                let prev = name.as_bytes()[i - 1];
-                if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
-                    result.push('_');
-                } else if prev != b'_' && i + 1 < name.len() {
-                    let next = name.as_bytes()[i + 1];
-                    if next.is_ascii_lowercase() {
-                        result.push('_');
-                    }
-                }
-            }
-            result.push(ch.to_lowercase().next().unwrap());
-        } else {
-            result.push(ch);
-        }
-    }
-    result
-}
-
-/// Convert a name to UPPER_SNAKE_CASE.
-pub fn to_upper_snake_case(name: &str) -> String {
-    to_snake_case(name).to_uppercase()
-}
-
 /// Convert a name to camelCase (first letter lowercase).
-/// "my_field" -> "myField", "MyField" -> "myField", "pos" -> "pos"
+/// First converts to snake_case, then capitalizes after underscores.
+/// "my_field" -> "myField", "MyField" -> "myField", "SayHello" -> "sayHello"
 pub fn to_camel_case(name: &str) -> String {
     let snake = to_snake_case(name);
     let mut result = String::with_capacity(snake.len());
@@ -93,19 +93,9 @@ pub fn to_camel_case(name: &str) -> String {
     result
 }
 
-/// Convert a name to PascalCase (first letter uppercase).
-/// "my_field" -> "MyField", "pos" -> "Pos"
-pub fn to_pascal_case(name: &str) -> String {
-    let camel = to_camel_case(name);
-    let mut chars = camel.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(c) => {
-            let mut s = c.to_uppercase().collect::<String>();
-            s.extend(chars);
-            s
-        }
-    }
+/// Convert a name to UPPER_SNAKE_CASE.
+pub fn to_upper_snake_case(name: &str) -> String {
+    to_snake_case(name).to_uppercase()
 }
 
 /// Build FQN like "MyGame.Example.Monster".

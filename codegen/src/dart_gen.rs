@@ -3,7 +3,7 @@ use flatc_rs_schema::resolved::ResolvedSchema;
 use flatc_rs_schema::Attributes;
 use flatc_rs_schema::BaseType;
 
-use super::code_writer::CodeWriter;
+use codegen_core::CodeWriter;
 use super::dart_enum_gen;
 use super::dart_struct_gen;
 use super::dart_type_map;

@@ -6,7 +6,7 @@ mod reader;
 use flatc_rs_schema::resolved::ResolvedSchema;
 use flatc_rs_schema::BaseType;
 
-use super::code_writer::CodeWriter;
+use codegen_core::CodeWriter;
 use super::ts_type_map;
 use super::type_map;
 use super::TsCodeGenOptions;
