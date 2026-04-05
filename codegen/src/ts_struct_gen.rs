@@ -1,10 +1,10 @@
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::ts_type_map;
 use super::type_map;
 use super::{field_offset, field_type_index, obj_byte_size, obj_min_align, type_index};
+use codegen_core::CodeWriter;
 
 /// Generate TypeScript code for the struct at `schema.objects[index]`.
 pub fn generate(w: &mut CodeWriter, schema: &ResolvedSchema, index: usize, gen_object_api: bool) {

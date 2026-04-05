@@ -3,9 +3,9 @@ use crate::{field_id, field_type_index, union_variant_type_index};
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use crate::type_map;
 use crate::{CodeGenError, CodeGenOptions};
+use codegen_core::CodeWriter;
 
 use super::helpers;
 

@@ -1,10 +1,10 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::type_map;
 use super::union_variant_type_index;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
+use codegen_core::CodeWriter;
 
 /// Check if an enum has a specific attribute (e.g., "bit_flags").
 fn has_attribute(enum_def: &ResolvedEnum, key: &str) -> bool {

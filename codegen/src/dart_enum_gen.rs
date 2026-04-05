@@ -1,8 +1,8 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
 
-use codegen_core::CodeWriter;
 use super::dart_type_map;
 use super::CodeGenError;
+use codegen_core::CodeWriter;
 
 /// Generate Dart code for the enum at `schema.enums[index]`.
 pub fn generate(

@@ -1,10 +1,10 @@
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::dart_type_map;
 use super::type_map;
 use super::{field_offset, field_type_index, obj_byte_size, type_index};
+use codegen_core::CodeWriter;
 
 /// Context for generating struct field write code.
 struct StructFieldWriteCtx<'a> {

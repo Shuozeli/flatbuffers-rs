@@ -1,10 +1,10 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::ts_type_map;
 use super::union_variant_type_index;
 use super::CodeGenError;
+use codegen_core::CodeWriter;
 
 /// Generate TypeScript code for the enum at `schema.enums[index]`.
 pub fn generate(

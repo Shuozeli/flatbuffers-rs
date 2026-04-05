@@ -1,12 +1,12 @@
 use flatc_rs_schema::resolved::ResolvedSchema;
 
-use codegen_core::CodeWriter;
 use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::ts_enum_gen;
 use super::ts_struct_gen;
 use super::ts_table_gen;
 use super::CodeGenError;
 use super::TsCodeGenOptions;
+use codegen_core::CodeWriter;
 
 /// Main TypeScript code generator.
 pub struct TsGenerator<'a> {

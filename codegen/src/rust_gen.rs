@@ -1,12 +1,12 @@
 use flatc_rs_schema::resolved::ResolvedSchema;
 
-use codegen_core::CodeWriter;
 use super::enum_gen;
 use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::rust_table_gen;
 use super::struct_gen;
 use super::type_map;
 use super::{CodeGenError, CodeGenOptions};
+use codegen_core::CodeWriter;
 
 /// Main code generator. Holds a reference to the resolved schema and produces
 /// Rust source code compatible with the `flatbuffers` runtime crate.

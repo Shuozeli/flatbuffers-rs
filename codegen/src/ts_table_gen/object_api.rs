@@ -1,10 +1,10 @@
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use crate::field_type_index;
 use crate::ts_type_map;
 use crate::type_map;
+use codegen_core::CodeWriter;
 
 use super::helpers;
 

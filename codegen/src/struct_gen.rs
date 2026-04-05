@@ -3,9 +3,9 @@ use super::{field_offset, field_type_index, obj_byte_size, obj_min_align, type_i
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::type_map;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
+use codegen_core::CodeWriter;
 
 /// Generate Rust code for the struct at `schema.objects[index]`.
 pub fn generate(

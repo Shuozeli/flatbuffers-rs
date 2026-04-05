@@ -6,10 +6,10 @@ mod reader;
 use flatc_rs_schema::resolved::ResolvedSchema;
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::ts_type_map;
 use super::type_map;
 use super::TsCodeGenOptions;
+use codegen_core::CodeWriter;
 
 /// Generate TypeScript code for the table at `schema.objects[index]`.
 pub fn generate(

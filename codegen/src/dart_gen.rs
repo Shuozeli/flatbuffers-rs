@@ -3,7 +3,6 @@ use flatc_rs_schema::resolved::ResolvedSchema;
 use flatc_rs_schema::Attributes;
 use flatc_rs_schema::BaseType;
 
-use codegen_core::CodeWriter;
 use super::dart_enum_gen;
 use super::dart_struct_gen;
 use super::dart_type_map;
@@ -11,6 +10,7 @@ use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::type_map;
 use super::CodeGenError;
 use super::{field_id, field_type_index, DartCodeGenOptions};
+use codegen_core::CodeWriter;
 
 /// Parse streaming mode from FlatBuffers attributes.
 ///
