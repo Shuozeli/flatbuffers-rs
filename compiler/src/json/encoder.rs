@@ -136,8 +136,10 @@ impl<'a> Encoder<'a> {
     // -------------------------------------------------------------------
 
     fn align(&mut self, alignment: usize) {
-        while !self.buf.len().is_multiple_of(alignment) {
-            self.buf.push(0);
+        let len = self.buf.len();
+        let padding = (alignment - len % alignment) % alignment;
+        if padding > 0 {
+            self.buf.resize(len + padding, 0);
         }
     }
 
@@ -321,8 +323,9 @@ impl<'a> Encoder<'a> {
                 | BaseType::BASE_TYPE_U_LONG
                 | BaseType::BASE_TYPE_FLOAT
                 | BaseType::BASE_TYPE_DOUBLE => {
-                    let bytes = self.encode_scalar_value(json_val, bt, ty, fname)?;
-                    self.buf[field_pos..field_pos + bytes.len()].copy_from_slice(&bytes);
+                    let mut buf = Vec::new();
+                    self.encode_scalar_value(json_val, bt, ty, fname, &mut buf)?;
+                    self.buf[field_pos..field_pos + buf.len()].copy_from_slice(&buf);
                 }
 
                 BaseType::BASE_TYPE_U_TYPE => {
@@ -421,14 +424,15 @@ impl<'a> Encoder<'a> {
         bt: BaseType,
         ty: &ResolvedType,
         field_name: &str,
-    ) -> Result<Vec<u8>, JsonError> {
+        buf: &mut Vec<u8>,
+    ) -> Result<(), JsonError> {
         // Check if this is an enum type
         let enum_idx = ty.index;
         if let Some(idx) = enum_idx {
             if (idx as usize) < self.schema.enums.len() {
                 if let Value::String(_) = json_val {
                     let val = self.resolve_enum_value(json_val, idx as usize, field_name)?;
-                    return self.integer_to_bytes(val, bt, field_name);
+                    return self.integer_to_bytes(val, bt, field_name, buf);
                 }
             }
         }
@@ -446,51 +450,65 @@ impl<'a> Encoder<'a> {
                         });
                     }
                 };
-                Ok(vec![if v { 1 } else { 0 }])
+                buf.push(if v { 1 } else { 0 });
+                Ok(())
             }
 
             BaseType::BASE_TYPE_BYTE => {
                 let v = json_as_i64(json_val, field_name, bt)? as i8;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_U_BYTE => {
                 let v = json_as_u64(json_val, field_name, bt)? as u8;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_SHORT => {
                 let v = json_as_i64(json_val, field_name, bt)? as i16;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_U_SHORT => {
                 let v = json_as_u64(json_val, field_name, bt)? as u16;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_INT => {
                 let v = json_as_i64(json_val, field_name, bt)? as i32;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_U_INT => {
                 let v = json_as_u64(json_val, field_name, bt)? as u32;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_LONG => {
                 let v = json_as_i64(json_val, field_name, bt)?;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_U_LONG => {
                 let v = json_as_u64(json_val, field_name, bt)?;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_FLOAT => {
                 let v = json_as_f64(json_val, field_name, bt)? as f32;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
             BaseType::BASE_TYPE_DOUBLE => {
                 let v = json_as_f64(json_val, field_name, bt)?;
-                Ok(v.to_le_bytes().to_vec())
+                buf.extend_from_slice(&v.to_le_bytes());
+                Ok(())
             }
 
-            _ => Ok(vec![0; bt.scalar_byte_size()]),
+            _ => {
+                buf.extend_from_slice(&[0; 16][..bt.scalar_byte_size()]);
+                Ok(())
+            }
         }
     }
 
@@ -499,17 +517,45 @@ impl<'a> Encoder<'a> {
         val: i64,
         bt: BaseType,
         field_name: &str,
-    ) -> Result<Vec<u8>, JsonError> {
+        buf: &mut Vec<u8>,
+    ) -> Result<(), JsonError> {
         match bt {
-            BaseType::BASE_TYPE_BOOL => Ok(vec![if val != 0 { 1 } else { 0 }]),
-            BaseType::BASE_TYPE_BYTE => Ok((val as i8).to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_U_BYTE => Ok((val as u8).to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_SHORT => Ok((val as i16).to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_U_SHORT => Ok((val as u16).to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_INT => Ok((val as i32).to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_U_INT => Ok((val as u32).to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_LONG => Ok(val.to_le_bytes().to_vec()),
-            BaseType::BASE_TYPE_U_LONG => Ok((val as u64).to_le_bytes().to_vec()),
+            BaseType::BASE_TYPE_BOOL => {
+                buf.push(if val != 0 { 1 } else { 0 });
+                Ok(())
+            }
+            BaseType::BASE_TYPE_BYTE => {
+                buf.extend_from_slice(&(val as i8).to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_U_BYTE => {
+                buf.extend_from_slice(&(val as u8).to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_SHORT => {
+                buf.extend_from_slice(&(val as i16).to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_U_SHORT => {
+                buf.extend_from_slice(&(val as u16).to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_INT => {
+                buf.extend_from_slice(&(val as i32).to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_U_INT => {
+                buf.extend_from_slice(&(val as u32).to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_LONG => {
+                buf.extend_from_slice(&val.to_le_bytes());
+                Ok(())
+            }
+            BaseType::BASE_TYPE_U_LONG => {
+                buf.extend_from_slice(&(val as u64).to_le_bytes());
+                Ok(())
+            }
             _ => Err(JsonError::NumberOutOfRange {
                 field_name: field_name.to_string(),
                 base_type: format!("{bt:?}"),
@@ -617,9 +663,10 @@ impl<'a> Encoder<'a> {
                     data[field_offset..end].copy_from_slice(&inner_bytes[..end - field_offset]);
                 }
                 _ => {
-                    let bytes = self.encode_scalar_value(json_field_val, bt, ty, fname)?;
-                    let end = (field_offset + bytes.len()).min(byte_size);
-                    data[field_offset..end].copy_from_slice(&bytes[..end - field_offset]);
+                    let mut buf = Vec::new();
+                    self.encode_scalar_value(json_field_val, bt, ty, fname, &mut buf)?;
+                    let end = (field_offset + buf.len()).min(byte_size);
+                    data[field_offset..end].copy_from_slice(&buf[..end - field_offset]);
                 }
             }
         }
@@ -656,8 +703,9 @@ impl<'a> Encoder<'a> {
                 self.write_u32_le(arr.len() as u32);
                 for (i, elem) in arr.iter().enumerate() {
                     let elem_name = format!("{field_name}[{i}]");
-                    let bytes = self.encode_scalar_value(elem, bt, ty, &elem_name)?;
-                    self.write_bytes(&bytes);
+                    let mut buf = Vec::new();
+                    self.encode_scalar_value(elem, bt, ty, &elem_name, &mut buf)?;
+                    self.write_bytes(&buf);
                 }
                 self.align(4);
                 Ok(pos)
