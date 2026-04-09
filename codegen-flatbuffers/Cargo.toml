@@ -1,0 +1,18 @@
+[package]
+name = "codegen-flatbuffers"
+description = "FlatBuffers schema adapter for codegen-schema"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+codegen-core = { git = "https://github.com/Shuozeli/codegen-infra.git", branch = "master" }
+codegen-schema = { git = "https://github.com/Shuozeli/codegen-infra.git", branch = "master" }
+flatc-rs-schema = { path = "../schema" }
+thiserror = "2"
+
+[dev-dependencies]
+flatc-rs-schema = { path = "../schema" }

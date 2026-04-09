@@ -4,6 +4,7 @@ members = [
     "schema",
     "parser",
     "codegen",
+    "codegen-flatbuffers",
     "compiler",
     "annotator",
     "fbs-gen",
