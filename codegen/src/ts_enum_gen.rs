@@ -110,10 +110,8 @@ fn union_variant_types(
                     types.push(obj_name.clone());
                 }
             }
-            BaseType::BASE_TYPE_STRING => {
-                if !types.contains(&"string".to_string()) {
-                    types.push("string".to_string());
-                }
+            BaseType::BASE_TYPE_STRING if !types.iter().any(|ty| ty == "string") => {
+                types.push("string".to_string());
             }
             _ => {}
         }
