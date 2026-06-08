@@ -4,6 +4,7 @@ mod dart_struct_gen;
 mod dart_type_map;
 mod enum_gen;
 mod namespace_tree;
+mod python_gen;
 mod rust_gen;
 mod rust_table_gen;
 #[cfg(feature = "grpc")]
@@ -26,6 +27,7 @@ use flatc_rs_schema::resolved::{
     ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
 };
 use flatc_rs_schema::Attributes;
+use python_gen::PythonGenerator;
 use rust_gen::RustGenerator;
 use ts_gen::TsGenerator;
 
@@ -158,6 +160,14 @@ pub struct DartCodeGenOptions {
     pub gen_only_files: Option<HashSet<String>>,
 }
 
+/// Options for Python code generation.
+#[derive(Default)]
+pub struct PythonCodeGenOptions {
+    /// When set, only generate code for types whose `declaration_file` matches
+    /// one of these paths. When `None`, generate for all types (--gen-all).
+    pub gen_only_files: Option<HashSet<String>>,
+}
+
 /// Check if a type should be included based on its declaration file and the filter.
 fn should_generate(declaration_file: Option<&str>, filter: &Option<HashSet<String>>) -> bool {
     match filter {
@@ -216,5 +226,18 @@ pub fn generate_dart(
     opts: &DartCodeGenOptions,
 ) -> Result<String, CodeGenError> {
     let gen = DartGenerator::new(schema, opts);
+    gen.generate()
+}
+
+/// Generate Python source code from a fully resolved FlatBuffers schema.
+///
+/// The generated code is dependency-free model code using dataclasses and
+/// IntEnum. It preserves table/struct fields, scalar defaults, enums, unions,
+/// vectors, fixed arrays, namespaces, documentation, and keyword-safe names.
+pub fn generate_python(
+    schema: &ResolvedSchema,
+    opts: &PythonCodeGenOptions,
+) -> Result<String, CodeGenError> {
+    let gen = PythonGenerator::new(schema, opts);
     gen.generate()
 }

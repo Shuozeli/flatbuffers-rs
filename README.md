@@ -10,7 +10,9 @@ Drop-in replacement: same `.fbs` input, same generated code output, same binary 
 - Full `.fbs` schema parsing via hand-written recursive-descent parser
 - 8-step semantic analysis (type resolution, field layout, validation)
 - Rust code generation (readers, builders, Object API with pack/unpack)
-- TypeScript code generation (readers, builders, Object API)
+- TypeScript/Node.js code generation (readers, builders, Object API)
+- Dart code generation (readers, builders, Object API)
+- Python model code generation (dataclasses and IntEnum)
 - Serde Serialize/Deserialize support (`--rust-serialize`)
 - Binary schema (.bfbs) output and JSON/binary conversion
 - Schema backwards-compatibility checking (`--conform`)
@@ -35,9 +37,31 @@ cargo run -- --rust --gen-object-api -o out/ schema.fbs
 # Generate TypeScript
 cargo run -- --ts -o out/ schema.fbs
 
-# Generate both
-cargo run -- --rust --ts -o out/ schema.fbs
+# Generate TypeScript for Node.js projects
+cargo run -- --nodejs -o out/ schema.fbs
+
+# Generate Python model code
+cargo run -- --python -o out/ schema.fbs
+
+# Generate multiple language outputs in one invocation
+cargo run -- --rust --ts --python -o out/ schema.fbs
 ```
+
+## Language Codegen Usage
+
+`flatc-rs` can generate several language targets from the same resolved `.fbs` schema.
+
+| Flag | Output | Runtime dependency | Notes |
+|------|--------|--------------------|-------|
+| `--rust` / `-r` | `schema_generated.rs` | `flatbuffers` crate | Full FlatBuffers readers, builders, verification, and optional Object API |
+| `--ts` / `-T` | `schema_generated.ts` | `flatbuffers` npm package | TypeScript readers, builders, Object API, namespaces, unions, vectors, and mutate methods with `--gen-mutable` |
+| `--nodejs` | `schema_generated.ts` | `flatbuffers` npm package | Alias for `--ts`; useful when build scripts name the Node.js target explicitly |
+| `--python` / `-p` | `schema_generated.py` | Python standard library | Python `dataclass(slots=True)` models and `IntEnum` enums |
+| `--dart` / `-D` | `schema_generated.dart` | `flat_buffers` Dart package | Dart readers, builders, Object API, and service clients |
+
+The Rust, TypeScript/Node.js, and Dart backends generate FlatBuffers reader/builder code. The Python backend currently generates typed model code for application and tooling use; it preserves table/struct fields, scalar defaults, optional fields, vectors, namespaces, unions, enum defaults, and keyword-safe names, but it does not include binary encode/decode helpers.
+
+Output names follow C++ `flatc` conventions: `{input_stem}{suffix}.{ext}`. The default suffix is `_generated`; override it with `--filename-suffix`, and override the extension with `--filename-ext`.
 
 ## CLI Flags
 
@@ -45,6 +69,9 @@ cargo run -- --rust --ts -o out/ schema.fbs
 |------|-------------|
 | `--rust` / `-r` | Generate Rust code |
 | `--ts` / `-T` | Generate TypeScript code |
+| `--nodejs` | Generate TypeScript code for Node.js projects (alias for `--ts`) |
+| `--python` / `-p` | Generate Python model code |
+| `--dart` / `-D` | Generate Dart code |
 | `-o <dir>` | Output directory (default: cwd) |
 | `-I <dir>` | Include search path |
 | `--gen-object-api` | Generate Object API (pack/unpack) |
@@ -75,7 +102,7 @@ For the full list of flags (including JSON/BFBS options), see [docs/flag-parity.
 ```
 schema/        Schema type definitions (mirrors reflection.fbs)
 parser/        .fbs -> unresolved Schema (hand-written recursive descent)
-codegen/       Code generation logic (Rust, TypeScript, gRPC)
+codegen/       Code generation logic (Rust, TypeScript/Node.js, Python, Dart, gRPC)
 compiler/      Analyzer, include resolver, JSON/BFBS tools, CLI binary
 annotator/     Binary annotation engine (.afb output)
 fbs-gen/       Random schema generator for fuzz testing

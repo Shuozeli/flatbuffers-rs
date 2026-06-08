@@ -653,7 +653,23 @@ pub(super) fn gen_debug_impl(
                         let fname = &field.name;
                         let escaped = type_map::escape_keyword(fname);
                         let accessor = type_map::to_snake_case(&escaped);
-                        w.line(&format!("s.serialize_field(\"{fname}\", &self.{accessor}())?;"));
+                        if field.type_.base_type == BaseType::BASE_TYPE_VECTOR {
+                            let tmp = format!("{accessor}_vec");
+                            if field.default_string.is_some() {
+                                w.line(&format!(
+                                    "let {tmp}: ::std::vec::Vec<_> = self.{accessor}().iter().collect();"
+                                ));
+                            } else {
+                                w.line(&format!(
+                                    "let {tmp} = self.{accessor}().map(|v| v.iter().collect::<::std::vec::Vec<_>>());"
+                                ));
+                            }
+                            w.line(&format!("s.serialize_field(\"{fname}\", &{tmp})?;"));
+                        } else {
+                            w.line(&format!(
+                                "s.serialize_field(\"{fname}\", &self.{accessor}())?;"
+                            ));
+                        }
                     }
                     w.line("s.end()");
                 },

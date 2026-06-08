@@ -578,7 +578,8 @@ where S: ::serde::Serializer {
       s.serialize_field("hp", &self.hp())?;
       s.serialize_field("name", &self.name())?;
       s.serialize_field("color", &self.color())?;
-      s.serialize_field("inventory", &self.inventory())?;
+      let inventory_vec = self.inventory().map(|v| v.iter().collect::<::std::vec::Vec<_>>());
+      s.serialize_field("inventory", &inventory_vec)?;
       s.serialize_field("flags", &self.flags())?;
       s.end()
     }

@@ -1,11 +1,11 @@
 # CLI Flag Parity: C++ flatc vs Rust flatc
 
-Last updated: 2026-03-26
+Last updated: 2026-06-08
 
 This document tracks every C++ `flatc` flag (excluding language backends we don't
 plan to support) and its status in the Rust implementation. Language-specific flags
-for unsupported languages (C++, Java, C#, Go, Python, Dart, Kotlin, Swift, Lobster,
-Lua, Nim, PHP) are excluded entirely.
+for unsupported languages (C++, Java, C#, Go, Kotlin, Swift, Lobster, Lua, Nim, PHP)
+are excluded entirely.
 
 ## Legend
 
@@ -25,6 +25,9 @@ Lua, Nim, PHP) are excluded entirely.
 | `-I PATH` | DONE | Include search paths |
 | `-r, --rust` | DONE | Rust codegen |
 | `-T, --ts` | DONE | TypeScript codegen |
+| `--nodejs` | DONE | Alias for TypeScript codegen for Node.js projects |
+| `-p, --python` | DONE | Python model codegen |
+| `-D, --dart` | DONE | Dart codegen |
 | `-b, --schema` | DONE | BFBS binary schema output |
 | `-t, --json` | DONE | Binary -> JSON conversion |
 | `--` (data files) | DONE | Data file separator for JSON/binary conversion |
@@ -55,6 +58,12 @@ Lua, Nim, PHP) are excluded entirely.
 | Flag | Status | Notes |
 |------|--------|-------|
 | `--gen-mutable` | DONE | Generate `mutate_*` methods for scalar fields in TS. Gated behind flag; off by default. |
+
+## Python-Specific Flags
+
+| Flag | Status | Notes |
+|------|--------|-------|
+| `--python` / `-p` | DONE | Generate dependency-free Python model code using dataclasses and IntEnum. |
 
 ## JSON / Binary Conversion Flags
 

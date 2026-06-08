@@ -8,8 +8,8 @@ use flatc_rs_compiler::{
     bfbs::serialize_schema,
     check_private_leak,
     codegen::{
-        generate_dart, generate_rust, generate_typescript, CodeGenOptions, DartCodeGenOptions,
-        TsCodeGenOptions,
+        generate_dart, generate_python, generate_rust, generate_typescript, CodeGenOptions,
+        DartCodeGenOptions, PythonCodeGenOptions, TsCodeGenOptions,
     },
     compile,
     conform::check_conform,
@@ -44,6 +44,14 @@ struct Cli {
     /// Generate TypeScript code for tables/structs.
     #[arg(short = 'T', long = "ts")]
     ts: bool,
+
+    /// Generate TypeScript code for Node.js projects (alias for --ts).
+    #[arg(long = "nodejs")]
+    nodejs: bool,
+
+    /// Generate Python model code for tables/structs.
+    #[arg(short = 'p', long = "python")]
+    python: bool,
 
     /// Generate Dart code for tables/structs.
     #[arg(short = 'D', long = "dart")]
@@ -236,6 +244,8 @@ fn main() {
 
     let has_action = cli.rust
         || cli.ts
+        || cli.nodejs
+        || cli.python
         || cli.dart
         || cli.binary_schema
         || cli.dump_schema
@@ -244,7 +254,7 @@ fn main() {
         || cli.conform.is_some();
     if !has_action {
         eprintln!(
-            "error: no action specified, use --rust, --ts, --dart, --json, --schema, --annotate, --conform, or --dump-schema"
+            "error: no action specified, use --rust, --ts, --nodejs, --python, --dart, --json, --schema, --annotate, --conform, or --dump-schema"
         );
         process::exit(1);
     }
@@ -669,7 +679,7 @@ fn main() {
             }
         }
 
-        if cli.ts {
+        if cli.ts || cli.nodejs {
             let ts_opts = TsCodeGenOptions {
                 gen_object_api: cli.gen_object_api,
                 gen_only_files: gen_only_files.clone(),
@@ -677,6 +687,35 @@ fn main() {
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("ts");
             let code = match generate_typescript(&result.schema, &ts_opts) {
+                Ok(code) => code,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+            };
+            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir)
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+            };
+
+            if cli.file_names_only {
+                println!("{}", out_path.display());
+            } else if let Err(e) = write_output(&out_path, &code) {
+                eprintln!("error: {e}");
+                process::exit(1);
+            }
+        }
+
+        if cli.python {
+            let python_opts = PythonCodeGenOptions {
+                gen_only_files: gen_only_files.clone(),
+            };
+            let ext = cli.filename_ext.as_deref().unwrap_or("py");
+            let code = match generate_python(&result.schema, &python_opts) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {e}");
