@@ -141,7 +141,7 @@ fn table_owned_field_type(
         }
         other => Err(CodeGenError::Internal(format!(
             "unsupported base type {:?} for Object API field '{}'",
-            other, &field.name,
+            other, field.name,
         ))),
     }
 }
@@ -176,7 +176,7 @@ fn vector_owned_element_type(
         }
         other => Err(CodeGenError::Internal(format!(
             "unsupported vector element base type {:?} for Object API field '{}'",
-            other, &field.name,
+            other, field.name,
         ))),
     }
 }

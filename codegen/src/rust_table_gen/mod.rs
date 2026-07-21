@@ -22,16 +22,16 @@ pub fn generate(
     let current_ns = type_map::object_namespace(obj);
 
     reader::gen_offset_marker(w, name, vis);
-    reader::gen_reader_struct(w, name, vis);
+    reader::gen_reader_struct(w, name, vis, opts);
     w.blank();
-    reader::gen_follow_impl(w, name);
+    reader::gen_follow_impl(w, name, opts);
     w.blank();
-    reader::gen_impl_block(w, schema, obj, name, current_ns)?;
+    reader::gen_impl_block(w, schema, obj, name, current_ns, opts)?;
     w.blank();
     reader::gen_verifiable_impl(w, schema, obj, name, current_ns)?;
     builder::gen_args_struct(w, schema, obj, name, current_ns)?;
     w.blank();
-    builder::gen_builder(w, schema, obj, name, current_ns)?;
+    builder::gen_builder(w, schema, obj, name, current_ns, opts)?;
     w.blank();
     reader::gen_debug_impl(w, obj, name, opts);
     w.blank();

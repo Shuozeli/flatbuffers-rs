@@ -6,6 +6,7 @@ mod enum_gen;
 mod namespace_tree;
 mod python_gen;
 mod rust_gen;
+mod rust_runtime_gen;
 mod rust_table_gen;
 #[cfg(feature = "grpc")]
 mod service_gen;
@@ -49,7 +50,7 @@ fn field_type_index(field: &ResolvedField) -> Result<usize, CodeGenError> {
         .type_
         .index
         .map(|i| i as usize)
-        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' type has no index", &field.name)))
+        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' type has no index", field.name)))
 }
 
 /// Get the enum/object index from a Type descriptor.
@@ -66,7 +67,7 @@ fn union_variant_type_index(val: &ResolvedEnumVal) -> Result<usize, CodeGenError
         .and_then(|t| t.index)
         .map(|i| i as usize)
         .ok_or_else(|| {
-            CodeGenError::Internal(format!("union variant '{}' has no type index", &val.name))
+            CodeGenError::Internal(format!("union variant '{}' has no type index", val.name))
         })
 }
 
@@ -74,14 +75,14 @@ fn union_variant_type_index(val: &ResolvedEnumVal) -> Result<usize, CodeGenError
 fn obj_byte_size(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
     obj.byte_size
         .map(|s| s as usize)
-        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no byte_size", &obj.name)))
+        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no byte_size", obj.name)))
 }
 
 /// Get the min_align of an object (struct).
 fn obj_min_align(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
     obj.min_align
         .map(|a| a as usize)
-        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no min_align", &obj.name)))
+        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no min_align", obj.name)))
 }
 
 /// Get a struct field's byte offset.
@@ -89,14 +90,14 @@ fn field_offset(field: &ResolvedField) -> Result<usize, CodeGenError> {
     field
         .offset
         .map(|o| o as usize)
-        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no offset", &field.name)))
+        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no offset", field.name)))
 }
 
 /// Get a table field's ID.
 fn field_id(field: &ResolvedField) -> Result<u32, CodeGenError> {
     field
         .id
-        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no id", &field.name)))
+        .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no id", field.name)))
 }
 
 /// Options for Rust code generation.
@@ -119,6 +120,8 @@ pub struct CodeGenOptions {
     /// Generate `pub(crate)` instead of `pub` for types with `(private)` attribute.
     /// Also validates that public types don't expose private types through fields.
     pub no_leak_private: bool,
+    /// Generate Rust readers over a pluggable byte-buffer abstraction.
+    pub rust_pluggable_buffer: bool,
 }
 
 /// Return the Rust visibility keyword for a type based on its attributes and options.
@@ -188,13 +191,20 @@ pub fn generate_rust(
     schema: &ResolvedSchema,
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
+    #[cfg(feature = "grpc")]
+    if !schema.services.is_empty() && !opts.gen_object_api {
+        return Err(CodeGenError::Internal(
+            "FlatBuffers gRPC code generation requires gen_object_api".to_string(),
+        ));
+    }
+
     let gen = RustGenerator::new(schema, opts);
     let code = gen.generate()?;
 
     // Append gRPC service stubs when grpc feature is enabled
     #[cfg(feature = "grpc")]
     let code = {
-        let service_code = service_gen::generate_services(schema, "super")?;
+        let service_code = service_gen::generate_services(schema)?;
         if service_code.is_empty() {
             code
         } else {

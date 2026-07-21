@@ -80,6 +80,10 @@ struct Cli {
     #[arg(long)]
     rust_module_root_file: bool,
 
+    /// Generate Rust readers over a pluggable byte-buffer abstraction.
+    #[arg(long)]
+    rust_pluggable_buffer: bool,
+
     // -- File handling --
     /// The suffix appended to generated file names (default: '_generated').
     #[arg(long, default_value = "_generated")]
@@ -305,6 +309,12 @@ fn main() {
     if cli.rust_module_root_file && !cli.rust {
         warn(
             "--rust-module-root-file has no effect without --rust",
+            cli.no_warnings,
+        );
+    }
+    if cli.rust_pluggable_buffer && !cli.rust {
+        warn(
+            "--rust-pluggable-buffer has no effect without --rust",
             cli.no_warnings,
         );
     }
@@ -653,6 +663,7 @@ fn main() {
                 gen_only_files: gen_only_files.clone(),
                 no_includes: cli.no_includes,
                 no_leak_private: cli.no_leak_private_annotation,
+                rust_pluggable_buffer: cli.rust_pluggable_buffer,
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("rs");
             let code = match generate_rust(&result.schema, &rust_opts) {

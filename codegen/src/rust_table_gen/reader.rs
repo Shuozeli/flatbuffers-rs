@@ -28,15 +28,27 @@ pub(super) fn gen_offset_marker(w: &mut CodeWriter, name: &str, vis: &str) {
 }
 
 /// Reader struct with lifetime.
-pub(super) fn gen_reader_struct(w: &mut CodeWriter, name: &str, vis: &str) {
+pub(super) fn gen_reader_struct(w: &mut CodeWriter, name: &str, vis: &str, opts: &CodeGenOptions) {
     w.blank();
-    w.block(&format!("{vis} struct {name}<'a>"), |w| {
-        w.line("pub _tab: ::flatbuffers::Table<'a>,");
-    });
+    if opts.rust_pluggable_buffer {
+        w.block(
+            &format!(
+                "{vis} struct {name}<'a, B: ?Sized + __flatc_rs_runtime::FlatBufferRead = [u8]>"
+            ),
+            |w| {
+                w.line("_buf: &'a B,");
+                w.line("_loc: usize,");
+            },
+        );
+    } else {
+        w.block(&format!("{vis} struct {name}<'a>"), |w| {
+            w.line("pub _tab: ::flatbuffers::Table<'a>,");
+        });
+    }
 }
 
 /// Follow impl for the reader.
-pub(super) fn gen_follow_impl(w: &mut CodeWriter, name: &str) {
+pub(super) fn gen_follow_impl(w: &mut CodeWriter, name: &str, opts: &CodeGenOptions) {
     w.block(
         &format!("impl<'a> ::flatbuffers::Follow<'a> for {name}<'a>"),
         |w| {
@@ -45,11 +57,30 @@ pub(super) fn gen_follow_impl(w: &mut CodeWriter, name: &str) {
             w.block(
                 "unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner",
                 |w| {
-                    w.line("Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }");
+                    if opts.rust_pluggable_buffer {
+                        w.line("Self { _buf: buf, _loc: loc }");
+                    } else {
+                        w.line("Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }");
+                    }
                 },
             );
         },
     );
+    if opts.rust_pluggable_buffer {
+        w.blank();
+        w.block(
+            &format!("unsafe impl<'a, B: ?Sized + __flatc_rs_runtime::FlatBufferRead> __flatc_rs_runtime::FollowIn<'a, B> for ::flatbuffers::ForwardsUOffset<{name}<'a, B>>"),
+            |w| {
+                w.line(&format!("type Inner = {name}<'a, B>;"));
+                w.line("#[inline]");
+                w.block("unsafe fn follow_in(buf: &'a B, loc: usize) -> Self::Inner", |w| {
+                    w.line(&format!(
+                        "{name}::init_from_buffer(buf, __flatc_rs_runtime::uoffset_target(buf, loc))"
+                    ));
+                });
+            },
+        );
+    }
 }
 
 /// Main impl block with VT constants and accessors.
@@ -59,6 +90,7 @@ pub(super) fn gen_impl_block(
     obj: &ResolvedObject,
     name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     // Pre-compute VT offsets so we don't need Result inside the closure
     let vt_offsets: Vec<(String, u32)> = obj
@@ -74,7 +106,13 @@ pub(super) fn gen_impl_block(
         })
         .collect::<Result<Vec<_>, CodeGenError>>()?;
 
-    w.try_block(&format!("impl<'a> {name}<'a>"), |w| {
+    let impl_header = if opts.rust_pluggable_buffer {
+        format!("impl<'a, B: ?Sized + __flatc_rs_runtime::FlatBufferRead> {name}<'a, B>")
+    } else {
+        format!("impl<'a> {name}<'a>")
+    };
+
+    w.try_block(&impl_header, |w| {
         // VTable offset constants
         for (upper, vt_offset) in &vt_offsets {
             w.line(&format!(
@@ -84,19 +122,36 @@ pub(super) fn gen_impl_block(
         w.blank();
         // init_from_table (used by union accessors)
         w.line("#[inline]");
-        w.block(
-            "pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self",
-            |w| {
-                w.line(&format!("{name} {{ _tab: table }}"));
-            },
-        );
+        if opts.rust_pluggable_buffer {
+            w.block(
+                "pub unsafe fn init_from_buffer(buf: &'a B, loc: usize) -> Self",
+                |w| {
+                    w.line(&format!("{name} {{ _buf: buf, _loc: loc }}"));
+                },
+            );
+            w.blank();
+            w.line("#[inline]");
+            w.block(
+                "pub unsafe fn init_from_table(table: __flatc_rs_runtime::Table<'a, B>) -> Self",
+                |w| {
+                    w.line(&format!("{name} {{ _buf: table.buf, _loc: table.loc }}"));
+                },
+            );
+        } else {
+            w.block(
+                "pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self",
+                |w| {
+                    w.line(&format!("{name} {{ _tab: table }}"));
+                },
+            );
+        }
         gen_create_method(w, obj, name);
         w.blank(); // C++ emits a double blank after create()
         w.blank();
 
         // Field accessors - key methods are emitted right after the key field
         for field in &obj.fields {
-            gen_field_accessor(w, schema, field, name, current_ns)?;
+            gen_field_accessor(w, schema, field, name, current_ns, opts)?;
             // Key comparison methods come right after the key field accessor
             if helpers::has_key_attribute(field) {
                 w.blank();
@@ -114,6 +169,7 @@ fn gen_field_accessor(
     field: &ResolvedField,
     table_name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
@@ -145,10 +201,19 @@ fn gen_field_accessor(
                     table_name,
                     current_ns,
                 },
+                opts,
             )?;
         }
         BaseType::BASE_TYPE_STRING => {
-            gen_string_accessor(w, field, &accessor_name, &upper, table_name, is_required);
+            gen_string_accessor(
+                w,
+                field,
+                &accessor_name,
+                &upper,
+                table_name,
+                is_required,
+                opts,
+            );
         }
         BaseType::BASE_TYPE_STRUCT => {
             gen_struct_field_accessor(
@@ -159,6 +224,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
+                opts,
             )?;
         }
         BaseType::BASE_TYPE_TABLE => {
@@ -170,6 +236,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
+                opts,
             )?;
         }
         BaseType::BASE_TYPE_VECTOR => {
@@ -181,6 +248,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
+                opts,
             )?;
         }
         BaseType::BASE_TYPE_UNION => {
@@ -192,6 +260,7 @@ fn gen_field_accessor(
                 &upper,
                 table_name,
                 current_ns,
+                opts,
             )?;
         }
         _ => {
@@ -207,6 +276,7 @@ fn gen_field_accessor(
 fn gen_scalar_accessor(
     w: &mut CodeWriter,
     ctx: GenScalarAccessorContext<'_>,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     // Check if this is an enum field (has index pointing to an enum)
     if has_type_index(ctx.field) {
@@ -235,10 +305,17 @@ fn gen_scalar_accessor(
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
-            w.line(&format!(
-                "unsafe {{ self._tab.get::<{enum_name}>({}::VT_{}, None) }}",
-                ctx.table_name, ctx.upper_name
-            ));
+            if opts.rust_pluggable_buffer {
+                w.line(&format!(
+                    "unsafe {{ __flatc_rs_runtime::table_get::<{enum_name}, B>(self._buf, self._loc, Self::VT_{}, None) }}",
+                    ctx.upper_name
+                ));
+            } else {
+                w.line(&format!(
+                    "unsafe {{ self._tab.get::<{enum_name}>({}::VT_{}, None) }}",
+                    ctx.table_name, ctx.upper_name
+                ));
+            }
         } else {
             w.line(&format!(
                 "pub fn {}(&self) -> {enum_name} {{",
@@ -248,10 +325,17 @@ fn gen_scalar_accessor(
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
-            w.line(&format!(
-                "unsafe {{ self._tab.get::<{enum_name}>({}::VT_{}, Some({default})).unwrap()}}",
-                ctx.table_name, ctx.upper_name
-            ));
+            if opts.rust_pluggable_buffer {
+                w.line(&format!(
+                    "unsafe {{ __flatc_rs_runtime::table_get::<{enum_name}, B>(self._buf, self._loc, Self::VT_{}, Some({default})).unwrap()}}",
+                    ctx.upper_name
+                ));
+            } else {
+                w.line(&format!(
+                    "unsafe {{ self._tab.get::<{enum_name}>({}::VT_{}, Some({default})).unwrap()}}",
+                    ctx.table_name, ctx.upper_name
+                ));
+            }
         }
         w.dedent();
         w.line("}");
@@ -268,10 +352,17 @@ fn gen_scalar_accessor(
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
-            w.line(&format!(
-                "unsafe {{ self._tab.get::<{rust_type}>({}::VT_{}, None) }}",
-                ctx.table_name, ctx.upper_name
-            ));
+            if opts.rust_pluggable_buffer {
+                w.line(&format!(
+                    "unsafe {{ __flatc_rs_runtime::table_get::<{rust_type}, B>(self._buf, self._loc, Self::VT_{}, None) }}",
+                    ctx.upper_name
+                ));
+            } else {
+                w.line(&format!(
+                    "unsafe {{ self._tab.get::<{rust_type}>({}::VT_{}, None) }}",
+                    ctx.table_name, ctx.upper_name
+                ));
+            }
         } else {
             w.line(&format!(
                 "pub fn {}(&self) -> {rust_type} {{",
@@ -281,10 +372,17 @@ fn gen_scalar_accessor(
             w.line("// Safety:");
             w.line("// Created from valid Table for this object");
             w.line("// which contains a valid value in this slot");
-            w.line(&format!(
-                "unsafe {{ self._tab.get::<{rust_type}>({}::VT_{}, Some({default})).unwrap()}}",
-                ctx.table_name, ctx.upper_name
-            ));
+            if opts.rust_pluggable_buffer {
+                w.line(&format!(
+                    "unsafe {{ __flatc_rs_runtime::table_get::<{rust_type}, B>(self._buf, self._loc, Self::VT_{}, Some({default})).unwrap()}}",
+                    ctx.upper_name
+                ));
+            } else {
+                w.line(&format!(
+                    "unsafe {{ self._tab.get::<{rust_type}>({}::VT_{}, Some({default})).unwrap()}}",
+                    ctx.table_name, ctx.upper_name
+                ));
+            }
         }
         w.dedent();
         w.line("}");
@@ -299,6 +397,7 @@ fn gen_string_accessor(
     upper_name: &str,
     table_name: &str,
     is_required: bool,
+    opts: &CodeGenOptions,
 ) {
     let has_default = field.default_string.is_some();
 
@@ -308,9 +407,15 @@ fn gen_string_accessor(
         w.line("// Safety:");
         w.line("// Created from valid Table for this object");
         w.line("// which contains a valid value in this slot");
-        w.line(&format!(
-            "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>({table_name}::VT_{upper_name}, None).unwrap()}}"
-        ));
+        if opts.rust_pluggable_buffer {
+            w.line(&format!(
+                "unsafe {{ __flatc_rs_runtime::table_get_string(self._buf, self._loc, Self::VT_{upper_name}, None).unwrap()}}"
+            ));
+        } else {
+            w.line(&format!(
+                "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>({table_name}::VT_{upper_name}, None).unwrap()}}"
+            ));
+        }
     } else if has_default {
         let default_val = field.default_string.as_deref().unwrap_or("");
         w.line(&format!("pub fn {accessor_name}(&self) -> &'a str {{"));
@@ -318,9 +423,15 @@ fn gen_string_accessor(
         w.line("// Safety:");
         w.line("// Created from valid Table for this object");
         w.line("// which contains a valid value in this slot");
-        w.line(&format!(
-            "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>({table_name}::VT_{upper_name}, Some(&\"{default_val}\")).unwrap()}}"
-        ));
+        if opts.rust_pluggable_buffer {
+            w.line(&format!(
+                "unsafe {{ __flatc_rs_runtime::table_get_string(self._buf, self._loc, Self::VT_{upper_name}, Some(&\"{default_val}\")).unwrap()}}"
+            ));
+        } else {
+            w.line(&format!(
+                "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>({table_name}::VT_{upper_name}, Some(&\"{default_val}\")).unwrap()}}"
+            ));
+        }
     } else {
         w.line(&format!(
             "pub fn {accessor_name}(&self) -> Option<&'a str> {{"
@@ -329,14 +440,21 @@ fn gen_string_accessor(
         w.line("// Safety:");
         w.line("// Created from valid Table for this object");
         w.line("// which contains a valid value in this slot");
-        w.line(&format!(
-            "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>({table_name}::VT_{upper_name}, None)}}"
-        ));
+        if opts.rust_pluggable_buffer {
+            w.line(&format!(
+                "unsafe {{ __flatc_rs_runtime::table_get_string(self._buf, self._loc, Self::VT_{upper_name}, None)}}"
+            ));
+        } else {
+            w.line(&format!(
+                "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>({table_name}::VT_{upper_name}, None)}}"
+            ));
+        }
     }
     w.dedent();
     w.line("}");
 }
 
+#[allow(clippy::too_many_arguments)]
 fn gen_struct_field_accessor(
     w: &mut CodeWriter,
     schema: &ResolvedSchema,
@@ -345,6 +463,7 @@ fn gen_struct_field_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let struct_idx = field_type_index(field)?;
     let struct_name = type_map::resolve_object_name(schema, current_ns, struct_idx);
@@ -356,14 +475,21 @@ fn gen_struct_field_accessor(
     w.line("// Safety:");
     w.line("// Created from valid Table for this object");
     w.line("// which contains a valid value in this slot");
-    w.line(&format!(
-        "unsafe {{ self._tab.get::<{struct_name}>({table_name}::VT_{upper_name}, None)}}"
-    ));
+    if opts.rust_pluggable_buffer {
+        w.line(&format!(
+            "unsafe {{ __flatc_rs_runtime::table_get_struct::<{struct_name}, B>(self._buf, self._loc, Self::VT_{upper_name})}}"
+        ));
+    } else {
+        w.line(&format!(
+            "unsafe {{ self._tab.get::<{struct_name}>({table_name}::VT_{upper_name}, None)}}"
+        ));
+    }
     w.dedent();
     w.line("}");
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn gen_table_field_accessor(
     w: &mut CodeWriter,
     schema: &ResolvedSchema,
@@ -372,25 +498,39 @@ fn gen_table_field_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let table_idx = field_type_index(field)?;
     let field_table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
 
-    w.line(&format!(
-        "pub fn {accessor_name}(&self) -> Option<{field_table_name}<'a>> {{"
-    ));
+    if opts.rust_pluggable_buffer {
+        w.line(&format!(
+            "pub fn {accessor_name}(&self) -> Option<{field_table_name}<'a, B>> {{"
+        ));
+    } else {
+        w.line(&format!(
+            "pub fn {accessor_name}(&self) -> Option<{field_table_name}<'a>> {{"
+        ));
+    }
     w.indent();
     w.line("// Safety:");
     w.line("// Created from valid Table for this object");
     w.line("// which contains a valid value in this slot");
-    w.line(&format!(
-        "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<{field_table_name}>>({table_name}::VT_{upper_name}, None)}}"
-    ));
+    if opts.rust_pluggable_buffer {
+        w.line(&format!(
+            "unsafe {{ __flatc_rs_runtime::table_field_loc(self._buf, self._loc, Self::VT_{upper_name}).map(|loc| {field_table_name}::init_from_buffer(self._buf, __flatc_rs_runtime::uoffset_target(self._buf, loc))) }}"
+        ));
+    } else {
+        w.line(&format!(
+            "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<{field_table_name}>>({table_name}::VT_{upper_name}, None)}}"
+        ));
+    }
     w.dedent();
     w.line("}");
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn gen_vector_accessor(
     w: &mut CodeWriter,
     schema: &ResolvedSchema,
@@ -399,36 +539,66 @@ fn gen_vector_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let element_bt = field.type_.element_type_or_none();
     let has_default = field.default_string.is_some();
 
-    let vector_inner = helpers::vector_element_type(schema, field, element_bt, "'a", current_ns)?;
-    let full_type =
-        format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {vector_inner}>>");
+    let vector_inner = if opts.rust_pluggable_buffer {
+        helpers::pluggable_vector_element_type(schema, field, element_bt, current_ns)?
+    } else {
+        helpers::vector_element_type(schema, field, element_bt, "'a", current_ns)?
+    };
+    let full_type = if opts.rust_pluggable_buffer {
+        format!("__flatc_rs_runtime::Vector<'a, B, {vector_inner}>")
+    } else {
+        format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {vector_inner}>>")
+    };
 
     if has_default {
         w.line(&format!(
-            "pub fn {accessor_name}(&self) -> ::flatbuffers::Vector<'a, {vector_inner}> {{"
+            "pub fn {accessor_name}(&self) -> {} {{",
+            if opts.rust_pluggable_buffer {
+                format!("__flatc_rs_runtime::Vector<'a, B, {vector_inner}>")
+            } else {
+                format!("::flatbuffers::Vector<'a, {vector_inner}>")
+            }
         ));
         w.indent();
         w.line("// Safety:");
         w.line("// Created from valid Table for this object");
         w.line("// which contains a valid value in this slot");
-        w.line(&format!(
-            "unsafe {{ self._tab.get::<{full_type}>({table_name}::VT_{upper_name}, Some(Default::default())).unwrap()}}"
-        ));
+        if opts.rust_pluggable_buffer {
+            w.line(&format!(
+                "unsafe {{ __flatc_rs_runtime::table_get_vector::<B, {vector_inner}>(self._buf, self._loc, Self::VT_{upper_name}).unwrap()}}"
+            ));
+        } else {
+            w.line(&format!(
+                "unsafe {{ self._tab.get::<{full_type}>({table_name}::VT_{upper_name}, Some(Default::default())).unwrap()}}"
+            ));
+        }
     } else {
         w.line(&format!(
-            "pub fn {accessor_name}(&self) -> Option<::flatbuffers::Vector<'a, {vector_inner}>> {{"
+            "pub fn {accessor_name}(&self) -> Option<{}> {{",
+            if opts.rust_pluggable_buffer {
+                format!("__flatc_rs_runtime::Vector<'a, B, {vector_inner}>")
+            } else {
+                format!("::flatbuffers::Vector<'a, {vector_inner}>")
+            }
         ));
         w.indent();
         w.line("// Safety:");
         w.line("// Created from valid Table for this object");
         w.line("// which contains a valid value in this slot");
-        w.line(&format!(
-            "unsafe {{ self._tab.get::<{full_type}>({table_name}::VT_{upper_name}, None)}}"
-        ));
+        if opts.rust_pluggable_buffer {
+            w.line(&format!(
+                "unsafe {{ __flatc_rs_runtime::table_get_vector::<B, {vector_inner}>(self._buf, self._loc, Self::VT_{upper_name})}}"
+            ));
+        } else {
+            w.line(&format!(
+                "unsafe {{ self._tab.get::<{full_type}>({table_name}::VT_{upper_name}, None)}}"
+            ));
+        }
     }
     w.dedent();
     w.line("}");
@@ -439,18 +609,32 @@ fn gen_vector_accessor(
             let nested_table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
             w.blank();
             w.line("#[inline]");
+            let nested_return = if opts.rust_pluggable_buffer {
+                format!("{nested_table_name}<'a, [u8]>")
+            } else {
+                format!("{nested_table_name}<'a>")
+            };
             w.line(&format!(
-                "pub fn {accessor_name}_nested_flatbuffer(&'a self) -> Option<{nested_table_name}<'a>> {{"
+                "pub fn {accessor_name}_nested_flatbuffer(&'a self) -> Option<{nested_return}> {{"
             ));
             w.indent();
-            w.line(&format!("self.{accessor_name}().map(|data| {{"));
-            w.indent();
-            w.line("use ::flatbuffers::Follow;");
-            w.line(&format!(
-                "unsafe {{ <::flatbuffers::ForwardsUOffset<{nested_table_name}<'a>>>::follow(data.bytes(), 0) }}"
-            ));
-            w.dedent();
-            w.line("})");
+            if opts.rust_pluggable_buffer {
+                w.line(&format!("let data = self.{accessor_name}()?;"));
+                w.line("let bytes = data.bytes()?;");
+                w.line("use ::flatbuffers::Follow;");
+                w.line(&format!(
+                    "Some(unsafe {{ <::flatbuffers::ForwardsUOffset<{nested_table_name}<'a>>>::follow(bytes, 0) }})"
+                ));
+            } else {
+                w.line(&format!("self.{accessor_name}().map(|data| {{"));
+                w.indent();
+                w.line("use ::flatbuffers::Follow;");
+                w.line(&format!(
+                    "unsafe {{ <::flatbuffers::ForwardsUOffset<{nested_table_name}<'a>>>::follow(data.bytes(), 0) }}"
+                ));
+                w.dedent();
+                w.line("})");
+            }
             w.dedent();
             w.line("}");
         }
@@ -458,6 +642,7 @@ fn gen_vector_accessor(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn gen_union_accessor(
     w: &mut CodeWriter,
     schema: &ResolvedSchema,
@@ -466,16 +651,29 @@ fn gen_union_accessor(
     upper_name: &str,
     table_name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     // The union value field. The type field (u8 discriminant) is a separate field
     // handled as a scalar enum accessor.
-    w.line(&format!(
-        "pub fn {accessor_name}(&self) -> Option<::flatbuffers::Table<'a>> {{"
-    ));
+    if opts.rust_pluggable_buffer {
+        w.line(&format!(
+            "pub fn {accessor_name}(&self) -> Option<__flatc_rs_runtime::Table<'a, B>> {{"
+        ));
+    } else {
+        w.line(&format!(
+            "pub fn {accessor_name}(&self) -> Option<::flatbuffers::Table<'a>> {{"
+        ));
+    }
     w.indent();
-    w.line(&format!(
-        "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>({table_name}::VT_{upper_name}, None)}}"
-    ));
+    if opts.rust_pluggable_buffer {
+        w.line(&format!(
+            "__flatc_rs_runtime::table_field_loc(self._buf, self._loc, Self::VT_{upper_name}).map(|loc| __flatc_rs_runtime::Table {{ buf: self._buf, loc: __flatc_rs_runtime::uoffset_target(self._buf, loc) }})"
+        ));
+    } else {
+        w.line(&format!(
+            "unsafe {{ self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>({table_name}::VT_{upper_name}, None)}}"
+        ));
+    }
     w.dedent();
     w.line("}");
 
@@ -506,7 +704,12 @@ fn gen_union_accessor(
                 w.blank();
                 w.line("#[inline]");
                 w.line(&format!(
-                    "pub fn {accessor_name}_as_{variant_snake}(&self) -> Option<{table_name}<'a>> {{"
+                    "pub fn {accessor_name}_as_{variant_snake}(&self) -> Option<{}> {{",
+                    if opts.rust_pluggable_buffer {
+                        format!("{table_name}<'a, B>")
+                    } else {
+                        format!("{table_name}<'a>")
+                    }
                 ));
                 w.indent();
                 w.line(&format!(
@@ -538,9 +741,15 @@ fn gen_union_accessor(
                     "if self.{accessor_name}_type() == {enum_name}::{const_name} {{"
                 ));
                 w.indent();
-                w.line(&format!(
-                    "self.{accessor_name}().map(|t| unsafe {{ <&{struct_name}>::follow(t.buf, t.loc) }})"
-                ));
+                if opts.rust_pluggable_buffer {
+                    w.line(&format!(
+                        "self.{accessor_name}().and_then(|t| unsafe {{ __flatc_rs_runtime::follow_struct::<{struct_name}, B>(t.buf, t.loc) }})"
+                    ));
+                } else {
+                    w.line(&format!(
+                        "self.{accessor_name}().map(|t| unsafe {{ <&{struct_name}>::follow(t.buf, t.loc) }})"
+                    ));
+                }
                 w.dedent();
                 w.line("} else {");
                 w.indent();
@@ -618,7 +827,12 @@ pub(super) fn gen_debug_impl(
     name: &str,
     opts: &CodeGenOptions,
 ) {
-    w.block(&format!("impl ::core::fmt::Debug for {name}<'_>"), |w| {
+    let debug_impl = if opts.rust_pluggable_buffer {
+        format!("impl<B: ?Sized + __flatc_rs_runtime::FlatBufferRead> ::core::fmt::Debug for {name}<'_, B>")
+    } else {
+        format!("impl ::core::fmt::Debug for {name}<'_>")
+    };
+    w.block(&debug_impl, |w| {
         w.block(
             "fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result",
             |w| {
@@ -639,7 +853,12 @@ pub(super) fn gen_debug_impl(
 
     if opts.rust_serialize {
         w.blank();
-        w.block(&format!("impl ::serde::Serialize for {name}<'_>"), |w| {
+        let serialize_impl = if opts.rust_pluggable_buffer {
+            format!("impl<B: ?Sized + __flatc_rs_runtime::FlatBufferRead> ::serde::Serialize for {name}<'_, B>")
+        } else {
+            format!("impl ::serde::Serialize for {name}<'_>")
+        };
+        w.block(&serialize_impl, |w| {
             w.block(
                 "fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\nwhere S: ::serde::Serializer",
                 |w| {

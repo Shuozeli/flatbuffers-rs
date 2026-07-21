@@ -57,6 +57,39 @@ pub(super) fn vector_element_type(
     }
 }
 
+/// Get the Rust type string for a vector element in pluggable-buffer reader mode.
+pub(super) fn pluggable_vector_element_type(
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+    element_bt: BaseType,
+    current_ns: &str,
+) -> Result<String, CodeGenError> {
+    match element_bt {
+        bt if type_map::is_scalar(bt) => {
+            if has_type_index(field) {
+                let enum_idx = field_type_index(field)?;
+                if enum_idx < schema.enums.len() {
+                    return Ok(type_map::resolve_enum_name(schema, current_ns, enum_idx));
+                }
+            }
+            Ok(type_map::scalar_rust_type(bt).to_string())
+        }
+        BaseType::BASE_TYPE_STRING => Ok("::flatbuffers::ForwardsUOffset<&'a str>".to_string()),
+        BaseType::BASE_TYPE_TABLE => {
+            let idx = field_type_index(field)?;
+            let tname = type_map::resolve_object_name(schema, current_ns, idx);
+            Ok(format!("::flatbuffers::ForwardsUOffset<{tname}<'a, B>>"))
+        }
+        BaseType::BASE_TYPE_STRUCT => {
+            let idx = field_type_index(field)?;
+            Ok(type_map::resolve_object_name(schema, current_ns, idx))
+        }
+        _ => Err(CodeGenError::Internal(format!(
+            "unhandled vector element type {element_bt:?}"
+        ))),
+    }
+}
+
 /// Get the type string for verifier field visitation.
 pub(super) fn verifier_type_str(
     schema: &ResolvedSchema,

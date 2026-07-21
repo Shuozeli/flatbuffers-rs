@@ -1,3 +1,4 @@
+<!-- agent-updated: 2026-07-21T21:46:21Z -->
 # flatbuffers-rs
 
 A pure Rust implementation of the [FlatBuffers](https://flatbuffers.dev/) compiler (`flatc`).
@@ -10,6 +11,7 @@ Drop-in replacement: same `.fbs` input, same generated code output, same binary 
 - Full `.fbs` schema parsing via hand-written recursive-descent parser
 - 8-step semantic analysis (type resolution, field layout, validation)
 - Rust code generation (readers, builders, Object API with pack/unpack)
+- Opt-in Rust pluggable buffer readers (`--rust-pluggable-buffer`)
 - TypeScript/Node.js code generation (readers, builders, Object API)
 - Dart code generation (readers, builders, Object API)
 - Python model code generation (dataclasses and IntEnum)
@@ -18,33 +20,42 @@ Drop-in replacement: same `.fbs` input, same generated code output, same binary 
 - Schema backwards-compatibility checking (`--conform`)
 - Binary annotation (`--annotate`) for debugging FlatBuffer data
 - Binary-compatible output verified against C++ `flatc`
-- Optional gRPC service stub generation (compile with `--features grpc`) via [pure-grpc-rs](https://github.com/shuozeli/pure-grpc-rs)
+- Optional unary gRPC codecs plus server/client stubs via [pure-grpc-rs](https://github.com/Shuozeli/pure-grpc-rs)
 - WASM compilation support for browser-based use
-- 612+ tests passing, including cross-compatibility with the C++ implementation
+- Default and all-feature release-mode test gates, including generated-code and C++ cross-compatibility coverage
 
 ## Quick Start
 
 ```bash
 # Build
-cargo build --workspace
+cargo build --release --workspace
 
 # Generate Rust code
-cargo run -- --rust -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler -- --rust -o out/ schema.fbs
 
 # Generate Rust with Object API
-cargo run -- --rust --gen-object-api -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler -- --rust --gen-object-api -o out/ schema.fbs
+
+# Generate unary FlatBuffers gRPC codecs and stubs
+cargo run --release -p flatc-rs-compiler --features grpc -- \
+  --rust --gen-object-api -o out/ schema.fbs
+
+# Generate Rust readers over a pluggable byte-buffer abstraction
+cargo run --release -p flatc-rs-compiler -- \
+  --rust --rust-pluggable-buffer -o out/ schema.fbs
 
 # Generate TypeScript
-cargo run -- --ts -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler -- --ts -o out/ schema.fbs
 
 # Generate TypeScript for Node.js projects
-cargo run -- --nodejs -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler -- --nodejs -o out/ schema.fbs
 
 # Generate Python model code
-cargo run -- --python -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler -- --python -o out/ schema.fbs
 
 # Generate multiple language outputs in one invocation
-cargo run -- --rust --ts --python -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler -- \
+  --rust --ts --python -o out/ schema.fbs
 ```
 
 ## Language Codegen Usage
@@ -53,13 +64,25 @@ cargo run -- --rust --ts --python -o out/ schema.fbs
 
 | Flag | Output | Runtime dependency | Notes |
 |------|--------|--------------------|-------|
-| `--rust` / `-r` | `schema_generated.rs` | `flatbuffers` crate | Full FlatBuffers readers, builders, verification, and optional Object API |
+| `--rust` / `-r` | `schema_generated.rs` | `flatbuffers` crate | Full FlatBuffers readers, builders, verification, optional Object API, and opt-in pluggable buffer readers with `--rust-pluggable-buffer` |
 | `--ts` / `-T` | `schema_generated.ts` | `flatbuffers` npm package | TypeScript readers, builders, Object API, namespaces, unions, vectors, and mutate methods with `--gen-mutable` |
 | `--nodejs` | `schema_generated.ts` | `flatbuffers` npm package | Alias for `--ts`; useful when build scripts name the Node.js target explicitly |
 | `--python` / `-p` | `schema_generated.py` | Python standard library | Python `dataclass(slots=True)` models and `IntEnum` enums |
 | `--dart` / `-D` | `schema_generated.dart` | `flat_buffers` Dart package | Dart readers, builders, Object API, and service clients |
 
 The Rust, TypeScript/Node.js, and Dart backends generate FlatBuffers reader/builder code. The Python backend currently generates typed model code for application and tooling use; it preserves table/struct fields, scalar defaults, optional fields, vectors, namespaces, unions, enum defaults, and keyword-safe names, but it does not include binary encode/decode helpers.
+
+Rust generated code is slice-backed by default for compatibility with upstream `flatbuffers` APIs. Add `--rust-pluggable-buffer` to generate readers over the `flatc-rs-runtime::FlatBufferRead` abstraction, including `root_as_<name>_in(&buffer)` helpers for custom byte providers such as mmap or arena-backed buffers that expose one stable immutable byte sequence through `all_bytes()` and `range()`. Builders still use the upstream `flatbuffers::Allocator` path.
+
+When `flatc-rs-compiler` is built with its `grpc` Cargo feature, Rust output for
+`rpc_service` declarations also contains `FlatBufferGrpcMessage` codecs and
+pure-grpc server/client modules. RPC messages use the owned Object API `*T`
+types, so `--gen-object-api` is required. Unary methods are supported;
+server-, client-, and bidirectional-streaming declarations fail generation
+with an explicit error until their transport contract is production-tested.
+The pure-grpc code generator is pinned to an immutable revision and its
+FlatBuffers adapter feature stays disabled, avoiding a dependency back to this
+repository.
 
 Output names follow C++ `flatc` conventions: `{input_stem}{suffix}.{ext}`. The default suffix is `_generated`; override it with `--filename-suffix`, and override the extension with `--filename-ext`.
 
@@ -79,6 +102,7 @@ Output names follow C++ `flatc` conventions: `{input_stem}{suffix}.{ext}`. The d
 | `--gen-all` | Generate code for all included schemas |
 | `--gen-mutable` | Generate mutate methods for scalar fields (TS) |
 | `--rust-serialize` | Add serde Serialize/Deserialize derives |
+| `--rust-pluggable-buffer` | Generate Rust readers over a replaceable `FlatBufferRead` byte-buffer abstraction |
 | `--rust-module-root-file` | Generate `mod.rs` instead of per-file modules |
 | `--no-includes` | Don't generate include statements |
 | `--no-leak-private-annotation` | Enforce `pub(crate)` for private types |
@@ -124,12 +148,20 @@ An interactive binary visualizer built on this compiler is available at
 
 ## Testing
 
+The workspace commits `Cargo.lock` because it ships the `flatc` binary. CI uses
+that lock for both default and all-feature release suites, plus strict default
+and all-feature production-target Clippy contracts.
+
 ```bash
 # Run all tests
-cargo test --workspace
+CARGO_INCREMENTAL=0 cargo test --release --workspace --locked
+
+# Exercise optional gRPC generation and compile an isolated downstream crate
+CARGO_INCREMENTAL=0 cargo test --release --locked \
+  -p flatc-rs-compiler --features grpc --test grpc_codegen_compile_test
 
 # Regenerate golden files after intentional output changes
-UPDATE_GOLDEN=1 cargo test --workspace
+UPDATE_GOLDEN=1 CARGO_INCREMENTAL=0 cargo test --release --workspace --locked
 ```
 
 ## License

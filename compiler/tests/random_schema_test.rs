@@ -9,10 +9,27 @@ use flatc_rs_fbs_gen::{GenConfig, SchemaBuilder};
 
 const NUM_SEEDS: u64 = 500;
 
+fn general_codegen_config() -> GenConfig {
+    #[cfg(feature = "grpc")]
+    {
+        // The optional transport deliberately rejects streaming RPCs. Its
+        // unary behavior has a dedicated downstream compilation test, while
+        // this property test remains focused on general Rust/TS codegen.
+        GenConfig {
+            prob_rpc_service: 0.0,
+            ..GenConfig::default()
+        }
+    }
+    #[cfg(not(feature = "grpc"))]
+    {
+        GenConfig::default()
+    }
+}
+
 #[test]
 fn random_schema_compiles_rust() {
     for seed in 0..NUM_SEEDS {
-        let config = GenConfig::default();
+        let config = general_codegen_config();
         let fbs_text = SchemaBuilder::generate(seed, config);
 
         let result = compile_single(&fbs_text).unwrap_or_else(|e| {
@@ -33,7 +50,7 @@ fn random_schema_compiles_rust() {
 #[test]
 fn random_schema_compiles_typescript() {
     for seed in 0..NUM_SEEDS {
-        let config = GenConfig::default();
+        let config = general_codegen_config();
         let fbs_text = SchemaBuilder::generate(seed, config);
 
         let result = compile_single(&fbs_text).unwrap_or_else(|e| {
@@ -63,7 +80,7 @@ fn random_schema_matches_cpp_flatc() {
     };
 
     for seed in 0..50 {
-        let config = GenConfig::default();
+        let config = general_codegen_config();
         let fbs_text = SchemaBuilder::generate(seed, config);
 
         let dir = tempfile::tempdir().unwrap();

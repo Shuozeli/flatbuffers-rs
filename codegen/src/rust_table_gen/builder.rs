@@ -3,10 +3,18 @@ use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
 use crate::type_map;
-use crate::CodeGenError;
+use crate::{CodeGenError, CodeGenOptions};
 use codegen_core::CodeWriter;
 
 use super::helpers;
+
+fn table_vt_ref(table_name: &str, upper: &str, opts: &CodeGenOptions) -> String {
+    if opts.rust_pluggable_buffer {
+        format!("{table_name}::<'_, [u8]>::VT_{upper}")
+    } else {
+        format!("{table_name}::VT_{upper}")
+    }
+}
 
 /// Generate the builder struct.
 pub(super) fn gen_builder(
@@ -15,6 +23,7 @@ pub(super) fn gen_builder(
     obj: &ResolvedObject,
     name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     // Builder struct
     w.block(
@@ -31,7 +40,7 @@ pub(super) fn gen_builder(
         |w| {
             // add_* methods for each field
             for field in &obj.fields {
-                gen_builder_add_method(w, schema, field, name, current_ns)?;
+                gen_builder_add_method(w, schema, field, name, current_ns, opts)?;
             }
 
             // new()
@@ -64,7 +73,8 @@ pub(super) fn gen_builder(
                             let escaped = type_map::escape_keyword(fname);
                             let upper = type_map::to_upper_snake_case(&escaped);
                             w.line(&format!(
-                                "self.fbb_.required(o, {name}::VT_{upper},\"{fname}\");"
+                                "self.fbb_.required(o, {},\"{fname}\");",
+                                table_vt_ref(name, &upper, opts)
                             ));
                         }
                     }
@@ -82,6 +92,7 @@ fn gen_builder_add_method(
     field: &ResolvedField,
     table_name: &str,
     current_ns: &str,
+    opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
@@ -103,7 +114,8 @@ fn gen_builder_add_method(
                 ));
                 w.indent();
                 w.line(&format!(
-                    "self.fbb_.push_slot::<{param_type}>({table_name}::VT_{upper}, {accessor}, {default});"
+                    "self.fbb_.push_slot::<{param_type}>({}, {accessor}, {default});",
+                    table_vt_ref(table_name, &upper, opts)
                 ));
             } else {
                 w.line(&format!(
@@ -111,7 +123,8 @@ fn gen_builder_add_method(
                 ));
                 w.indent();
                 w.line(&format!(
-                    "self.fbb_.push_slot_always::<{param_type}>({table_name}::VT_{upper}, {accessor});"
+                    "self.fbb_.push_slot_always::<{param_type}>({}, {accessor});",
+                    table_vt_ref(table_name, &upper, opts)
                 ));
             }
             w.dedent();
@@ -123,7 +136,8 @@ fn gen_builder_add_method(
             ));
             w.indent();
             w.line(&format!(
-                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>({table_name}::VT_{upper}, {accessor});"
+                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>({}, {accessor});",
+                table_vt_ref(table_name, &upper, opts)
             ));
             w.dedent();
             w.line("}");
@@ -136,7 +150,8 @@ fn gen_builder_add_method(
             ));
             w.indent();
             w.line(&format!(
-                "self.fbb_.push_slot_always::<&{struct_name}>({table_name}::VT_{upper}, {accessor});"
+                "self.fbb_.push_slot_always::<&{struct_name}>({}, {accessor});",
+                table_vt_ref(table_name, &upper, opts)
             ));
             w.dedent();
             w.line("}");
@@ -149,7 +164,8 @@ fn gen_builder_add_method(
             ));
             w.indent();
             w.line(&format!(
-                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<{table_name_ref}>>({table_name}::VT_{upper}, {accessor});"
+                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<{table_name_ref}>>({}, {accessor});",
+                table_vt_ref(table_name, &upper, opts)
             ));
             w.dedent();
             w.line("}");
@@ -163,7 +179,8 @@ fn gen_builder_add_method(
             ));
             w.indent();
             w.line(&format!(
-                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>({table_name}::VT_{upper}, {accessor});"
+                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>({}, {accessor});",
+                table_vt_ref(table_name, &upper, opts)
             ));
             w.dedent();
             w.line("}");
@@ -174,7 +191,8 @@ fn gen_builder_add_method(
             ));
             w.indent();
             w.line(&format!(
-                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>({table_name}::VT_{upper}, {accessor});"
+                "self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>({}, {accessor});",
+                table_vt_ref(table_name, &upper, opts)
             ));
             w.dedent();
             w.line("}");
