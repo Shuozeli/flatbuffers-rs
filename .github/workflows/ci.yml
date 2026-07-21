@@ -7,6 +7,7 @@ on:
     branches: [main]
 
 env:
+  CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -19,11 +20,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build
-        run: cargo build --workspace
+      - name: Check all features
+        run: cargo check --release --workspace --all-features --locked
 
-      - name: Test
-        run: cargo test --workspace
+      - name: Test default features
+        run: cargo test --release --workspace --locked
+
+      - name: Test all features
+        run: cargo test --release --workspace --all-features --locked
 
   clippy:
     runs-on: ubuntu-latest
@@ -36,8 +40,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Clippy
-        run: cargo clippy --workspace -- -D warnings
+      - name: Clippy default feature contract
+        run: cargo clippy --release --workspace --locked -- -D warnings
+
+      - name: Clippy all-feature production targets
+        run: cargo clippy --release --workspace --all-features --lib --bins --locked -- -D warnings
 
   fmt:
     runs-on: ubuntu-latest

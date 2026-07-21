@@ -622,7 +622,7 @@ impl<'a> DartGenerator<'a> {
                         let variant_idx = union_type.index.ok_or_else(|| {
                             CodeGenError::Internal(format!(
                                 "union variant '{}' has no type index",
-                                &val.name
+                                val.name
                             ))
                         })? as usize;
                         let variant_obj = &self.schema.objects[variant_idx];

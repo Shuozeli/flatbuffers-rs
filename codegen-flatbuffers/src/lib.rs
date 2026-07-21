@@ -114,20 +114,17 @@ fn convert_type(rt: &ResolvedType, schema: &ResolvedSchema) -> Result<Type, Code
                 .values
                 .iter()
                 .filter_map(|v| {
-                    let ty = if let Some(ref type_resolved) = v.union_type {
-                        let type_idx = type_resolved.index?;
-                        let type_idx_usize = usize::try_from(type_idx).ok()?;
-                        if type_idx_usize >= schema.objects.len() {
-                            return None;
-                        }
-                        let obj = &schema.objects[type_idx_usize];
-                        let namespace = obj.namespace.as_ref().and_then(|n| n.namespace.clone());
-                        Type::Message {
-                            name: obj.name.clone(),
-                            package: namespace,
-                        }
-                    } else {
+                    let type_resolved = v.union_type.as_ref()?;
+                    let type_idx = type_resolved.index?;
+                    let type_idx_usize = usize::try_from(type_idx).ok()?;
+                    if type_idx_usize >= schema.objects.len() {
                         return None;
+                    }
+                    let obj = &schema.objects[type_idx_usize];
+                    let namespace = obj.namespace.as_ref().and_then(|n| n.namespace.clone());
+                    let ty = Type::Message {
+                        name: obj.name.clone(),
+                        package: namespace,
                     };
                     Some(OneOfVariant {
                         name: v.name.clone(),

@@ -2,6 +2,7 @@ use flatc_rs_schema::resolved::ResolvedSchema;
 
 use super::enum_gen;
 use super::namespace_tree::{self, NamespaceNode, TypeEntry};
+use super::rust_runtime_gen;
 use super::rust_table_gen;
 use super::struct_gen;
 use super::type_map;
@@ -41,6 +42,9 @@ impl<'a> RustGenerator<'a> {
         self.w.line("extern crate alloc;");
         if self.opts.rust_serialize {
             self.w.line("extern crate serde;");
+        }
+        if self.opts.rust_pluggable_buffer {
+            rust_runtime_gen::generate(&mut self.w);
         }
     }
 
@@ -122,7 +126,12 @@ impl<'a> RustGenerator<'a> {
         let full_name = if ns.is_empty() {
             name.to_string()
         } else {
-            format!("{}::{}", ns.replace('.', "::"), name)
+            let ns_path = ns
+                .split('.')
+                .map(type_map::to_snake_case)
+                .collect::<Vec<_>>()
+                .join("::");
+            format!("{ns_path}::{name}")
         };
 
         let snake = type_map::to_snake_case(name);
@@ -145,11 +154,43 @@ impl<'a> RustGenerator<'a> {
             "pub fn root_as_{snake}(buf: &[u8]) -> Result<{full_name}<'_>, ::flatbuffers::InvalidFlatbuffer> {{"
         ));
         self.w.indent();
-        self.w
-            .line(&format!("::flatbuffers::root::<{full_name}>(buf)"));
+        if self.opts.rust_pluggable_buffer {
+            self.w.line(&format!("root_as_{snake}_in::<[u8]>(buf)"));
+        } else {
+            self.w
+                .line(&format!("::flatbuffers::root::<{full_name}>(buf)"));
+        }
         self.w.dedent();
         self.w.line("}");
         self.w.blank();
+
+        if self.opts.rust_pluggable_buffer {
+            self.w.line("#[inline]");
+            self.w.line(&format!(
+                "pub fn root_as_{snake}_in<'a, B>(buf: &'a B) -> Result<{full_name}<'a, B>, ::flatbuffers::InvalidFlatbuffer>"
+            ));
+            self.w.line("where");
+            self.w.indent();
+            self.w
+                .line("B: ?Sized + __flatc_rs_runtime::FlatBufferRead,");
+            self.w.dedent();
+            self.w.line("{");
+            self.w.indent();
+            self.w.line("let bytes = buf.all_bytes().ok_or(::flatbuffers::InvalidFlatbuffer::RangeOutOfBounds {");
+            self.w.indent();
+            self.w.line("range: 0..buf.len(),");
+            self.w.line("error_trace: Default::default(),");
+            self.w.dedent();
+            self.w.line("})?;");
+            self.w
+                .line(&format!("::flatbuffers::root::<{full_name}>(bytes)?;"));
+            self.w.line(&format!(
+                "Ok(unsafe {{ {full_name}::init_from_buffer(buf, __flatc_rs_runtime::root_loc(buf)) }})"
+            ));
+            self.w.dedent();
+            self.w.line("}");
+            self.w.blank();
+        }
 
         // size_prefixed_root_as_*
         self.w.line("#[inline]");
@@ -157,12 +198,46 @@ impl<'a> RustGenerator<'a> {
             "pub fn size_prefixed_root_as_{snake}(buf: &[u8]) -> Result<{full_name}<'_>, ::flatbuffers::InvalidFlatbuffer> {{"
         ));
         self.w.indent();
-        self.w.line(&format!(
-            "::flatbuffers::size_prefixed_root::<{full_name}>(buf)"
-        ));
+        if self.opts.rust_pluggable_buffer {
+            self.w
+                .line(&format!("size_prefixed_root_as_{snake}_in::<[u8]>(buf)"));
+        } else {
+            self.w.line(&format!(
+                "::flatbuffers::size_prefixed_root::<{full_name}>(buf)"
+            ));
+        }
         self.w.dedent();
         self.w.line("}");
         self.w.blank();
+
+        if self.opts.rust_pluggable_buffer {
+            self.w.line("#[inline]");
+            self.w.line(&format!(
+                "pub fn size_prefixed_root_as_{snake}_in<'a, B>(buf: &'a B) -> Result<{full_name}<'a, B>, ::flatbuffers::InvalidFlatbuffer>"
+            ));
+            self.w.line("where");
+            self.w.indent();
+            self.w
+                .line("B: ?Sized + __flatc_rs_runtime::FlatBufferRead,");
+            self.w.dedent();
+            self.w.line("{");
+            self.w.indent();
+            self.w.line("let bytes = buf.all_bytes().ok_or(::flatbuffers::InvalidFlatbuffer::RangeOutOfBounds {");
+            self.w.indent();
+            self.w.line("range: 0..buf.len(),");
+            self.w.line("error_trace: Default::default(),");
+            self.w.dedent();
+            self.w.line("})?;");
+            self.w.line(&format!(
+                "::flatbuffers::size_prefixed_root::<{full_name}>(bytes)?;"
+            ));
+            self.w.line(&format!(
+                "Ok(unsafe {{ {full_name}::init_from_buffer(buf, __flatc_rs_runtime::size_prefixed_root_loc(buf)) }})"
+            ));
+            self.w.dedent();
+            self.w.line("}");
+            self.w.blank();
+        }
 
         // root_as_*_unchecked (unsafe)
         self.w.line("#[inline]");
@@ -173,9 +248,15 @@ impl<'a> RustGenerator<'a> {
             "pub unsafe fn root_as_{snake}_unchecked(buf: &[u8]) -> {full_name}<'_> {{"
         ));
         self.w.indent();
-        self.w.line(&format!(
-            "unsafe {{ ::flatbuffers::root_unchecked::<{full_name}>(buf) }}"
-        ));
+        if self.opts.rust_pluggable_buffer {
+            self.w.line(&format!(
+                "unsafe {{ {full_name}::init_from_buffer(buf, __flatc_rs_runtime::root_loc(buf)) }}"
+            ));
+        } else {
+            self.w.line(&format!(
+                "unsafe {{ ::flatbuffers::root_unchecked::<{full_name}>(buf) }}"
+            ));
+        }
         self.w.dedent();
         self.w.line("}");
 

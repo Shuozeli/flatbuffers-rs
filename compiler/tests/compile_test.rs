@@ -53,7 +53,7 @@ fn assert_compiles(schema_source: &str, opts: &CodeGenOptions, test_name: &str) 
         cmd.arg("-L").arg(deps_dir);
         // Add --extern for crates used by generated code to avoid ambiguity
         // when multiple versions exist in the deps directory.
-        for crate_name in &["flatbuffers", "serde"] {
+        for crate_name in &["flatbuffers", "flatc_rs_runtime", "serde"] {
             if let Some(rlib) = find_extern_rlib(deps_dir, crate_name) {
                 cmd.arg("--extern").arg(format!("{crate_name}={rlib}"));
             }
@@ -146,9 +146,45 @@ fn serde_opts() -> CodeGenOptions {
     }
 }
 
+fn pluggable_buffer_opts() -> CodeGenOptions {
+    CodeGenOptions {
+        gen_name_constants: true,
+        gen_object_api: true,
+        rust_pluggable_buffer: true,
+        gen_only_files: None,
+        ..CodeGenOptions::default()
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test cases: each schema exercises a different codegen feature
 // ---------------------------------------------------------------------------
+
+#[test]
+fn compile_rust_pluggable_buffer_readers() {
+    assert_compiles(
+        r#"
+namespace MyGame.Sample;
+
+table Weapon {
+  name: string;
+  damage: short = 10;
+}
+
+table Monster {
+  hp: short = 100;
+  name: string (required);
+  inventory: [ubyte];
+  weapons: [Weapon];
+}
+
+root_type Monster;
+file_identifier "MONS";
+"#,
+        &pluggable_buffer_opts(),
+        "rust_pluggable_buffer_readers",
+    );
+}
 
 #[test]
 fn compile_table_with_scalars() {

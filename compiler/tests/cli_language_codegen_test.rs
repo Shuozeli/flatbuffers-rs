@@ -69,3 +69,87 @@ fn cli_generates_python() {
 fn cli_nodejs_alias_generates_typescript() {
     run_flatc("nodejs_alias", &["--nodejs"], &["monster_generated.ts"]);
 }
+
+#[test]
+fn cli_rust_pluggable_buffer_generates_runtime_adapter() {
+    // Arrange
+    let tmp = tempfile::tempdir()
+        .unwrap_or_else(|e| panic!("rust_pluggable_buffer: failed to create tempdir: {e}"));
+    let schema_path = tmp.path().join("monster.fbs");
+    let out_dir = tmp.path().join("out");
+    std::fs::write(
+        &schema_path,
+        r#"
+            namespace Cli.Test;
+            table Monster {
+                hp: short = 100;
+                name: string;
+                inventory: [ubyte];
+            }
+            root_type Monster;
+        "#,
+    )
+    .unwrap_or_else(|e| panic!("rust_pluggable_buffer: failed to write schema: {e}"));
+
+    // Act
+    let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-o")
+        .arg(&out_dir)
+        .arg("--rust")
+        .arg("--rust-pluggable-buffer")
+        .arg(&schema_path)
+        .output()
+        .unwrap_or_else(|e| panic!("rust_pluggable_buffer: failed to run flatc: {e}"));
+
+    // Assert
+    if !output.status.success() {
+        panic!(
+            "rust_pluggable_buffer: flatc failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let generated = std::fs::read_to_string(out_dir.join("monster_generated.rs"))
+        .unwrap_or_else(|e| panic!("rust_pluggable_buffer: failed to read generated Rust: {e}"));
+    assert!(generated.contains("pub mod __flatc_rs_runtime"));
+    assert!(generated.contains("flatc_rs_runtime"));
+    assert!(generated.contains("FlatBufferRead"));
+    assert!(generated.contains("root_as_monster_in"));
+}
+
+#[cfg(feature = "grpc")]
+#[test]
+fn cli_requires_object_api_for_grpc_service_messages() {
+    // Arrange
+    let tmp = tempfile::tempdir()
+        .unwrap_or_else(|e| panic!("grpc_object_api: failed to create tempdir: {e}"));
+    let schema_path = tmp.path().join("greeter.fbs");
+    let out_dir = tmp.path().join("out");
+    std::fs::write(
+        &schema_path,
+        r#"
+            table HelloRequest { name: string; }
+            table HelloReply { message: string; }
+            rpc_service Greeter { SayHello(HelloRequest): HelloReply; }
+        "#,
+    )
+    .unwrap_or_else(|e| panic!("grpc_object_api: failed to write schema: {e}"));
+
+    // Act
+    let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-o")
+        .arg(&out_dir)
+        .arg("--rust")
+        .arg(&schema_path)
+        .output()
+        .unwrap_or_else(|e| panic!("grpc_object_api: failed to run flatc: {e}"));
+
+    // Assert
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("gRPC code generation requires gen_object_api"),
+        "unexpected stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

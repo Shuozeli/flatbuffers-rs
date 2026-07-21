@@ -1,0 +1,12 @@
+[package]
+name = "flatc-rs-runtime"
+description = "Runtime traits and buffer adapters for generated FlatBuffers Rust readers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+flatbuffers = { version = "25.12.19" }

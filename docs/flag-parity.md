@@ -1,6 +1,7 @@
+<!-- agent-updated: 2026-07-21T21:46:21Z -->
 # CLI Flag Parity: C++ flatc vs Rust flatc
 
-Last updated: 2026-06-08
+Last updated: 2026-07-21
 
 This document tracks every C++ `flatc` flag (excluding language backends we don't
 plan to support) and its status in the Rust implementation. Language-specific flags
@@ -49,6 +50,7 @@ are excluded entirely.
 | Flag | Status | Notes |
 |------|--------|-------|
 | `--rust-serialize` | DONE | `serde::Serialize` on generated types |
+| `--rust-pluggable-buffer` | DONE | Generate opt-in Rust readers over a `FlatBufferRead` byte-buffer abstraction. Default Rust output remains slice-backed and unchanged. |
 | `--rust-module-root-file` | STUB | Accepted, warns not implemented |
 | `--require-explicit-ids` | STUB | Accepted, warns not implemented |
 | `--no-leak-private-annotation` | DONE | Controls `pub` vs `pub(crate)` in Rust codegen. Types with `(private)` attribute get `pub(crate)` visibility when this flag is set. |
@@ -133,7 +135,20 @@ These control details of the `--schema` / `-b` output.
 
 ## gRPC
 
-gRPC service stub generation is enabled via the `features = ["grpc"]` Cargo feature on the `flatc-rs-codegen` crate (compile-time), not a runtime CLI flag. It uses `grpc-codegen` from [pure-grpc-rs](https://github.com/shuozeli/pure-grpc-rs) to generate server traits and client stubs from `rpc_service` declarations. This is intentionally not a CLI flag since it requires a compile-time dependency.
+gRPC generation is a compile-time capability rather than a runtime CLI flag.
+Enable the forwarding `grpc` feature on `flatc-rs-compiler` (or directly on
+`flatc-rs-codegen`) and pass `--rust --gen-object-api`. The generated file
+contains `FlatBufferGrpcMessage` implementations for the namespaced owned `*T`
+request/response types plus pure-grpc server and client modules for each
+`rpc_service`. Unary RPCs are supported. Streaming modes fail generation
+explicitly rather than emitting partial stubs.
+
+The adapter maps the repository-local resolved schema into pure-grpc's
+codec-neutral IR. `grpc-codegen` is pinned to an immutable pure-grpc revision
+with its own FlatBuffers adapter disabled, so the optional feature does not
+pull a second remote `flatc-rs-schema` back into the graph. A feature-gated
+integration test runs the CLI and compiles its output as an isolated downstream
+crate against that same transport revision.
 
 ## Proto Conversion
 

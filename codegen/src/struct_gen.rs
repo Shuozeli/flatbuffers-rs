@@ -177,6 +177,22 @@ pub fn generate(
         "impl ::flatbuffers::SimpleToVerifyInSlice for {name} {{}}"
     ));
 
+    if opts.rust_pluggable_buffer {
+        w.blank();
+        w.block(
+            &format!("unsafe impl<'a, B: ?Sized + __flatc_rs_runtime::FlatBufferRead> __flatc_rs_runtime::FollowIn<'a, B> for {name}"),
+            |w| {
+                w.line(&format!("type Inner = &'a {name};"));
+                w.line("#[inline]");
+                w.block("unsafe fn follow_in(buf: &'a B, loc: usize) -> Self::Inner", |w| {
+                    w.line(&format!(
+                        "__flatc_rs_runtime::follow_struct::<{name}, B>(buf, loc).expect(\"flatbuffer struct out of bounds\")"
+                    ));
+                });
+            },
+        );
+    }
+
     // Object API: owned T type with pack/unpack
     if opts.gen_object_api {
         w.blank();
@@ -475,7 +491,7 @@ fn array_element_info(
     let ty = &field.type_;
     let et = ty.element_type.unwrap_or(BaseType::BASE_TYPE_NONE);
     let fixed_len = ty.fixed_length.ok_or_else(|| {
-        CodeGenError::Internal(format!("array field '{}' has no fixed_length", &field.name))
+        CodeGenError::Internal(format!("array field '{}' has no fixed_length", field.name))
     })? as usize;
 
     let elem_type_str = if et == BaseType::BASE_TYPE_STRUCT {

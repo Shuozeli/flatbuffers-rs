@@ -12,6 +12,15 @@ categories.workspace = true
 name = "flatc"
 path = "src/main.rs"
 
+[[test]]
+name = "grpc_codegen_compile_test"
+path = "tests/grpc_codegen_compile_test.rs"
+required-features = ["grpc"]
+
+[features]
+default = []
+grpc = ["flatc-rs-codegen/grpc"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 flatbuffers = { version = "25.12.19" }
@@ -24,6 +33,7 @@ thiserror = "2"
 
 [dev-dependencies]
 flatbuffers = { version = "25.12.19", features = ["serialize"] }
+flatc-rs-runtime = { path = "../runtime" }
 flatc-rs-fbs-gen = { path = "../fbs-gen" }
 flatc-rs-test-utils = { path = "../test-utils" }
 quickcheck = "1"
