@@ -26,6 +26,9 @@ pub(super) fn gen_object_api(
         .fields
         .iter()
         .map(|field| {
+            if field.is_deprecated {
+                return Ok(None);
+            }
             let bt = field.type_.base_type;
             if helpers::is_union_type_field(schema, field) {
                 return Ok(None);
@@ -234,6 +237,9 @@ fn gen_pack_body(
 ) -> Result<(), CodeGenError> {
     // Phase 1: Pre-build all non-scalar fields into local variables
     for field in &obj.fields {
+        if field.is_deprecated {
+            continue;
+        }
         let bt = field.type_.base_type;
         if helpers::is_union_type_field(schema, field) {
             continue;
@@ -281,9 +287,12 @@ fn gen_pack_body(
     }
 
     // Phase 2: Assemble into Args struct and create
-    w.line(&format!("create{name}(_fbb, &{name}Args {{"));
+    w.line(&format!("{name}::create(_fbb, &{name}Args {{"));
     w.indent();
     for field in &obj.fields {
+        if field.is_deprecated {
+            continue;
+        }
         let bt = field.type_.base_type;
         let fname = type_map::to_snake_case(&type_map::escape_keyword(&field.name));
         if bt == BaseType::BASE_TYPE_UNION || helpers::is_union_type_field(schema, field) {
@@ -394,6 +403,9 @@ fn gen_unpack_body(
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
     for field in &obj.fields {
+        if field.is_deprecated {
+            continue;
+        }
         let bt = field.type_.base_type;
         if helpers::is_union_type_field(schema, field) {
             continue;
@@ -444,6 +456,9 @@ fn gen_unpack_body(
     w.line(&format!("{t_name} {{"));
     w.indent();
     for field in &obj.fields {
+        if field.is_deprecated {
+            continue;
+        }
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
@@ -563,10 +578,18 @@ fn gen_unpack_union_field(
             .map(|t| t.base_type)
             .unwrap_or(BaseType::BASE_TYPE_NONE);
 
-        if variant_bt == BaseType::BASE_TYPE_TABLE {
-            w.line(&format!(
-                "{ename}::{const_name} => {ename}T::{t_variant}(alloc::boxed::Box::new(self.{fname}_as_{variant_snake}().unwrap().unpack())),"
-            ));
+        match variant_bt {
+            BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                w.line(&format!(
+                    "{ename}::{const_name} => {ename}T::{t_variant}(alloc::boxed::Box::new(self.{fname}_as_{variant_snake}().unwrap().unpack())),"
+                ));
+            }
+            _ => {
+                return Err(CodeGenError::Internal(format!(
+                    "union variant '{}::{}' has unsupported Object API type {variant_bt:?}",
+                    union_enum.name, val.name
+                )));
+            }
         }
     }
     w.line(&format!("_ => {ename}T::NONE,"));

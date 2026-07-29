@@ -9,7 +9,10 @@ use flatc_rs_compiler::{
     codegen::{generate_rust, CodeGenOptions},
     parser::FbsParser,
 };
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::OnceLock;
+use std::time::SystemTime;
 
 /// Generate Rust code from a schema string, write it to a temp file, and
 /// run `rustc --edition 2021 --crate-type lib` on it.
@@ -54,9 +57,12 @@ fn assert_compiles(schema_source: &str, opts: &CodeGenOptions, test_name: &str) 
         // Add --extern for crates used by generated code to avoid ambiguity
         // when multiple versions exist in the deps directory.
         for crate_name in &["flatbuffers", "flatc_rs_runtime", "serde"] {
-            if let Some(rlib) = find_extern_rlib(deps_dir, crate_name) {
-                cmd.arg("--extern").arg(format!("{crate_name}={rlib}"));
-            }
+            let rlib = find_extern_rlib(deps_dir, crate_name).unwrap_or_else(|| {
+                panic!(
+                    "[{test_name}] no {crate_name} rlib compatible with the active rustc exists in {deps_dir}"
+                )
+            });
+            cmd.arg("--extern").arg(format!("{crate_name}={rlib}"));
         }
     }
 
@@ -103,28 +109,78 @@ fn find_flatbuffers_rlib() -> Option<String> {
 }
 
 /// Find a specific crate's rlib file in a deps directory.
-/// When multiple candidates exist (e.g., different feature sets), pick the
-/// newest one -- dev-dependency builds run last and include all features.
+/// When multiple candidates exist (e.g., different features or a prior
+/// toolchain), pick the newest one that the active rustc can load.
 fn find_extern_rlib(deps_dir: &str, crate_name: &str) -> Option<String> {
+    static FLATBUFFERS: OnceLock<Option<String>> = OnceLock::new();
+    static FLATC_RS_RUNTIME: OnceLock<Option<String>> = OnceLock::new();
+    static SERDE: OnceLock<Option<String>> = OnceLock::new();
+
+    let cache = match crate_name {
+        "flatbuffers" => &FLATBUFFERS,
+        "flatc_rs_runtime" => &FLATC_RS_RUNTIME,
+        "serde" => &SERDE,
+        _ => return find_compatible_extern_rlib(deps_dir, crate_name),
+    };
+    cache
+        .get_or_init(|| find_compatible_extern_rlib(deps_dir, crate_name))
+        .clone()
+}
+
+fn find_compatible_extern_rlib(deps_dir: &str, crate_name: &str) -> Option<String> {
     let dir = std::path::Path::new(deps_dir);
     if !dir.is_dir() {
         return None;
     }
     let prefix = format!("lib{crate_name}-");
-    let mut best: Option<(String, std::time::SystemTime)> = None;
+    let mut candidates: Vec<(PathBuf, SystemTime)> = Vec::new();
     for entry in std::fs::read_dir(dir).ok()? {
-        let entry = entry.ok()?;
+        let Ok(entry) = entry else {
+            continue;
+        };
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
         if name_str.starts_with(&prefix) && name_str.ends_with(".rlib") {
-            let mtime = entry.metadata().ok()?.modified().ok()?;
-            let path = entry.path().to_string_lossy().to_string();
-            if best.as_ref().is_none_or(|(_, t)| mtime > *t) {
-                best = Some((path, mtime));
-            }
+            let Ok(mtime) = entry.metadata().and_then(|metadata| metadata.modified()) else {
+                continue;
+            };
+            candidates.push((entry.path(), mtime));
         }
     }
-    best.map(|(p, _)| p)
+    candidates.sort_by(|left, right| right.1.cmp(&left.1));
+    candidates
+        .into_iter()
+        .map(|(path, _)| path)
+        .find(|path| rlib_is_compatible(dir, crate_name, path))
+        .map(|path| path.to_string_lossy().to_string())
+}
+
+fn rlib_is_compatible(deps_dir: &Path, crate_name: &str, rlib: &Path) -> bool {
+    let Ok(probe_dir) = tempfile::tempdir() else {
+        return false;
+    };
+    let source = probe_dir.path().join("probe.rs");
+    if std::fs::write(&source, format!("extern crate {crate_name};\n")).is_err() {
+        return false;
+    }
+    let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+    Command::new(rustc)
+        .arg("--edition=2021")
+        .arg("--crate-type=lib")
+        .arg("--crate-name")
+        .arg(format!("probe_{crate_name}"))
+        .arg("--emit=metadata")
+        .arg("--out-dir")
+        .arg(probe_dir.path())
+        .arg("-L")
+        .arg(format!("dependency={}", deps_dir.display()))
+        .arg("--extern")
+        .arg(format!("{crate_name}={}", rlib.display()))
+        .arg(&source)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
 }
 
 fn default_opts() -> CodeGenOptions {
@@ -255,6 +311,33 @@ table Hero {
         &default_opts(),
         "enum_union",
     );
+}
+
+#[test]
+fn compile_union_with_struct_variant() {
+    // Arrange
+    let schema = r#"
+struct Position {
+  x: float;
+  y: float;
+}
+
+table Weapon {
+  damage: int;
+}
+
+union Equipment {
+  Weapon,
+  Position,
+}
+
+table Hero {
+  equipped: Equipment;
+}
+"#;
+
+    // Act / Assert
+    assert_compiles(schema, &default_opts(), "union_struct_variant");
 }
 
 #[test]

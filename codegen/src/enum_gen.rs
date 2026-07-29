@@ -468,8 +468,9 @@ fn gen_union_object_api(
 
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
 
-    // Pre-compute union variant type indices so we don't need Result inside closures
-    let variant_info: Vec<Option<usize>> = enum_def
+    // Pre-compute union variant kinds and type indices so no fallible lookup
+    // occurs while writing the Object API.
+    let variant_info: Vec<Option<(BaseType, usize)>> = enum_def
         .values
         .iter()
         .map(|val| {
@@ -482,10 +483,14 @@ fn gen_union_object_api(
                 .as_ref()
                 .map(|t| t.base_type)
                 .unwrap_or(BaseType::BASE_TYPE_NONE);
-            if variant_bt == BaseType::BASE_TYPE_TABLE {
-                Ok(Some(union_variant_type_index(val)?))
-            } else {
-                Ok(None)
+            match variant_bt {
+                BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                    Ok(Some((variant_bt, union_variant_type_index(val)?)))
+                }
+                _ => Err(CodeGenError::Internal(format!(
+                    "union variant '{}::{}' has unsupported Object API type {variant_bt:?}",
+                    enum_def.name, val.name
+                ))),
             }
         })
         .collect::<Result<Vec<_>, CodeGenError>>()?;
@@ -507,9 +512,9 @@ fn gen_union_object_api(
             }
             // T enum variants use PascalCase: "MyGame.Example2.Monster" -> "MyGameExample2Monster"
             let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
-            if let Some(table_idx) = variant_info[i] {
-                let table_name = type_map::resolve_object_name(schema, current_ns, table_idx);
-                w.line(&format!("{t_variant}(alloc::boxed::Box<{table_name}T>),"));
+            if let Some((_, object_idx)) = variant_info[i] {
+                let object_name = type_map::resolve_object_name(schema, current_ns, object_idx);
+                w.line(&format!("{t_variant}(alloc::boxed::Box<{object_name}T>),"));
             }
         }
     });
@@ -549,15 +554,28 @@ fn gen_union_object_api(
             |w| {
                 w.block("match self", |w| {
                     w.line("Self::NONE => None,");
-                    for val in &enum_def.values {
+                    for (i, val) in enum_def.values.iter().enumerate() {
                         let vname = &val.name;
                         if vname == "NONE" {
                             continue;
                         }
                         let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
-                        w.line(&format!(
-                            "Self::{t_variant}(v) => Some(v.pack(fbb).as_union_value()),"
-                        ));
+                        match variant_info[i] {
+                            Some((BaseType::BASE_TYPE_TABLE, _)) => {
+                                w.line(&format!(
+                                    "Self::{t_variant}(v) => Some(v.pack(fbb).as_union_value()),"
+                                ));
+                            }
+                            Some((BaseType::BASE_TYPE_STRUCT, _)) => {
+                                w.line(&format!("Self::{t_variant}(v) => {{"));
+                                w.indent();
+                                w.line("let packed = v.pack();");
+                                w.line("Some(fbb.push(&packed).as_union_value())");
+                                w.dedent();
+                                w.line("},");
+                            }
+                            _ => unreachable!("validated union variant metadata"),
+                        }
                     }
                 });
             },

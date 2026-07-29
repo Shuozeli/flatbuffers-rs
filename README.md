@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-07-21T21:46:21Z -->
+<!-- agent-updated: 2026-07-25T15:55:15Z -->
 # flatbuffers-rs
 
 A pure Rust implementation of the [FlatBuffers](https://flatbuffers.dev/) compiler (`flatc`).
@@ -73,6 +73,19 @@ cargo run --release -p flatc-rs-compiler -- \
 The Rust, TypeScript/Node.js, and Dart backends generate FlatBuffers reader/builder code. The Python backend currently generates typed model code for application and tooling use; it preserves table/struct fields, scalar defaults, optional fields, vectors, namespaces, unions, enum defaults, and keyword-safe names, but it does not include binary encode/decode helpers.
 
 Rust generated code is slice-backed by default for compatibility with upstream `flatbuffers` APIs. Add `--rust-pluggable-buffer` to generate readers over the `flatc-rs-runtime::FlatBufferRead` abstraction, including `root_as_<name>_in(&buffer)` helpers for custom byte providers such as mmap or arena-backed buffers that expose one stable immutable byte sequence through `all_bytes()` and `range()`. Builders still use the upstream `flatbuffers::Allocator` path.
+
+Generated Rust tables use the upstream-style associated constructor
+`Type::create(&mut builder, &TypeArgs { ... })`; the former standalone
+camel-case `createType(...)` helper is not emitted. Deprecated fields retain
+their reader accessors for old-data compatibility, but builders, Args, Object
+API, `Debug`, and serde traversal omit them. Together, these rules make
+deprecated fields read-only and keep normal public-module consumers
+warning-clean without suppressing Rust lints. The coordinated SchemaHub
+integration passes its 591-test release workspace with generated-code crates
+using `#![deny(warnings)]`, plus all seven real-world usage codelabs.
+Union accessors for struct variants also compile without importing
+`flatbuffers::Follow`: generated code uses the fully qualified trait and the
+public `Table::buf()`/`Table::loc()` API.
 
 When `flatc-rs-compiler` is built with its `grpc` Cargo feature, Rust output for
 `rpc_service` declarations also contains `FlatBufferGrpcMessage` codecs and

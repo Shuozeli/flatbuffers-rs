@@ -145,9 +145,11 @@ pub(super) fn gen_impl_block(
                 },
             );
         }
-        gen_create_method(w, obj, name);
-        w.blank(); // C++ emits a double blank after create()
-        w.blank();
+        if !opts.rust_pluggable_buffer {
+            gen_create_method(w, obj, name);
+            w.blank(); // C++ emits a double blank after create()
+            w.blank();
+        }
 
         // Field accessors - key methods are emitted right after the key field
         for field in &obj.fields {
@@ -159,7 +161,16 @@ pub(super) fn gen_impl_block(
             }
         }
         Ok(())
-    })
+    })?;
+
+    if opts.rust_pluggable_buffer {
+        w.blank();
+        w.block(&format!("impl<'a> {name}<'a, [u8]>"), |w| {
+            gen_create_method(w, obj, name);
+        });
+    }
+
+    Ok(())
 }
 
 /// Generate an accessor method for a table field.
@@ -677,6 +688,10 @@ fn gen_union_accessor(
     w.dedent();
     w.line("}");
 
+    if field.is_deprecated {
+        return Ok(());
+    }
+
     // Generate typed accessors for each union variant
     let enum_idx = field_type_index(field)?;
     if enum_idx < schema.enums.len() {
@@ -747,7 +762,7 @@ fn gen_union_accessor(
                     ));
                 } else {
                     w.line(&format!(
-                        "self.{accessor_name}().map(|t| unsafe {{ <&{struct_name}>::follow(t.buf, t.loc) }})"
+                        "self.{accessor_name}().map(|t| unsafe {{ <&'a {struct_name} as ::flatbuffers::Follow<'a>>::follow(t.buf(), t.loc()) }})"
                     ));
                 }
                 w.dedent();
@@ -772,22 +787,123 @@ pub(super) fn gen_verifiable_impl(
     name: &str,
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
-    // Pre-compute verifier type strings so we don't need Result inside the closure
-    let verify_fields: Vec<Option<(String, String, bool)>> = obj
+    enum VerifyEntry {
+        Field {
+            name: String,
+            upper: String,
+            verify_type: String,
+            is_required: bool,
+        },
+        Union {
+            type_name: String,
+            type_upper: String,
+            value_name: String,
+            value_upper: String,
+            enum_name: String,
+            is_required: bool,
+            variants: Vec<(String, String)>,
+        },
+    }
+
+    // Pre-compute verifier metadata so no fallible schema lookup occurs while
+    // writing the impl body.
+    let verify_entries: Vec<Option<VerifyEntry>> = obj
         .fields
         .iter()
         .map(|field| {
             let bt = field.type_.base_type;
-            if bt == BaseType::BASE_TYPE_UNION {
+
+            let is_paired_union_type = helpers::is_union_type_field(schema, field)
+                && obj.fields.iter().any(|value_field| {
+                    value_field.type_.base_type == BaseType::BASE_TYPE_UNION
+                        && field.name == format!("{}_type", value_field.name)
+                        && field.type_.index == value_field.type_.index
+                });
+            if is_paired_union_type {
                 return Ok(None);
             }
+
             let fname = &field.name;
             let escaped = type_map::escape_keyword(fname);
             let upper = type_map::to_upper_snake_case(&escaped);
             let is_required = field.is_required
                 || (helpers::has_key_attribute(field) && bt == BaseType::BASE_TYPE_STRING);
+
+            if bt == BaseType::BASE_TYPE_UNION {
+                let enum_idx = field_type_index(field)?;
+                let union_enum = schema.enums.get(enum_idx).ok_or_else(|| {
+                    CodeGenError::Internal(format!(
+                        "union field '{}.{}' references missing enum index {enum_idx}",
+                        obj.name, field.name
+                    ))
+                })?;
+                let type_name = format!("{fname}_type");
+                let type_field = obj
+                    .fields
+                    .iter()
+                    .find(|candidate| {
+                        candidate.name == type_name
+                            && helpers::is_union_type_field(schema, candidate)
+                            && candidate.type_.index == field.type_.index
+                    })
+                    .ok_or_else(|| {
+                        CodeGenError::Internal(format!(
+                            "union field '{}.{}' has no matching discriminator field",
+                            obj.name, field.name
+                        ))
+                    })?;
+                let type_escaped = type_map::escape_keyword(&type_field.name);
+                let type_upper = type_map::to_upper_snake_case(&type_escaped);
+                let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
+                let variants = union_enum
+                    .values
+                    .iter()
+                    .filter(|variant| variant.name != "NONE")
+                    .map(|variant| {
+                        let variant_type = variant
+                            .union_type
+                            .as_ref()
+                            .map(|ty| ty.base_type)
+                            .unwrap_or(BaseType::BASE_TYPE_NONE);
+                        if variant_type != BaseType::BASE_TYPE_TABLE
+                            && variant_type != BaseType::BASE_TYPE_STRUCT
+                        {
+                            return Err(CodeGenError::Internal(format!(
+                                "union variant '{}::{}' has unsupported verifier type {variant_type:?}",
+                                union_enum.name, variant.name
+                            )));
+                        }
+                        let object_idx = union_variant_type_index(variant)?;
+                        let object_name =
+                            type_map::resolve_object_name(schema, current_ns, object_idx);
+                        let const_name = type_map::escape_keyword(
+                            &type_map::sanitize_union_const_name(&variant.name),
+                        );
+                        Ok((
+                            format!("{enum_name}::{const_name}"),
+                            format!("::flatbuffers::ForwardsUOffset<{object_name}>"),
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, CodeGenError>>()?;
+
+                return Ok(Some(VerifyEntry::Union {
+                    type_name: type_field.name.clone(),
+                    type_upper,
+                    value_name: fname.clone(),
+                    value_upper: upper,
+                    enum_name,
+                    is_required,
+                    variants,
+                }));
+            }
+
             let verify_type = helpers::verifier_type_str(schema, field, current_ns)?;
-            Ok(Some((upper, verify_type, is_required)))
+            Ok(Some(VerifyEntry::Field {
+                name: fname.clone(),
+                upper,
+                verify_type,
+                is_required,
+            }))
         })
         .collect::<Result<Vec<_>, CodeGenError>>()?;
 
@@ -803,12 +919,44 @@ pub(super) fn gen_verifiable_impl(
             w.line(") -> Result<(), ::flatbuffers::InvalidFlatbuffer> {");
             w.indent();
             w.line("v.visit_table(pos)?");
-            for (i, field) in obj.fields.iter().enumerate() {
-                if let Some((upper, verify_type, is_required)) = &verify_fields[i] {
-                    let fname = &field.name;
-                    w.line(&format!(
-                        " .visit_field::<{verify_type}>(\"{fname}\", Self::VT_{upper}, {is_required})?"
-                    ));
+            for entry in verify_entries.iter().flatten() {
+                match entry {
+                    VerifyEntry::Field {
+                        name,
+                        upper,
+                        verify_type,
+                        is_required,
+                    } => {
+                        w.line(&format!(
+                            " .visit_field::<{verify_type}>(\"{name}\", Self::VT_{upper}, {is_required})?"
+                        ));
+                    }
+                    VerifyEntry::Union {
+                        type_name,
+                        type_upper,
+                        value_name,
+                        value_upper,
+                        enum_name,
+                        is_required,
+                        variants,
+                    } => {
+                        w.line(&format!(
+                            " .visit_union::<{enum_name}, _>(\"{type_name}\", Self::VT_{type_upper}, \"{value_name}\", Self::VT_{value_upper}, {is_required}, |key, v, pos| {{"
+                        ));
+                        w.indent();
+                        w.line("match key {");
+                        w.indent();
+                        for (variant_name, verify_type) in variants {
+                            w.line(&format!(
+                                "{variant_name} => v.verify_union_variant::<{verify_type}>(\"{variant_name}\", pos),"
+                            ));
+                        }
+                        w.line("_ => Ok(()),");
+                        w.dedent();
+                        w.line("}");
+                        w.dedent();
+                        w.line(" })?");
+                    }
                 }
             }
             w.line(" .finish();");
@@ -838,7 +986,7 @@ pub(super) fn gen_debug_impl(
             |w| {
                 w.line(&format!("let mut ds = f.debug_struct(\"{name}\");"));
                 for field in &obj.fields {
-                    if helpers::is_union_field(field) {
+                    if field.is_deprecated || helpers::is_union_field(field) {
                         continue;
                     }
                     let fname = &field.name;
@@ -862,11 +1010,15 @@ pub(super) fn gen_debug_impl(
             w.block(
                 "fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\nwhere S: ::serde::Serializer",
                 |w| {
-                    let n = obj.fields.iter().filter(|f| !helpers::is_union_field(f)).count();
+                    let n = obj
+                        .fields
+                        .iter()
+                        .filter(|f| !f.is_deprecated && !helpers::is_union_field(f))
+                        .count();
                     w.line("use ::serde::ser::SerializeStruct;");
                     w.line(&format!("let mut s = serializer.serialize_struct(\"{name}\", {n})?;"));
                     for field in &obj.fields {
-                        if helpers::is_union_field(field) {
+                        if field.is_deprecated || helpers::is_union_field(field) {
                             continue;
                         }
                         let fname = &field.name;
@@ -899,7 +1051,7 @@ pub(super) fn gen_debug_impl(
 
 /// Generate the inline `create()` method inside the impl block (C++ flatc style).
 fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
-    let needs_lifetime = obj.fields.iter().any(|f| {
+    let needs_lifetime = obj.fields.iter().filter(|f| !f.is_deprecated).any(|f| {
         let bt = f.type_.base_type;
         matches!(
             bt,
@@ -928,6 +1080,9 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     let mut scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
 
     for (i, field) in obj.fields.iter().enumerate() {
+        if field.is_deprecated {
+            continue;
+        }
         let bt = field.type_.base_type;
         if type_map::is_scalar(bt) {
             scalar_fields.push((i, field));

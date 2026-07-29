@@ -223,18 +223,6 @@ impl ::core::fmt::Debug for KWTable<'_> {
   }
 }
 
-#[inline]
-pub fn createKWTable<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args KWTableArgs<'args>,
-) -> ::flatbuffers::WIPOffset<KWTable<'bldr>> {
-  let mut builder = KWTableBuilder::new(fbb);
-  if let Some(x) = args.is { builder.add_is(x); }
-  builder.add_type_(args.type_);
-  builder.add_where_(args.where_);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct KWTableT {
@@ -261,7 +249,7 @@ impl KWTableT {
     let type_ = self.type_;
     let is = self.is.as_ref().map(|x| _fbb.create_string(x));
     let where_ = self.where_;
-    createKWTable(_fbb, &KWTableArgs {
+    KWTable::create(_fbb, &KWTableArgs {
       type_,
       is,
       where_,

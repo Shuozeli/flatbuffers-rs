@@ -274,21 +274,6 @@ impl ::core::fmt::Debug for MoreDefaults<'_> {
   }
 }
 
-#[inline]
-pub fn createMoreDefaults<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args MoreDefaultsArgs<'args>,
-) -> ::flatbuffers::WIPOffset<MoreDefaults<'bldr>> {
-  let mut builder = MoreDefaultsBuilder::new(fbb);
-  if let Some(x) = args.bools { builder.add_bools(x); }
-  if let Some(x) = args.abcs { builder.add_abcs(x); }
-  if let Some(x) = args.some_string { builder.add_some_string(x); }
-  if let Some(x) = args.empty_string { builder.add_empty_string(x); }
-  if let Some(x) = args.floats { builder.add_floats(x); }
-  if let Some(x) = args.ints { builder.add_ints(x); }
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct MoreDefaultsT {
@@ -336,7 +321,7 @@ impl MoreDefaultsT {
       let x = &self.bools;
       _fbb.create_vector(x)
     });
-    createMoreDefaults(_fbb, &MoreDefaultsArgs {
+    MoreDefaults::create(_fbb, &MoreDefaultsArgs {
       ints,
       floats,
       empty_string,

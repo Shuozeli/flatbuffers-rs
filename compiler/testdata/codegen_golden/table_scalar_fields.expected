@@ -151,19 +151,6 @@ impl ::core::fmt::Debug for Stats<'_> {
   }
 }
 
-#[inline]
-pub fn createStats<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args StatsArgs,
-) -> ::flatbuffers::WIPOffset<Stats<'bldr>> {
-  let mut builder = StatsBuilder::new(fbb);
-  builder.add_speed(args.speed);
-  builder.add_hp(args.hp);
-  builder.add_mana(args.mana);
-  builder.add_active(args.active);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct StatsT {
@@ -193,7 +180,7 @@ impl StatsT {
     let mana = self.mana;
     let speed = self.speed;
     let active = self.active;
-    createStats(_fbb, &StatsArgs {
+    Stats::create(_fbb, &StatsArgs {
       hp,
       mana,
       speed,

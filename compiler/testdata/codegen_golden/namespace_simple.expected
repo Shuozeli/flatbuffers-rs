@@ -214,17 +214,6 @@ pub mod my_game {
       }
     }
 
-    #[inline]
-    pub fn createMonster<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-      fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-      args: &'args MonsterArgs,
-    ) -> ::flatbuffers::WIPOffset<Monster<'bldr>> {
-      let mut builder = MonsterBuilder::new(fbb);
-      builder.add_hp(args.hp);
-      builder.add_color(args.color);
-      builder.finish()
-    }
-
     #[non_exhaustive]
     #[derive(Debug, Clone, PartialEq)]
     pub struct MonsterT {
@@ -248,7 +237,7 @@ pub mod my_game {
   ) -> ::flatbuffers::WIPOffset<Monster<'b>> {
         let hp = self.hp;
         let color = self.color;
-        createMonster(_fbb, &MonsterArgs {
+        Monster::create(_fbb, &MonsterArgs {
           hp,
           color,
         })

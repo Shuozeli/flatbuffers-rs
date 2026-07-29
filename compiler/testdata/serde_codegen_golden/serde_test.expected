@@ -585,21 +585,6 @@ where S: ::serde::Serializer {
     }
   }
 
-  #[inline]
-  pub fn createMonster<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args MonsterArgs<'args>,
-  ) -> ::flatbuffers::WIPOffset<Monster<'bldr>> {
-    let mut builder = MonsterBuilder::new(fbb);
-    if let Some(x) = args.inventory { builder.add_inventory(x); }
-    if let Some(x) = args.name { builder.add_name(x); }
-    if let Some(x) = args.pos { builder.add_pos(x); }
-    builder.add_hp(args.hp);
-    builder.add_flags(args.flags);
-    builder.add_color(args.color);
-    builder.finish()
-  }
-
   #[non_exhaustive]
   #[derive(Debug, Clone, PartialEq, ::serde::Serialize, ::serde::Deserialize)]
   pub struct MonsterT {
@@ -636,7 +621,7 @@ where S: ::serde::Serializer {
       let color = self.color;
       let inventory = self.inventory.as_ref().map(|x| _fbb.create_vector(x));
       let flags = self.flags;
-      createMonster(_fbb, &MonsterArgs {
+      Monster::create(_fbb, &MonsterArgs {
         pos,
         hp,
         name,

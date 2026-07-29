@@ -214,16 +214,6 @@ impl ::core::fmt::Debug for Sword<'_> {
   }
 }
 
-#[inline]
-pub fn createSword<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args SwordArgs,
-) -> ::flatbuffers::WIPOffset<Sword<'bldr>> {
-  let mut builder = SwordBuilder::new(fbb);
-  builder.add_damage(args.damage);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SwordT {
@@ -244,7 +234,7 @@ impl SwordT {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Sword<'b>> {
     let damage = self.damage;
-    createSword(_fbb, &SwordArgs {
+    Sword::create(_fbb, &SwordArgs {
       damage,
     })
   }
@@ -356,16 +346,6 @@ impl ::core::fmt::Debug for Shield<'_> {
   }
 }
 
-#[inline]
-pub fn createShield<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args ShieldArgs,
-) -> ::flatbuffers::WIPOffset<Shield<'bldr>> {
-  let mut builder = ShieldBuilder::new(fbb);
-  builder.add_armor(args.armor);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShieldT {
@@ -386,7 +366,7 @@ impl ShieldT {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Shield<'b>> {
     let armor = self.armor;
-    createShield(_fbb, &ShieldArgs {
+    Shield::create(_fbb, &ShieldArgs {
       armor,
     })
   }
@@ -483,7 +463,13 @@ impl ::flatbuffers::Verifiable for Hero<'_> {
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("name", Self::VT_NAME, false)?
-     .visit_field::<Equipment>("weapon_type", Self::VT_WEAPON_TYPE, false)?
+     .visit_union::<Equipment, _>("weapon_type", Self::VT_WEAPON_TYPE, "weapon", Self::VT_WEAPON, false, |key, v, pos| {
+      match key {
+        Equipment::Sword => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Sword>>("Equipment::Sword", pos),
+        Equipment::Shield => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Shield>>("Equipment::Shield", pos),
+        _ => Ok(()),
+      }
+     })?
      .finish();
     Ok(())
   }
@@ -545,18 +531,6 @@ impl ::core::fmt::Debug for Hero<'_> {
   }
 }
 
-#[inline]
-pub fn createHero<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args HeroArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Hero<'bldr>> {
-  let mut builder = HeroBuilder::new(fbb);
-  if let Some(x) = args.weapon { builder.add_weapon(x); }
-  if let Some(x) = args.name { builder.add_name(x); }
-  builder.add_weapon_type(args.weapon_type);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct HeroT {
@@ -581,7 +555,7 @@ impl HeroT {
     let name = self.name.as_ref().map(|x| _fbb.create_string(x));
     let weapon_type = self.weapon.equipment_type();
     let weapon = self.weapon.pack(_fbb);
-    createHero(_fbb, &HeroArgs {
+    Hero::create(_fbb, &HeroArgs {
       name,
       weapon_type,
       weapon,

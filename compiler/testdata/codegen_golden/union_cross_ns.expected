@@ -218,16 +218,6 @@ pub mod a {
     }
   }
 
-  #[inline]
-  pub fn createFoo<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args FooArgs,
-  ) -> ::flatbuffers::WIPOffset<Foo<'bldr>> {
-    let mut builder = FooBuilder::new(fbb);
-    builder.add_x(args.x);
-    builder.finish()
-  }
-
   #[non_exhaustive]
   #[derive(Debug, Clone, PartialEq)]
   pub struct FooT {
@@ -248,7 +238,7 @@ pub mod a {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Foo<'b>> {
       let x = self.x;
-      createFoo(_fbb, &FooArgs {
+      Foo::create(_fbb, &FooArgs {
         x,
       })
     }
@@ -335,7 +325,13 @@ pub mod a {
       v: &mut ::flatbuffers::Verifier, pos: usize
     ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
       v.visit_table(pos)?
-       .visit_field::<MyUnion>("u_type", Self::VT_U_TYPE, false)?
+       .visit_union::<MyUnion, _>("u_type", Self::VT_U_TYPE, "u", Self::VT_U, false, |key, v, pos| {
+        match key {
+          MyUnion::Foo => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Foo>>("MyUnion::Foo", pos),
+          MyUnion::B_Bar => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<b::Bar>>("MyUnion::B_Bar", pos),
+          _ => Ok(()),
+        }
+       })?
        .finish();
       Ok(())
     }
@@ -390,17 +386,6 @@ pub mod a {
     }
   }
 
-  #[inline]
-  pub fn createRoot<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args RootArgs,
-  ) -> ::flatbuffers::WIPOffset<Root<'bldr>> {
-    let mut builder = RootBuilder::new(fbb);
-    if let Some(x) = args.u { builder.add_u(x); }
-    builder.add_u_type(args.u_type);
-    builder.finish()
-  }
-
   #[non_exhaustive]
   #[derive(Debug, Clone, PartialEq)]
   pub struct RootT {
@@ -422,7 +407,7 @@ pub mod a {
   ) -> ::flatbuffers::WIPOffset<Root<'b>> {
       let u_type = self.u.my_union_type();
       let u = self.u.pack(_fbb);
-      createRoot(_fbb, &RootArgs {
+      Root::create(_fbb, &RootArgs {
         u_type,
         u,
       })
@@ -546,16 +531,6 @@ pub mod b {
     }
   }
 
-  #[inline]
-  pub fn createBar<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args BarArgs<'args>,
-  ) -> ::flatbuffers::WIPOffset<Bar<'bldr>> {
-    let mut builder = BarBuilder::new(fbb);
-    if let Some(x) = args.y { builder.add_y(x); }
-    builder.finish()
-  }
-
   #[non_exhaustive]
   #[derive(Debug, Clone, PartialEq)]
   pub struct BarT {
@@ -576,7 +551,7 @@ pub mod b {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Bar<'b>> {
       let y = self.y.as_ref().map(|x| _fbb.create_string(x));
-      createBar(_fbb, &BarArgs {
+      Bar::create(_fbb, &BarArgs {
         y,
       })
     }

@@ -104,16 +104,6 @@ pub mod my_game {
     }
   }
 
-  #[inline]
-  pub fn createRoot<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args RootArgs<'args>,
-  ) -> ::flatbuffers::WIPOffset<Root<'bldr>> {
-    let mut builder = RootBuilder::new(fbb);
-    if let Some(x) = args.name { builder.add_name(x); }
-    builder.finish()
-  }
-
   #[non_exhaustive]
   #[derive(Debug, Clone, PartialEq)]
   pub struct RootT {
@@ -134,7 +124,7 @@ pub mod my_game {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Root<'b>> {
       let name = self.name.as_ref().map(|x| _fbb.create_string(x));
-      createRoot(_fbb, &RootArgs {
+      Root::create(_fbb, &RootArgs {
         name,
       })
     }
@@ -342,16 +332,6 @@ pub mod my_game {
       }
     }
 
-    #[inline]
-    pub fn createHelper<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-      fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-      args: &'args HelperArgs,
-    ) -> ::flatbuffers::WIPOffset<Helper<'bldr>> {
-      let mut builder = HelperBuilder::new(fbb);
-      builder.add_count(args.count);
-      builder.finish()
-    }
-
     #[non_exhaustive]
     #[derive(Debug, Clone, PartialEq)]
     pub struct HelperT {
@@ -372,7 +352,7 @@ pub mod my_game {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Helper<'b>> {
         let count = self.count;
-        createHelper(_fbb, &HelperArgs {
+        Helper::create(_fbb, &HelperArgs {
           count,
         })
       }

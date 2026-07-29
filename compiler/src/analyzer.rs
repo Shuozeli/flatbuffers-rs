@@ -292,6 +292,7 @@ fn insert_union_type_fields(schema: &mut schema::Schema) -> Result<()> {
                         index: enum_index,
                         ..schema::Type::default()
                     }),
+                    is_deprecated: union_field.is_deprecated,
                     ..Default::default()
                 };
                 // For tables with explicit IDs, the companion type field

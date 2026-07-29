@@ -252,17 +252,6 @@ impl ::core::fmt::Debug for Sprite<'_> {
   }
 }
 
-#[inline]
-pub fn createSprite<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args SpriteArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Sprite<'bldr>> {
-  let mut builder = SpriteBuilder::new(fbb);
-  if let Some(x) = args.name { builder.add_name(x); }
-  if let Some(x) = args.pos { builder.add_pos(x); }
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpriteT {
@@ -287,7 +276,7 @@ impl SpriteT {
     let pos_tmp = self.pos.as_ref().map(|x| x.pack());
     let pos = pos_tmp.as_ref();
     let name = self.name.as_ref().map(|x| _fbb.create_string(x));
-    createSprite(_fbb, &SpriteArgs {
+    Sprite::create(_fbb, &SpriteArgs {
       pos,
       name,
     })

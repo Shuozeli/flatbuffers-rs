@@ -118,17 +118,6 @@ impl ::core::fmt::Debug for Monster<'_> {
   }
 }
 
-#[inline]
-pub fn createMonster<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args MonsterArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Monster<'bldr>> {
-  let mut builder = MonsterBuilder::new(fbb);
-  if let Some(x) = args.name { builder.add_name(x); }
-  builder.add_hp(args.hp);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct MonsterT {
@@ -152,7 +141,7 @@ impl MonsterT {
   ) -> ::flatbuffers::WIPOffset<Monster<'b>> {
     let hp = self.hp;
     let name = Some(_fbb.create_string(&self.name));
-    createMonster(_fbb, &MonsterArgs {
+    Monster::create(_fbb, &MonsterArgs {
       hp,
       name,
     })

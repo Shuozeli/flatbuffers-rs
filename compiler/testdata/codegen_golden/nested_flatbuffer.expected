@@ -117,17 +117,6 @@ impl ::core::fmt::Debug for Inner<'_> {
   }
 }
 
-#[inline]
-pub fn createInner<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args InnerArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Inner<'bldr>> {
-  let mut builder = InnerBuilder::new(fbb);
-  if let Some(x) = args.name { builder.add_name(x); }
-  builder.add_hp(args.hp);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct InnerT {
@@ -151,7 +140,7 @@ impl InnerT {
   ) -> ::flatbuffers::WIPOffset<Inner<'b>> {
     let hp = self.hp;
     let name = self.name.as_ref().map(|x| _fbb.create_string(x));
-    createInner(_fbb, &InnerArgs {
+    Inner::create(_fbb, &InnerArgs {
       hp,
       name,
     })
@@ -291,17 +280,6 @@ impl ::core::fmt::Debug for Outer<'_> {
   }
 }
 
-#[inline]
-pub fn createOuter<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args OuterArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Outer<'bldr>> {
-  let mut builder = OuterBuilder::new(fbb);
-  if let Some(x) = args.data { builder.add_data(x); }
-  if let Some(x) = args.label { builder.add_label(x); }
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct OuterT {
@@ -325,7 +303,7 @@ impl OuterT {
   ) -> ::flatbuffers::WIPOffset<Outer<'b>> {
     let label = self.label.as_ref().map(|x| _fbb.create_string(x));
     let data = self.data.as_ref().map(|x| _fbb.create_vector(x));
-    createOuter(_fbb, &OuterArgs {
+    Outer::create(_fbb, &OuterArgs {
       label,
       data,
     })

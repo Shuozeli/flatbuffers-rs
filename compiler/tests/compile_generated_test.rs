@@ -73,7 +73,7 @@ fn table_build_and_read_defaults() {
     use table_scalar_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = StatsArgs::default();
-    let offset = createStats(&mut fbb, &args);
+    let offset = Stats::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let stats = ::flatbuffers::root::<Stats>(buf).unwrap();
@@ -93,7 +93,7 @@ fn table_build_and_read_custom_values() {
         speed: 1.23_f32,
         active: false,
     };
-    let offset = createStats(&mut fbb, &args);
+    let offset = Stats::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let stats = ::flatbuffers::root::<Stats>(buf).unwrap();
@@ -107,7 +107,7 @@ fn table_build_and_read_custom_values() {
 fn table_verify_valid() {
     use table_scalar_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
-    let offset = createStats(&mut fbb, &StatsArgs::default());
+    let offset = Stats::create(&mut fbb, &StatsArgs::default());
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     assert!(::flatbuffers::root::<Stats>(buf).is_ok());
@@ -117,7 +117,7 @@ fn table_verify_valid() {
 fn table_debug_output() {
     use table_scalar_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
-    let offset = createStats(&mut fbb, &StatsArgs::default());
+    let offset = Stats::create(&mut fbb, &StatsArgs::default());
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let stats = ::flatbuffers::root::<Stats>(buf).unwrap();
@@ -146,7 +146,7 @@ fn table_with_required_string() {
         message: None,
         name: Some(name_offset),
     };
-    let offset = createGreeting(&mut fbb, &args);
+    let offset = Greeting::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let greeting = ::flatbuffers::root::<Greeting>(buf).unwrap();
@@ -164,7 +164,7 @@ fn table_with_both_strings() {
         message: Some(msg),
         name: Some(name),
     };
-    let offset = createGreeting(&mut fbb, &args);
+    let offset = Greeting::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let greeting = ::flatbuffers::root::<Greeting>(buf).unwrap();
@@ -185,7 +185,7 @@ fn string_empty_roundtrip() {
         message: None,
         name: Some(name),
     };
-    let offset = createGreeting(&mut fbb, &args);
+    let offset = Greeting::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let greeting = ::flatbuffers::root::<Greeting>(buf).unwrap();
@@ -202,7 +202,7 @@ fn string_unicode_roundtrip() {
         message: Some(msg),
         name: Some(name),
     };
-    let offset = createGreeting(&mut fbb, &args);
+    let offset = Greeting::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let greeting = ::flatbuffers::root::<Greeting>(buf).unwrap();
@@ -219,7 +219,7 @@ fn string_long_roundtrip() {
         message: None,
         name: Some(name),
     };
-    let offset = createGreeting(&mut fbb, &args);
+    let offset = Greeting::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let greeting = ::flatbuffers::root::<Greeting>(buf).unwrap();
@@ -239,7 +239,7 @@ fn string_vector_multiple_items() {
         names: Some(names),
         scores: None,
     };
-    let offset = createInventory(&mut fbb, &args);
+    let offset = Inventory::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -318,7 +318,7 @@ fn table_enum_field_default() {
     use table_enum_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = WeaponArgs::default();
-    let offset = createWeapon(&mut fbb, &args);
+    let offset = Weapon::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let weapon = ::flatbuffers::root::<Weapon>(buf).unwrap();
@@ -339,7 +339,7 @@ fn table_enum_field_custom() {
         color: Color::Blue,
         damage: 999,
     };
-    let offset = createWeapon(&mut fbb, &args);
+    let offset = Weapon::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let weapon = ::flatbuffers::root::<Weapon>(buf).unwrap();
@@ -363,7 +363,7 @@ fn table_vector_empty() {
     use table_vector_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = InventoryArgs::default();
-    let offset = createInventory(&mut fbb, &args);
+    let offset = Inventory::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -386,7 +386,7 @@ fn table_vector_with_data() {
         names: Some(names),
         scores: Some(scores),
     };
-    let offset = createInventory(&mut fbb, &args);
+    let offset = Inventory::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -427,7 +427,7 @@ fn table_with_struct_field() {
         pos: Some(&pos),
         name: Some(name),
     };
-    let offset = createSprite(&mut fbb, &args);
+    let offset = Sprite::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let sprite = ::flatbuffers::root::<Sprite>(buf).unwrap();
@@ -451,13 +451,13 @@ mod nested_table_runtime {
 fn table_with_nested_table() {
     use nested_table_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
-    let child_offset = createChild(&mut fbb, &ChildArgs { value: 42 });
+    let child_offset = Child::create(&mut fbb, &ChildArgs { value: 42 });
     let label = fbb.create_string("parent_label");
     let args = ParentArgs {
         child: Some(child_offset),
         label: Some(label),
     };
-    let offset = createParent(&mut fbb, &args);
+    let offset = Parent::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let parent = ::flatbuffers::root::<Parent>(buf).unwrap();
@@ -471,7 +471,7 @@ fn table_with_no_nested_table() {
     use nested_table_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = ParentArgs::default();
-    let offset = createParent(&mut fbb, &args);
+    let offset = Parent::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let parent = ::flatbuffers::root::<Parent>(buf).unwrap();
@@ -498,7 +498,7 @@ fn root_type_build_and_read() {
         hp: 300,
         name: Some(name),
     };
-    let offset = createMonster(&mut fbb, &args);
+    let offset = Monster::create(&mut fbb, &args);
     finish_monster_buffer(&mut fbb, offset);
     let buf = fbb.finished_data();
 
@@ -520,7 +520,7 @@ fn root_type_size_prefixed() {
         hp: 50,
         name: Some(name),
     };
-    let offset = createMonster(&mut fbb, &args);
+    let offset = Monster::create(&mut fbb, &args);
     finish_size_prefixed_monster_buffer(&mut fbb, offset);
     let buf = fbb.finished_data();
 
@@ -622,7 +622,7 @@ fn union_build_and_read_sword() {
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
 
     // Build a Sword
-    let sword = createSword(&mut fbb, &SwordArgs { damage: 42 });
+    let sword = Sword::create(&mut fbb, &SwordArgs { damage: 42 });
 
     // Build a Hero with Sword as weapon
     let name = fbb.create_string("Link");
@@ -631,7 +631,7 @@ fn union_build_and_read_sword() {
         weapon_type: Equipment::Sword,
         weapon: Some(sword.as_union_value()),
     };
-    let hero = createHero(&mut fbb, &args);
+    let hero = Hero::create(&mut fbb, &args);
     fbb.finish_minimal(hero);
 
     let buf = fbb.finished_data();
@@ -648,14 +648,14 @@ fn union_build_and_read_shield() {
     use union_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
 
-    let shield = createShield(&mut fbb, &ShieldArgs { armor: 100 });
+    let shield = Shield::create(&mut fbb, &ShieldArgs { armor: 100 });
     let name = fbb.create_string("Guard");
     let args = HeroArgs {
         name: Some(name),
         weapon_type: Equipment::Shield,
         weapon: Some(shield.as_union_value()),
     };
-    let hero = createHero(&mut fbb, &args);
+    let hero = Hero::create(&mut fbb, &args);
     fbb.finish_minimal(hero);
 
     let buf = fbb.finished_data();
@@ -671,7 +671,7 @@ fn union_default_is_none() {
     use union_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = HeroArgs::default();
-    let hero = createHero(&mut fbb, &args);
+    let hero = Hero::create(&mut fbb, &args);
     fbb.finish_minimal(hero);
 
     let buf = fbb.finished_data();
@@ -680,6 +680,42 @@ fn union_default_is_none() {
     assert!(h.weapon().is_none());
     assert!(h.weapon_as_sword().is_none());
     assert!(h.weapon_as_shield().is_none());
+}
+
+#[test]
+fn union_verifier_rejects_out_of_bounds_payload() {
+    // Arrange
+    use union_runtime::*;
+    let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
+    let sword = Sword::create(&mut fbb, &SwordArgs { damage: 42 });
+    let hero = Hero::create(
+        &mut fbb,
+        &HeroArgs {
+            name: None,
+            weapon_type: Equipment::Sword,
+            weapon: Some(sword.as_union_value()),
+        },
+    );
+    fbb.finish_minimal(hero);
+    let mut corrupted = fbb.finished_data().to_vec();
+    let union_offset_position = {
+        let verified = ::flatbuffers::root::<Hero>(&corrupted)
+            .expect("the unmodified generated buffer must verify");
+        let field_offset = verified._tab.vtable().get(Hero::VT_WEAPON) as usize;
+        assert_ne!(field_offset, 0, "the union payload must be present");
+        verified._tab.loc() + field_offset
+    };
+    corrupted[union_offset_position..union_offset_position + 4]
+        .copy_from_slice(&u32::MAX.to_le_bytes());
+
+    // Act
+    let result = ::flatbuffers::root::<Hero>(&corrupted);
+
+    // Assert
+    assert!(
+        result.is_err(),
+        "the generated verifier must reject an out-of-bounds union payload"
+    );
 }
 
 #[test]
@@ -838,7 +874,7 @@ fn table_scalar_defaults_without_setting() {
     use table_scalar_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = StatsArgs::default();
-    let offset = createStats(&mut fbb, &args);
+    let offset = Stats::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let stats = ::flatbuffers::root::<Stats>(buf).unwrap();
@@ -859,7 +895,7 @@ fn table_scalar_explicit_zeros() {
         speed: 0.0,
         active: false,
     };
-    let offset = createStats(&mut fbb, &args);
+    let offset = Stats::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let stats = ::flatbuffers::root::<Stats>(buf).unwrap();
@@ -880,7 +916,7 @@ fn table_vector_ubyte_roundtrip() {
         names: None,
         scores: None,
     };
-    let offset = createInventory(&mut fbb, &args);
+    let offset = Inventory::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -901,7 +937,7 @@ fn table_vector_string_empty_vector() {
         names: Some(names),
         scores: None,
     };
-    let offset = createInventory(&mut fbb, &args);
+    let offset = Inventory::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -914,13 +950,13 @@ fn table_nested_table_roundtrip() {
     use nested_table_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let child_args = ChildArgs { value: 42 };
-    let child = createChild(&mut fbb, &child_args);
+    let child = Child::create(&mut fbb, &child_args);
     let label = fbb.create_string("parent_label");
     let args = ParentArgs {
         child: Some(child),
         label: Some(label),
     };
-    let offset = createParent(&mut fbb, &args);
+    let offset = Parent::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let parent = ::flatbuffers::root::<Parent>(buf).unwrap();
@@ -934,7 +970,7 @@ fn table_nested_table_none() {
     use nested_table_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = ParentArgs::default();
-    let offset = createParent(&mut fbb, &args);
+    let offset = Parent::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let parent = ::flatbuffers::root::<Parent>(buf).unwrap();
@@ -947,7 +983,7 @@ fn table_struct_field_none() {
     use table_struct_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = SpriteArgs::default();
-    let offset = createSprite(&mut fbb, &args);
+    let offset = Sprite::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let sprite = ::flatbuffers::root::<Sprite>(buf).unwrap();
@@ -977,7 +1013,7 @@ fn verifier_too_short_buffer_fails() {
 fn verifier_truncated_buffer_fails() {
     use table_scalar_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
-    let offset = createStats(&mut fbb, &StatsArgs::default());
+    let offset = Stats::create(&mut fbb, &StatsArgs::default());
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     // Truncate valid buffer to various lengths
@@ -999,7 +1035,7 @@ fn verifier_one_byte_flip_no_crash() {
         speed: 1.23,
         active: true,
     };
-    let offset = createStats(&mut fbb, &args);
+    let offset = Stats::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let original = fbb.finished_data().to_vec();
     // Flip each byte and verify it either succeeds or returns Err (but never panics)
@@ -1020,7 +1056,7 @@ fn verifier_string_table_one_byte_flip_no_crash() {
         message: Some(msg),
         name: Some(name),
     };
-    let offset = createGreeting(&mut fbb, &args);
+    let offset = Greeting::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let original = fbb.finished_data().to_vec();
     for i in 0..original.len() {
@@ -1034,13 +1070,13 @@ fn verifier_string_table_one_byte_flip_no_crash() {
 fn verifier_nested_table_one_byte_flip_no_crash() {
     use nested_table_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
-    let child = createChild(&mut fbb, &ChildArgs { value: 99 });
+    let child = Child::create(&mut fbb, &ChildArgs { value: 99 });
     let label = fbb.create_string("lbl");
     let args = ParentArgs {
         child: Some(child),
         label: Some(label),
     };
-    let offset = createParent(&mut fbb, &args);
+    let offset = Parent::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let original = fbb.finished_data().to_vec();
     for i in 0..original.len() {
@@ -1092,7 +1128,7 @@ fn keyword_table_build_and_read() {
         is: Some(is_str),
         where_: TestKW::match_,
     };
-    let offset = createKWTable(&mut fbb, &args);
+    let offset = KWTable::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let t = ::flatbuffers::root::<KWTable>(buf).unwrap();
@@ -1106,7 +1142,7 @@ fn keyword_table_defaults() {
     use keyword_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = KWTableArgs::default();
-    let offset = createKWTable(&mut fbb, &args);
+    let offset = KWTable::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let t = ::flatbuffers::root::<KWTable>(buf).unwrap();
@@ -1139,7 +1175,7 @@ fn namespace_simple_build_and_read() {
         hp: 200,
         color: Color::Green,
     };
-    let offset = createMonster(&mut fbb, &args);
+    let offset = Monster::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let m = ::flatbuffers::root::<Monster>(buf).unwrap();
@@ -1152,7 +1188,7 @@ fn namespace_simple_defaults() {
     use namespace_simple_runtime::my_game::example::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = MonsterArgs::default();
-    let offset = createMonster(&mut fbb, &args);
+    let offset = Monster::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let m = ::flatbuffers::root::<Monster>(buf).unwrap();
@@ -1182,7 +1218,7 @@ fn namespace_multi_build_root() {
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("world");
     let args = RootArgs { name: Some(name) };
-    let offset = createRoot(&mut fbb, &args);
+    let offset = Root::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let root = ::flatbuffers::root::<Root>(buf).unwrap();
@@ -1194,7 +1230,7 @@ fn namespace_multi_build_helper() {
     use namespace_multi_runtime::my_game::example2::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = HelperArgs { count: 42 };
-    let offset = createHelper(&mut fbb, &args);
+    let offset = Helper::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let helper = ::flatbuffers::root::<Helper>(buf).unwrap();
@@ -1236,7 +1272,7 @@ fn namespace_cross_ref_item_roundtrip() {
         rarity: Rarity::Epic,
         stats: Some(&stats),
     };
-    let offset = createItem(&mut fbb, &args);
+    let offset = Item::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let item = ::flatbuffers::root::<Item>(buf).unwrap();
@@ -1259,14 +1295,14 @@ fn namespace_cross_ref_inventory_roundtrip() {
         rarity: Rarity::Rare,
         stats: None,
     };
-    let item1 = createItem(&mut fbb, &item1_args);
+    let item1 = Item::create(&mut fbb, &item1_args);
     let name2 = fbb.create_string("Potion");
     let item2_args = ItemArgs {
         name: Some(name2),
         rarity: Rarity::Common,
         stats: None,
     };
-    let item2 = createItem(&mut fbb, &item2_args);
+    let item2 = Item::create(&mut fbb, &item2_args);
     // Build inventory with vector of items and a favorite
     let items_vec = fbb.create_vector(&[item1, item2]);
     let name3 = fbb.create_string("Staff");
@@ -1275,14 +1311,14 @@ fn namespace_cross_ref_inventory_roundtrip() {
         rarity: Rarity::Epic,
         stats: None,
     };
-    let fav = createItem(&mut fbb, &fav_args);
+    let fav = Item::create(&mut fbb, &fav_args);
     let owner = fbb.create_string("Alice");
     let inv_args = InventoryArgs {
         owner: Some(owner),
         items: Some(items_vec),
         favorite: Some(fav),
     };
-    let inv_offset = createInventory(&mut fbb, &inv_args);
+    let inv_offset = Inventory::create(&mut fbb, &inv_args);
     fbb.finish_minimal(inv_offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -1305,7 +1341,7 @@ fn namespace_cross_ref_inventory_defaults() {
     use namespace_cross_ref_runtime::game::player::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = InventoryArgs::default();
-    let offset = createInventory(&mut fbb, &args);
+    let offset = Inventory::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let inv = ::flatbuffers::root::<Inventory>(buf).unwrap();
@@ -1340,7 +1376,7 @@ fn nested_flatbuffer_roundtrip() {
         hp: 250,
         name: Some(name),
     };
-    let inner_offset = createInner(&mut inner_fbb, &inner_args);
+    let inner_offset = Inner::create(&mut inner_fbb, &inner_args);
     inner_fbb.finish_minimal(inner_offset);
     let inner_bytes = inner_fbb.finished_data().to_vec();
 
@@ -1352,7 +1388,7 @@ fn nested_flatbuffer_roundtrip() {
         label: Some(label),
         data: Some(data),
     };
-    let outer_offset = createOuter(&mut fbb, &outer_args);
+    let outer_offset = Outer::create(&mut fbb, &outer_args);
     fbb.finish_minimal(outer_offset);
     let buf = fbb.finished_data();
 
@@ -1375,7 +1411,7 @@ fn nested_flatbuffer_default_is_none() {
     use nested_flatbuffer_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = OuterArgs::default();
-    let offset = createOuter(&mut fbb, &args);
+    let offset = Outer::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let outer = ::flatbuffers::root::<Outer>(buf).unwrap();
@@ -1389,7 +1425,7 @@ fn nested_flatbuffer_inner_defaults() {
     // Build an inner with default values
     let mut inner_fbb = ::flatbuffers::FlatBufferBuilder::new();
     let inner_args = InnerArgs::default();
-    let inner_offset = createInner(&mut inner_fbb, &inner_args);
+    let inner_offset = Inner::create(&mut inner_fbb, &inner_args);
     inner_fbb.finish_minimal(inner_offset);
     let inner_bytes = inner_fbb.finished_data().to_vec();
 
@@ -1400,7 +1436,7 @@ fn nested_flatbuffer_inner_defaults() {
         label: None,
         data: Some(data),
     };
-    let outer_offset = createOuter(&mut fbb, &outer_args);
+    let outer_offset = Outer::create(&mut fbb, &outer_args);
     fbb.finish_minimal(outer_offset);
     let buf = fbb.finished_data();
 
@@ -1431,7 +1467,7 @@ fn key_string_compare_less_than() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name_a = fbb.create_string("Alice");
-    let a = createMonster(
+    let a = Monster::create(
         &mut fbb,
         &MonsterArgs {
             name: Some(name_a),
@@ -1443,7 +1479,7 @@ fn key_string_compare_less_than() {
 
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name_b = fbb.create_string("Bob");
-    let b = createMonster(
+    let b = Monster::create(
         &mut fbb,
         &MonsterArgs {
             name: Some(name_b),
@@ -1465,7 +1501,7 @@ fn key_string_compare_with_value() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("Monster");
-    let offset = createMonster(
+    let offset = Monster::create(
         &mut fbb,
         &MonsterArgs {
             name: Some(name),
@@ -1494,7 +1530,7 @@ fn key_scalar_compare_less_than() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let id = fbb.create_string("a");
-    let a = createStat(
+    let a = Stat::create(
         &mut fbb,
         &StatArgs {
             id: Some(id),
@@ -1506,7 +1542,7 @@ fn key_scalar_compare_less_than() {
 
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let id = fbb.create_string("b");
-    let b = createStat(
+    let b = Stat::create(
         &mut fbb,
         &StatArgs {
             id: Some(id),
@@ -1527,7 +1563,7 @@ fn key_scalar_compare_with_value() {
     use key_runtime::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let id = fbb.create_string("test");
-    let offset = createStat(
+    let offset = Stat::create(
         &mut fbb,
         &StatArgs {
             id: Some(id),
@@ -1824,7 +1860,7 @@ fn optional_scalars_defaults() {
 fn optional_scalars_set_and_read() {
     use optional_scalars_runtime::*;
     let mut builder = ::flatbuffers::FlatBufferBuilder::new();
-    let ss = createScalarStuff(
+    let ss = ScalarStuff::create(
         &mut builder,
         &ScalarStuffArgs {
             just_i8: 5,

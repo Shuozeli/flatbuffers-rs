@@ -120,8 +120,13 @@ fn rust_gen_struct_simple() {
 
 #[test]
 fn rust_gen_table_basic() {
+    // Arrange
     let schema = "table Monster { hp: int; mana: short = 150; name: string; } root_type Monster;";
+
+    // Act
     let code = generate_rust_code(schema);
+
+    // Assert
     assert!(
         code.contains("pub struct Monster"),
         "should generate Monster struct"
@@ -133,6 +138,55 @@ fn rust_gen_table_basic() {
     assert!(code.contains("pub fn hp("), "should generate hp getter");
     assert!(code.contains("pub fn mana("), "should generate mana getter");
     assert!(code.contains("pub fn name("), "should generate name getter");
+    assert!(
+        !code.contains("pub fn createMonster"),
+        "standalone camel-case constructors should not be generated"
+    );
+}
+
+#[test]
+fn rust_gen_deprecated_fields_are_read_only_and_omitted_from_derived_views() {
+    // Arrange
+    let schema =
+        "table MobileEvent { old_id: string (deprecated); count: int; } root_type MobileEvent;";
+
+    // Act
+    let parser = FbsParser::new(schema).with_file_name("deprecated.fbs".to_string());
+    let parsed = parser.parse().expect("parse deprecated-field schema");
+    let resolved = analyze(parsed).expect("analyze deprecated-field schema");
+    let code = generate_rust(
+        &resolved,
+        &CodeGenOptions {
+            gen_object_api: true,
+            rust_serialize: true,
+            ..CodeGenOptions::default()
+        },
+    )
+    .expect("generate Rust with Object API and serde");
+
+    // Assert
+    assert!(
+        code.contains("pub fn old_id("),
+        "deprecated reader compatibility should remain available"
+    );
+    assert!(
+        code.contains("ds.field(\"count\", &self.count());"),
+        "Debug should include active fields"
+    );
+    assert!(
+        !code.contains("self.old_id()"),
+        "Debug, serde, and Object API unpack must not call deprecated accessors"
+    );
+    assert!(
+        !code.contains("pub fn add_old_id(")
+            && !code.contains("pub old_id:")
+            && !code.contains("args.old_id"),
+        "deprecated fields should be read-only and absent from builders, args, and Object API"
+    );
+    assert!(
+        code.contains("pub struct MobileEventArgs {"),
+        "a deprecated string alone must not introduce an unused Args lifetime"
+    );
 }
 
 #[test]

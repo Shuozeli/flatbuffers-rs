@@ -152,7 +152,7 @@ mod table_scalar_fuzz {
             if speed.is_nan() { return true; }
             let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
             let args = super::fuzz_table_scalar::StatsArgs { hp, mana, speed, active };
-            let offset = super::fuzz_table_scalar::createStats(&mut fbb, &args);
+            let offset = super::fuzz_table_scalar::Stats::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let stats = ::flatbuffers::root::<super::fuzz_table_scalar::Stats>(buf).unwrap();
@@ -177,7 +177,7 @@ mod table_string_fuzz {
                 message: None,
                 name: Some(name_off),
             };
-            let offset = super::fuzz_table_string::createGreeting(&mut fbb, &args);
+            let offset = super::fuzz_table_string::Greeting::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let greeting = ::flatbuffers::root::<super::fuzz_table_string::Greeting>(buf).unwrap();
@@ -194,7 +194,7 @@ mod table_string_fuzz {
                 message: Some(msg_off),
                 name: Some(name_off),
             };
-            let offset = super::fuzz_table_string::createGreeting(&mut fbb, &args);
+            let offset = super::fuzz_table_string::Greeting::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let greeting = ::flatbuffers::root::<super::fuzz_table_string::Greeting>(buf).unwrap();
@@ -220,7 +220,7 @@ mod table_vector_fuzz {
                 names: None,
                 scores: None,
             };
-            let offset = super::fuzz_table_vector::createInventory(&mut fbb, &args);
+            let offset = super::fuzz_table_vector::Inventory::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let inv = ::flatbuffers::root::<super::fuzz_table_vector::Inventory>(buf).unwrap();
@@ -238,7 +238,7 @@ mod table_vector_fuzz {
                 names: None,
                 scores: Some(scores),
             };
-            let offset = super::fuzz_table_vector::createInventory(&mut fbb, &args);
+            let offset = super::fuzz_table_vector::Inventory::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let inv = ::flatbuffers::root::<super::fuzz_table_vector::Inventory>(buf).unwrap();
@@ -259,7 +259,7 @@ mod table_vector_fuzz {
                 names: Some(names),
                 scores: None,
             };
-            let offset = super::fuzz_table_vector::createInventory(&mut fbb, &args);
+            let offset = super::fuzz_table_vector::Inventory::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let inv = ::flatbuffers::root::<super::fuzz_table_vector::Inventory>(buf).unwrap();
@@ -286,7 +286,7 @@ mod table_enum_fuzz {
                 color,
                 damage,
             };
-            let offset = super::fuzz_table_enum::createWeapon(&mut fbb, &args);
+            let offset = super::fuzz_table_enum::Weapon::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let buf = fbb.finished_data();
             let weapon = ::flatbuffers::root::<super::fuzz_table_enum::Weapon>(buf).unwrap();
@@ -314,7 +314,7 @@ mod verifier_fuzz {
         fn corrupted_scalar_table_never_panic(hp: i32, flip_pos: usize, flip_val: u8) -> bool {
             let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
             let args = super::fuzz_table_scalar::StatsArgs { hp, ..Default::default() };
-            let offset = super::fuzz_table_scalar::createStats(&mut fbb, &args);
+            let offset = super::fuzz_table_scalar::Stats::create(&mut fbb, &args);
             fbb.finish_minimal(offset);
             let mut buf = fbb.finished_data().to_vec();
             if !buf.is_empty() {

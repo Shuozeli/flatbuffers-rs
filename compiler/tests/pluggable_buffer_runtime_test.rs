@@ -85,6 +85,7 @@ fn cargo_run(crate_dir: &Path) -> std::process::Output {
         .arg("--manifest-path")
         .arg(crate_dir.join("Cargo.toml"))
         .env("CARGO_INCREMENTAL", "0")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("run generated crate")
 }
@@ -97,6 +98,7 @@ fn cargo_check(crate_dir: &Path) -> std::process::Output {
         .arg("--manifest-path")
         .arg(crate_dir.join("Cargo.toml"))
         .env("CARGO_INCREMENTAL", "0")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("check generated crate")
 }
@@ -156,7 +158,7 @@ fn main() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("orc");
     let inventory = fbb.create_vector(&[1_u8, 2, 3, 4]);
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,
@@ -221,7 +223,7 @@ unsafe impl<'a> pluggable_buffer_check::__flatc_rs_runtime::FlatBufferRead for R
 fn main() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("orc");
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,
@@ -259,7 +261,7 @@ use pluggable_buffer_check::my_game::sample::*;
 fn build_reader() -> Monster<'static> {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("orc");
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,
@@ -316,7 +318,7 @@ unsafe impl pluggable_buffer_check::__flatc_rs_runtime::FlatBufferRead for Owned
 fn main() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("orc");
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,
@@ -374,7 +376,7 @@ unsafe impl pluggable_buffer_check::__flatc_rs_runtime::FlatBufferRead for Owned
 fn main() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("orc");
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,
@@ -478,7 +480,7 @@ fn main() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new_in(allocator);
     let name = fbb.create_string("orc");
     let inventory = fbb.create_vector(&[1_u8, 2, 3, 4]);
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,
@@ -642,7 +644,7 @@ unsafe impl pluggable_buffer_check::__flatc_rs_runtime::FlatBufferRead for Owned
 fn main() {
     let mut fbb = flatbuffers::FlatBufferBuilder::new();
     let name = fbb.create_string("orc");
-    let root = createMonster(
+    let root = Monster::create(
         &mut fbb,
         &MonsterArgs {
             hp: 42,

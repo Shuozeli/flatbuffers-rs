@@ -118,17 +118,6 @@ impl ::core::fmt::Debug for Greeting<'_> {
   }
 }
 
-#[inline]
-pub fn createGreeting<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args GreetingArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Greeting<'bldr>> {
-  let mut builder = GreetingBuilder::new(fbb);
-  if let Some(x) = args.name { builder.add_name(x); }
-  if let Some(x) = args.message { builder.add_message(x); }
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct GreetingT {
@@ -152,7 +141,7 @@ impl GreetingT {
   ) -> ::flatbuffers::WIPOffset<Greeting<'b>> {
     let message = self.message.as_ref().map(|x| _fbb.create_string(x));
     let name = Some(_fbb.create_string(&self.name));
-    createGreeting(_fbb, &GreetingArgs {
+    Greeting::create(_fbb, &GreetingArgs {
       message,
       name,
     })

@@ -100,16 +100,6 @@ impl ::core::fmt::Debug for Child<'_> {
   }
 }
 
-#[inline]
-pub fn createChild<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args ChildArgs,
-) -> ::flatbuffers::WIPOffset<Child<'bldr>> {
-  let mut builder = ChildBuilder::new(fbb);
-  builder.add_value(args.value);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChildT {
@@ -130,7 +120,7 @@ impl ChildT {
     _fbb: &mut ::flatbuffers::FlatBufferBuilder<'b, A>,
   ) -> ::flatbuffers::WIPOffset<Child<'b>> {
     let value = self.value;
-    createChild(_fbb, &ChildArgs {
+    Child::create(_fbb, &ChildArgs {
       value,
     })
   }
@@ -259,17 +249,6 @@ impl ::core::fmt::Debug for Parent<'_> {
   }
 }
 
-#[inline]
-pub fn createParent<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args ParentArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Parent<'bldr>> {
-  let mut builder = ParentBuilder::new(fbb);
-  if let Some(x) = args.label { builder.add_label(x); }
-  if let Some(x) = args.child { builder.add_child(x); }
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParentT {
@@ -293,7 +272,7 @@ impl ParentT {
   ) -> ::flatbuffers::WIPOffset<Parent<'b>> {
     let child = self.child.as_ref().map(|x| x.pack(_fbb));
     let label = self.label.as_ref().map(|x| _fbb.create_string(x));
-    createParent(_fbb, &ParentArgs {
+    Parent::create(_fbb, &ParentArgs {
       child,
       label,
     })

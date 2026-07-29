@@ -185,21 +185,6 @@ impl ::core::fmt::Debug for ScalarStuff<'_> {
   }
 }
 
-#[inline]
-pub fn createScalarStuff<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args ScalarStuffArgs,
-) -> ::flatbuffers::WIPOffset<ScalarStuff<'bldr>> {
-  let mut builder = ScalarStuffBuilder::new(fbb);
-  builder.add_default_bool(args.default_bool);
-  if let Some(x) = args.maybe_bool { builder.add_maybe_bool(x); }
-  builder.add_just_bool(args.just_bool);
-  builder.add_default_i8(args.default_i8);
-  if let Some(x) = args.maybe_i8 { builder.add_maybe_i8(x); }
-  builder.add_just_i8(args.just_i8);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScalarStuffT {
@@ -235,7 +220,7 @@ impl ScalarStuffT {
     let just_bool = self.just_bool;
     let maybe_bool = self.maybe_bool;
     let default_bool = self.default_bool;
-    createScalarStuff(_fbb, &ScalarStuffArgs {
+    ScalarStuff::create(_fbb, &ScalarStuffArgs {
       just_i8,
       maybe_i8,
       default_i8,

@@ -34,8 +34,6 @@ pub fn generate(
     builder::gen_builder(w, schema, obj, name, current_ns, opts)?;
     w.blank();
     reader::gen_debug_impl(w, obj, name, opts);
-    w.blank();
-    builder::gen_create_fn(w, obj, name);
 
     // Object API: owned T type with pack/unpack
     if opts.gen_object_api {

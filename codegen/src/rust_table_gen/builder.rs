@@ -40,6 +40,9 @@ pub(super) fn gen_builder(
         |w| {
             // add_* methods for each field
             for field in &obj.fields {
+                if field.is_deprecated {
+                    continue;
+                }
                 gen_builder_add_method(w, schema, field, name, current_ns, opts)?;
             }
 
@@ -214,7 +217,7 @@ pub(super) fn gen_args_struct(
     name: &str,
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
-    let needs_lifetime = obj.fields.iter().any(|f| {
+    let needs_lifetime = obj.fields.iter().filter(|f| !f.is_deprecated).any(|f| {
         let bt = f.type_.base_type;
         matches!(
             bt,
@@ -231,6 +234,7 @@ pub(super) fn gen_args_struct(
     let field_info: Vec<(String, String, String, bool)> = obj
         .fields
         .iter()
+        .filter(|field| !field.is_deprecated)
         .map(|field| {
             let fname = &field.name;
             let escaped = type_map::escape_keyword(fname);
@@ -267,80 +271,4 @@ pub(super) fn gen_args_struct(
         });
     });
     Ok(())
-}
-
-/// Generate the standalone `create*()` function.
-pub(super) fn gen_create_fn(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
-    let needs_lifetime = obj.fields.iter().any(|f| {
-        let bt = f.type_.base_type;
-        matches!(
-            bt,
-            BaseType::BASE_TYPE_STRING
-                | BaseType::BASE_TYPE_STRUCT
-                | BaseType::BASE_TYPE_TABLE
-                | BaseType::BASE_TYPE_VECTOR
-        )
-    });
-
-    let args_lifetime = if needs_lifetime { "<'args>" } else { "" };
-
-    w.line("#[inline]");
-    w.line(&format!(
-        "pub fn create{name}<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>("
-    ));
-    w.indent();
-    w.line("fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,");
-    w.line(&format!("args: &'args {name}Args{args_lifetime},"));
-    w.dedent();
-    w.line(&format!(") -> ::flatbuffers::WIPOffset<{name}<'bldr>> {{"));
-    w.indent();
-    w.line(&format!("let mut builder = {name}Builder::new(fbb);"));
-
-    // Add fields - non-scalars first (they have larger offsets), then scalars
-    // This matches the C++ codegen ordering for better vtable packing
-    let mut non_scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
-    let mut scalar_fields: Vec<(usize, &ResolvedField)> = Vec::new();
-
-    for (i, field) in obj.fields.iter().enumerate() {
-        let bt = field.type_.base_type;
-        if type_map::is_scalar(bt) {
-            scalar_fields.push((i, field));
-        } else {
-            non_scalar_fields.push((i, field));
-        }
-    }
-
-    // Non-scalar fields: reversed order, wrap in if let Some
-    for (_, field) in non_scalar_fields.iter().rev() {
-        let fname = &field.name;
-        let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_snake_case(&escaped);
-        w.line(&format!(
-            "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
-        ));
-    }
-
-    // Scalar fields: sort by alignment size desc then index desc (matches C++ ordering)
-    scalar_fields.sort_by(|a, b| {
-        let sz_a = helpers::scalar_alignment_size(a.1.type_.base_type);
-        let sz_b = helpers::scalar_alignment_size(b.1.type_.base_type);
-        sz_b.cmp(&sz_a).then(b.0.cmp(&a.0))
-    });
-
-    for (_, field) in &scalar_fields {
-        let fname = &field.name;
-        let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_snake_case(&escaped);
-        if field.is_optional {
-            w.line(&format!(
-                "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
-            ));
-        } else {
-            w.line(&format!("builder.add_{accessor}(args.{accessor});"));
-        }
-    }
-
-    w.line("builder.finish()");
-    w.dedent();
-    w.line("}");
 }

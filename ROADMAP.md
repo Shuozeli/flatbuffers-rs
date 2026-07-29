@@ -1,6 +1,7 @@
+<!-- agent-updated: 2026-07-25T15:55:15Z -->
 # flatc-rs Roadmap
 
-Last updated: 2026-03-26
+Last updated: 2026-07-25
 
 ## Current State
 
@@ -10,6 +11,23 @@ TypeScript. 612+ tests passing. Binary compatibility verified against the C++ `f
 cross-compat tests. Production readiness audit completed 2026-02-28. All CRITICAL and HIGH
 audit findings resolved. Code quality audit completed 2026-03-17 with all priority-1 and
 priority-2 fixes applied.
+
+The 2026-07-24 Rust code-generation hardening aligned table construction with
+the upstream associated `Type::create` API, removed the redundant camel-case
+free constructor, and made deprecated fields read-only by omitting them from
+builders, Args, Object API, `Debug`, and serde traversal while preserving their
+old-data accessors. Default and all-feature release suites, strict
+production-target Clippy, and a downstream `-D warnings` SchemaHub consumer
+verify the change. A temporary dependency override also passes SchemaHub's
+complete 591-test release workspace with warnings denied in generated-code
+crates and all seven real-world codelabs.
+
+The 2026-07-25 follow-up fixed Rust union accessors for struct variants by
+using the fully qualified `Follow` implementation and public upstream `Table`
+accessors. Its generated-code compile harness now selects an rlib compatible
+with the active Rust compiler when a shared target directory contains stale
+artifacts from another toolchain. Focused generated-code tests, strict default
+and all-feature Clippy, and both full release workspace matrices pass.
 
 | Component               | Status   | Tests |
 |-------------------------|----------|-------|

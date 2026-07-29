@@ -223,18 +223,6 @@ impl ::core::fmt::Debug for Weapon<'_> {
   }
 }
 
-#[inline]
-pub fn createWeapon<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-  fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-  args: &'args WeaponArgs<'args>,
-) -> ::flatbuffers::WIPOffset<Weapon<'bldr>> {
-  let mut builder = WeaponBuilder::new(fbb);
-  if let Some(x) = args.name { builder.add_name(x); }
-  builder.add_damage(args.damage);
-  builder.add_color(args.color);
-  builder.finish()
-}
-
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct WeaponT {
@@ -261,7 +249,7 @@ impl WeaponT {
     let name = self.name.as_ref().map(|x| _fbb.create_string(x));
     let color = self.color;
     let damage = self.damage;
-    createWeapon(_fbb, &WeaponArgs {
+    Weapon::create(_fbb, &WeaponArgs {
       name,
       color,
       damage,
