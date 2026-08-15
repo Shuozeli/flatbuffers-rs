@@ -231,6 +231,19 @@ fn write_output(path: &Path, content: &str) -> Result<(), String> {
     })
 }
 
+fn codegen_file_filter(
+    input_file: &Path,
+    gen_all: bool,
+) -> Result<Option<HashSet<String>>, String> {
+    if gen_all {
+        return Ok(None);
+    }
+
+    let path = fs::canonicalize(input_file)
+        .map_err(|e| format!("failed to resolve input file {}: {e}", input_file.display()))?;
+    Ok(Some(HashSet::from([path.to_string_lossy().to_string()])))
+}
+
 fn warn(msg: &str, no_warnings: bool) {
     if !no_warnings {
         eprintln!("warning: {msg}");
@@ -635,26 +648,14 @@ fn main() {
         }
     }
 
-    // Build the declaration_file filter for --gen-all behavior.
-    let gen_only_files: Option<HashSet<String>> = if cli.gen_all {
-        None
-    } else {
-        let mut files = HashSet::new();
-        for f in &cli.files {
-            match fs::canonicalize(f) {
-                Ok(p) => {
-                    files.insert(p.to_string_lossy().to_string());
-                }
-                Err(e) => {
-                    eprintln!("error: failed to resolve input file {}: {e}", f.display());
-                    process::exit(1);
-                }
-            }
-        }
-        Some(files)
-    };
-
     for input_file in &cli.files {
+        // Generate one output per direct input. Included declarations are added
+        // to that output only when --gen-all is requested.
+        let gen_only_files = codegen_file_filter(input_file, cli.gen_all).unwrap_or_else(|e| {
+            eprintln!("error: {e}");
+            process::exit(1);
+        });
+
         if cli.rust {
             let rust_opts = CodeGenOptions {
                 gen_name_constants: cli.gen_name_strings,

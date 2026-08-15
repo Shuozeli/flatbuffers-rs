@@ -121,6 +121,12 @@ impl<'a> RustGenerator<'a> {
         if name.is_empty() {
             return;
         }
+        if !super::should_generate(
+            root_table.declaration_file.as_deref(),
+            &self.opts.gen_only_files,
+        ) {
+            return;
+        }
 
         let ns = namespace_tree::namespace_str(root_table.namespace.as_ref());
         let full_name = if ns.is_empty() {

@@ -71,6 +71,95 @@ fn cli_nodejs_alias_generates_typescript() {
 }
 
 #[test]
+fn cli_multi_input_codegen_isolates_each_output_for_every_language() {
+    // Arrange
+    let tmp = tempfile::tempdir().unwrap();
+    let schema_a = tmp.path().join("a.fbs");
+    let schema_b = tmp.path().join("b.fbs");
+    std::fs::write(&schema_a, "table TableA { value:int; }\n").unwrap();
+    std::fs::write(
+        &schema_b,
+        "table TableB { value:int; }\nroot_type TableB;\n",
+    )
+    .unwrap();
+
+    for (flag, extension) in [
+        ("--rust", "rs"),
+        ("--ts", "ts"),
+        ("--python", "py"),
+        ("--dart", "dart"),
+    ] {
+        let out_dir = tmp.path().join(extension);
+
+        // Act
+        let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+            .arg("-o")
+            .arg(&out_dir)
+            .arg(flag)
+            .arg(&schema_a)
+            .arg(&schema_b)
+            .output()
+            .unwrap();
+
+        // Assert
+        assert!(
+            output.status.success(),
+            "{flag} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let a_code =
+            std::fs::read_to_string(out_dir.join(format!("a_generated.{extension}"))).unwrap();
+        let b_code =
+            std::fs::read_to_string(out_dir.join(format!("b_generated.{extension}"))).unwrap();
+        assert!(a_code.contains("TableA"), "{flag} omitted TableA");
+        assert!(!a_code.contains("TableB"), "{flag} leaked TableB into A");
+        assert!(b_code.contains("TableB"), "{flag} omitted TableB");
+        assert!(!b_code.contains("TableA"), "{flag} leaked TableA into B");
+        assert_ne!(a_code, b_code, "{flag} generated duplicate outputs");
+
+        if flag == "--rust" {
+            assert!(!a_code.contains("root_as_table_b"));
+            assert!(b_code.contains("root_as_table_b"));
+        }
+    }
+}
+
+#[test]
+fn cli_gen_all_keeps_included_declarations() {
+    // Arrange
+    let tmp = tempfile::tempdir().unwrap();
+    let shared = tmp.path().join("shared.fbs");
+    let schema = tmp.path().join("message.fbs");
+    let out_dir = tmp.path().join("out");
+    std::fs::write(&shared, "table SharedValue { value:int; }\n").unwrap();
+    std::fs::write(
+        &schema,
+        "include \"shared.fbs\";\ntable Message { shared:SharedValue; }\n",
+    )
+    .unwrap();
+
+    // Act
+    let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-o")
+        .arg(&out_dir)
+        .arg("--rust")
+        .arg("--gen-all")
+        .arg(&schema)
+        .output()
+        .unwrap();
+
+    // Assert
+    assert!(
+        output.status.success(),
+        "flatc failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let code = std::fs::read_to_string(out_dir.join("message_generated.rs")).unwrap();
+    assert!(code.contains("pub struct Message"));
+    assert!(code.contains("pub struct SharedValue"));
+}
+
+#[test]
 fn cli_rust_pluggable_buffer_generates_runtime_adapter() {
     // Arrange
     let tmp = tempfile::tempdir()
