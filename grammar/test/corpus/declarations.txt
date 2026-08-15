@@ -1,0 +1,83 @@
+==================
+Declarations
+==================
+
+namespace Game.Sample;
+
+enum Color : byte { Red, Green = 2, Blue }
+
+table Weapon {
+  name: string;
+  damage: short = 10;
+}
+
+union Equipment { Weapon }
+
+table Monster {
+  color: Color = Blue;
+  inventory: [ubyte];
+  equipped: Equipment;
+}
+
+root_type Monster;
+
+---
+
+(source_file
+  (namespace_decl
+    (full_ident
+      (identifier)
+      (identifier)))
+  (enum_decl
+    (identifier)
+    (type)
+    (enum_val_decl
+      (identifier))
+    (enum_val_decl
+      (identifier)
+      (int_constant
+        (int_lit
+          (decimal_lit))))
+    (enum_val_decl
+      (identifier)))
+  (type_decl
+    (identifier)
+    (field_decl
+      (identifier)
+      (type))
+    (field_decl
+      (identifier)
+      (type)
+      (value
+        (single_value
+          (scalar
+            (int_constant
+              (int_lit
+                (decimal_lit))))))))
+  (union_decl
+    (identifier)
+    (union_field_decl
+      (full_ident
+        (identifier))))
+  (type_decl
+    (identifier)
+    (field_decl
+      (identifier)
+      (type
+        (full_ident
+          (identifier)))
+      (value
+        (single_value
+          (full_ident
+            (identifier)))))
+    (field_decl
+      (identifier)
+      (type
+        (type)))
+    (field_decl
+      (identifier)
+      (type
+        (full_ident
+          (identifier)))))
+  (root_decl
+    (identifier)))

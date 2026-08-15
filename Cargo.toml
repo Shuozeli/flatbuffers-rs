@@ -10,6 +10,7 @@ members = [
     "annotator",
     "fbs-gen",
     "data-gen",
+    "grammar",
     "test-utils",
     "wasm-api",
 ]

@@ -60,7 +60,7 @@
 (enum_decl
     enum_name: (identifier) @type)
 
-(enumval_decl
+(enum_val_decl
     enum_key: (identifier) @type)
 
 (union_decl

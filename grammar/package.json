@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "FlatBuffers grammar for tree-sitter (internal to flatc-rs)",
+  "packageManager": "pnpm@11.3.0",
   "main": "grammar.js",
   "scripts": {
-    "generate": "npx tree-sitter generate",
-    "test": "npx tree-sitter test"
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test"
   },
   "devDependencies": {
-    "tree-sitter-cli": "^0.24.7"
+    "tree-sitter-cli": "0.24.7"
   }
 }
