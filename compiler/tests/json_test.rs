@@ -417,19 +417,17 @@ fn decode_cpp_monsterdata() {
     let result = flatc_rs_compiler::compile(&[schema_file], &opts).unwrap();
 
     // The schema has two "Monster" objects (MyGame.Example2.Monster and
-    // MyGame.Example.Monster). The root_table is the full one, which is
-    // stored at a specific index. Find it by field count.
-    let root_name = "Monster";
-    // Verify the root_table is set
+    // MyGame.Example.Monster), so use the declared root's FQN.
     assert!(result.schema.root_table_index.is_some());
     let root_idx = result.schema.root_table_index.unwrap();
     let root_obj = &result.schema.objects[root_idx];
+    let root_name = root_obj.fully_qualified_name();
     assert!(
         root_obj.fields.len() > 5,
         "root Monster should have many fields"
     );
 
-    let json_val = binary_to_json(&buf, &result.schema, root_name, &default_opts()).unwrap();
+    let json_val = binary_to_json(&buf, &result.schema, &root_name, &default_opts()).unwrap();
 
     // Verify key fields match the known monsterdata_test values
     assert_eq!(json_val["name"], "MyMonster");
@@ -584,6 +582,99 @@ fn encode_wrong_root_type_fails() {
     let input = json!({"name": "test"});
     let err = json_to_binary(&input, &result.schema, "NonExistent");
     assert!(err.is_err());
+}
+
+#[test]
+fn namespaced_roots_require_an_fqn_when_the_short_name_is_ambiguous() {
+    let result = compile_single(
+        "namespace A.Nested; table Root { a:int; } namespace B; table Root { b:string; }",
+    )
+    .unwrap();
+
+    let a_binary = json_to_binary(&json!({ "a": 7 }), &result.schema, "A.Nested.Root").unwrap();
+    let b_binary = json_to_binary(&json!({ "b": "value" }), &result.schema, "B.Root").unwrap();
+    let a_json =
+        binary_to_json(&a_binary, &result.schema, "A.Nested.Root", &default_opts()).unwrap();
+    let b_json = binary_to_json(&b_binary, &result.schema, "B.Root", &default_opts()).unwrap();
+
+    assert_eq!(a_json["a"], 7);
+    assert_eq!(b_json["b"], "value");
+    for error in [
+        json_to_binary(&json!({ "a": 7 }), &result.schema, "Root").unwrap_err(),
+        binary_to_json(&a_binary, &result.schema, "Root", &default_opts()).unwrap_err(),
+    ] {
+        assert!(matches!(
+            error,
+            JsonError::AmbiguousRootType {
+                ref name,
+                ref candidates,
+            } if name == "Root"
+                && candidates == &["A.Nested.Root".to_string(), "B.Root".to_string()]
+        ));
+    }
+}
+
+#[test]
+fn cli_uses_declared_root_fqn_but_rejects_an_explicit_ambiguous_short_name() {
+    let tmp = tempfile::tempdir().unwrap();
+    let schema = tmp.path().join("namespaced.fbs");
+    let input_a = tmp.path().join("a.json");
+    let input_b = tmp.path().join("b.json");
+    std::fs::write(
+        &schema,
+        "namespace A; table Root { a:int; } root_type Root; namespace B; table Root { b:string; }",
+    )
+    .unwrap();
+    std::fs::write(&input_a, r#"{"a":7}"#).unwrap();
+    std::fs::write(&input_b, r#"{"b":"value"}"#).unwrap();
+
+    let declared = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-b")
+        .arg("-o")
+        .arg(tmp.path().join("declared"))
+        .arg(&schema)
+        .arg("--")
+        .arg(&input_a)
+        .output()
+        .unwrap();
+    let ambiguous = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-b")
+        .arg("--root-type")
+        .arg("Root")
+        .arg("-o")
+        .arg(tmp.path().join("ambiguous"))
+        .arg(&schema)
+        .arg("--")
+        .arg(&input_a)
+        .output()
+        .unwrap();
+    let explicit = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-b")
+        .arg("--root-type")
+        .arg("B.Root")
+        .arg("-o")
+        .arg(tmp.path().join("explicit"))
+        .arg(&schema)
+        .arg("--")
+        .arg(&input_b)
+        .output()
+        .unwrap();
+
+    assert!(
+        declared.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&declared.stderr)
+    );
+    assert!(!ambiguous.status.success());
+    let stderr = String::from_utf8_lossy(&ambiguous.stderr);
+    assert!(stderr.contains("ambiguous"), "stderr: {stderr}");
+    assert!(stderr.contains("A.Root"), "stderr: {stderr}");
+    assert!(stderr.contains("B.Root"), "stderr: {stderr}");
+    assert!(
+        explicit.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&explicit.stderr)
+    );
 }
 
 #[test]

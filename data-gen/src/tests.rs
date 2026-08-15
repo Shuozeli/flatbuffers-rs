@@ -352,6 +352,34 @@ fn error_root_type_not_found() {
     }
 }
 
+#[test]
+fn namespaced_root_lookup_requires_an_unambiguous_name() {
+    let result = compile_single(
+        "namespace A.Nested; table Root { a:int; } namespace B; table Root { b:string; }",
+    )
+    .unwrap();
+    let schema = result.schema.as_legacy().unwrap();
+    let config = DataGenConfig {
+        prob_include_field: 1.0,
+        ..DataGenConfig::default()
+    };
+
+    let generated = generate_json(&schema, "A.Nested.Root", 42, config.clone()).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&generated).unwrap();
+    let error = generate_json(&schema, "Root", 42, config).unwrap_err();
+
+    assert!(value.get("a").is_some());
+    assert!(value.get("b").is_none());
+    assert!(matches!(
+        error,
+        DataGenError::AmbiguousRootType {
+            ref name,
+            ref candidates,
+        } if name == "Root"
+            && candidates == &["A.Nested.Root".to_string(), "B.Root".to_string()]
+    ));
+}
+
 // ---------------------------------------------------------------------------
 // Round-trip: generate -> encode -> walk
 // ---------------------------------------------------------------------------

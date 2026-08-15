@@ -49,11 +49,25 @@ impl Default for DataGenConfig {
 
 #[derive(Debug)]
 pub enum DataGenError {
-    RootTypeNotFound { name: String },
-    ObjectIndexOutOfRange { index: usize, count: usize },
-    EnumIndexOutOfRange { index: usize, count: usize },
+    RootTypeNotFound {
+        name: String,
+    },
+    AmbiguousRootType {
+        name: String,
+        candidates: Vec<String>,
+    },
+    ObjectIndexOutOfRange {
+        index: usize,
+        count: usize,
+    },
+    EnumIndexOutOfRange {
+        index: usize,
+        count: usize,
+    },
     NoRootTable,
-    JsonSerialization { source: serde_json::Error },
+    JsonSerialization {
+        source: serde_json::Error,
+    },
 }
 
 impl std::fmt::Display for DataGenError {
@@ -62,6 +76,11 @@ impl std::fmt::Display for DataGenError {
             DataGenError::RootTypeNotFound { name } => {
                 write!(f, "root type '{name}' not found in schema")
             }
+            DataGenError::AmbiguousRootType { name, candidates } => write!(
+                f,
+                "root type '{name}' is ambiguous; use one of: {}",
+                candidates.join(", ")
+            ),
             DataGenError::ObjectIndexOutOfRange { index, count } => {
                 write!(
                     f,

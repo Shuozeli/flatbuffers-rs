@@ -13,6 +13,12 @@ pub enum JsonError {
     #[error("root type '{name}' not found in schema")]
     RootTypeNotFound { name: String },
 
+    #[error("root type '{name}' is ambiguous; use one of: {}", candidates.join(", "))]
+    AmbiguousRootType {
+        name: String,
+        candidates: Vec<String>,
+    },
+
     #[error("object index {index} out of range (have {count} objects)")]
     ObjectIndexOutOfRange { index: usize, count: usize },
 

@@ -32,6 +32,102 @@ impl std::fmt::Display for ResolveError {
 
 impl std::error::Error for ResolveError {}
 
+/// Error returned when an object name cannot be resolved uniquely.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ObjectLookupError {
+    NotFound {
+        name: String,
+    },
+    Ambiguous {
+        name: String,
+        candidates: Vec<String>,
+    },
+}
+
+impl std::fmt::Display for ObjectLookupError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotFound { name } => write!(f, "object type '{name}' not found in schema"),
+            Self::Ambiguous { name, candidates } => write!(
+                f,
+                "object type '{name}' is ambiguous; use one of: {}",
+                candidates.join(", ")
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ObjectLookupError {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IndexedObject {
+    index: usize,
+    fully_qualified_name: String,
+}
+
+/// Lookup table for fully-qualified and unambiguous short object names.
+#[derive(Debug, Clone, Default)]
+pub struct ObjectIndex {
+    by_name: HashMap<String, Vec<IndexedObject>>,
+}
+
+impl ObjectIndex {
+    fn insert(&mut self, name: String, object: IndexedObject) {
+        let candidates = self.by_name.entry(name).or_default();
+        if !candidates
+            .iter()
+            .any(|candidate| candidate.index == object.index)
+        {
+            candidates.push(object);
+        }
+    }
+
+    /// Resolve an FQN or an unambiguous short object name.
+    pub fn resolve(&self, name: &str) -> Result<usize, ObjectLookupError> {
+        let candidates = self
+            .by_name
+            .get(name)
+            .ok_or_else(|| ObjectLookupError::NotFound {
+                name: name.to_string(),
+            })?;
+
+        if candidates.len() == 1 {
+            return Ok(candidates[0].index);
+        }
+
+        Err(ObjectLookupError::Ambiguous {
+            name: name.to_string(),
+            candidates: candidates
+                .iter()
+                .map(|candidate| candidate.fully_qualified_name.clone())
+                .collect(),
+        })
+    }
+}
+
+fn fully_qualified_name(name: &str, namespace: Option<&Namespace>) -> String {
+    if name.contains('.') {
+        return name.to_string();
+    }
+
+    match namespace.and_then(|namespace| namespace.namespace.as_deref()) {
+        Some(namespace) if !namespace.is_empty() => format!("{namespace}.{name}"),
+        _ => name.to_string(),
+    }
+}
+
+fn insert_object(index: &mut ObjectIndex, object_index: usize, fqn: String) {
+    let object = IndexedObject {
+        index: object_index,
+        fully_qualified_name: fqn.clone(),
+    };
+    index.insert(fqn.clone(), object.clone());
+    let short_name = fqn.rsplit('.').next().unwrap_or(&fqn);
+    if short_name != fqn {
+        index.insert(short_name.to_string(), object);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ResolvedType
 // ---------------------------------------------------------------------------
@@ -142,6 +238,13 @@ pub struct ResolvedObject {
     pub span: Option<Span>,
 }
 
+impl ResolvedObject {
+    /// Return the canonical fully-qualified object name.
+    pub fn fully_qualified_name(&self) -> String {
+        fully_qualified_name(&self.name, self.namespace.as_ref())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ResolvedRpcCall
 // ---------------------------------------------------------------------------
@@ -188,21 +291,103 @@ pub struct ResolvedSchema {
 }
 
 impl ResolvedSchema {
-    /// Build a lookup table mapping object names (both FQN and short names)
-    /// to their index in `self.objects`.
+    /// Build a lookup table containing object FQNs and short names.
     ///
-    /// For objects with dotted names (e.g., "MyGame.Sample.Monster"), both
-    /// the FQN and the short name ("Monster") are indexed. The first entry
-    /// wins for duplicate short names.
-    pub fn build_object_index(&self) -> HashMap<&str, usize> {
-        let mut index = HashMap::new();
+    /// Short names that refer to multiple objects remain in the index and
+    /// return [`ObjectLookupError::Ambiguous`] when resolved.
+    pub fn build_object_index(&self) -> ObjectIndex {
+        let mut index = ObjectIndex::default();
         for (i, obj) in self.objects.iter().enumerate() {
-            let name = obj.name.as_str();
-            index.entry(name).or_insert(i);
-            if let Some(short) = name.rsplit('.').next() {
-                if short != name {
-                    index.entry(short).or_insert(i);
-                }
+            insert_object(&mut index, i, obj.fully_qualified_name());
+        }
+        index
+    }
+}
+
+#[cfg(test)]
+mod object_index_tests {
+    use super::*;
+
+    fn object(name: &str, namespace: Option<&str>) -> ResolvedObject {
+        ResolvedObject {
+            name: name.to_string(),
+            fields: Vec::new(),
+            is_struct: false,
+            min_align: None,
+            byte_size: None,
+            attributes: None,
+            documentation: None,
+            declaration_file: None,
+            namespace: namespace.map(|namespace| Namespace {
+                namespace: Some(namespace.to_string()),
+            }),
+            span: None,
+        }
+    }
+
+    fn schema(objects: Vec<ResolvedObject>) -> ResolvedSchema {
+        ResolvedSchema {
+            objects,
+            enums: Vec::new(),
+            file_ident: None,
+            file_ext: None,
+            root_table_index: None,
+            services: Vec::new(),
+            advanced_features: AdvancedFeatures::default(),
+            fbs_files: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn resolves_nested_fqns_and_rejects_ambiguous_short_names() {
+        let schema = schema(vec![
+            object("Root", Some("A.Nested")),
+            object("Root", Some("B")),
+        ]);
+        let index = schema.build_object_index();
+
+        assert_eq!(index.resolve("A.Nested.Root"), Ok(0));
+        assert_eq!(index.resolve("B.Root"), Ok(1));
+        assert_eq!(
+            index.resolve("Root"),
+            Err(ObjectLookupError::Ambiguous {
+                name: "Root".to_string(),
+                candidates: vec!["A.Nested.Root".to_string(), "B.Root".to_string()],
+            })
+        );
+    }
+
+    #[test]
+    fn preserves_names_that_are_already_fully_qualified() {
+        let schema = schema(vec![object("A.Nested.Root", Some("A.Nested"))]);
+        let index = schema.build_object_index();
+
+        assert_eq!(index.resolve("A.Nested.Root"), Ok(0));
+        assert_eq!(index.resolve("Root"), Ok(0));
+        assert!(matches!(
+            index.resolve("A.Nested.A.Nested.Root"),
+            Err(ObjectLookupError::NotFound { .. })
+        ));
+    }
+}
+
+impl super::Object {
+    /// Return the canonical fully-qualified object name when the parsed object
+    /// has a name.
+    pub fn fully_qualified_name(&self) -> Option<String> {
+        self.name
+            .as_deref()
+            .map(|name| fully_qualified_name(name, self.namespace.as_ref()))
+    }
+}
+
+impl super::Schema {
+    /// Build a lookup table containing object FQNs and short names.
+    pub fn build_object_index(&self) -> ObjectIndex {
+        let mut index = ObjectIndex::default();
+        for (i, obj) in self.objects.iter().enumerate() {
+            if let Some(fqn) = obj.fully_qualified_name() {
+                insert_object(&mut index, i, fqn);
             }
         }
         index

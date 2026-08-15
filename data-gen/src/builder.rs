@@ -1,5 +1,6 @@
 //! DataBuilder: walks a compiled Schema and builds random `serde_json::Value`.
 
+use flatc_rs_schema::resolved::{ObjectIndex, ObjectLookupError};
 use flatc_rs_schema::{BaseType, Enum, Field, Object, Schema, Type};
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -9,6 +10,7 @@ use crate::{DataGenConfig, DataGenError};
 
 pub struct DataBuilder<'a> {
     schema: &'a Schema,
+    object_index: ObjectIndex,
     rng: StdRng,
     config: DataGenConfig,
 }
@@ -17,6 +19,7 @@ impl<'a> DataBuilder<'a> {
     pub fn new(schema: &'a Schema, rng: StdRng, config: DataGenConfig) -> Self {
         Self {
             schema,
+            object_index: schema.build_object_index(),
             rng,
             config,
         }
@@ -33,26 +36,19 @@ impl<'a> DataBuilder<'a> {
     // -------------------------------------------------------------------
 
     fn find_object_index(&self, name: &str) -> Result<usize, DataGenError> {
-        // Exact match first
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if let Some(ref obj_name) = obj.name {
-                if obj_name == name {
-                    return Ok(i);
+        self.object_index
+            .resolve(name)
+            .map_err(|error| match error {
+                ObjectLookupError::NotFound { .. } => DataGenError::RootTypeNotFound {
+                    name: name.to_string(),
+                },
+                ObjectLookupError::Ambiguous { candidates, .. } => {
+                    DataGenError::AmbiguousRootType {
+                        name: name.to_string(),
+                        candidates,
+                    }
                 }
-            }
-        }
-        // Short name match (without namespace)
-        for (i, obj) in self.schema.objects.iter().enumerate() {
-            if let Some(ref obj_name) = obj.name {
-                let short = obj_name.rsplit('.').next().unwrap_or(obj_name);
-                if short == name {
-                    return Ok(i);
-                }
-            }
-        }
-        Err(DataGenError::RootTypeNotFound {
-            name: name.to_string(),
-        })
+            })
     }
 
     fn get_object(&self, idx: usize) -> Result<&Object, DataGenError> {

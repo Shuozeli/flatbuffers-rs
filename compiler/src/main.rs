@@ -16,6 +16,7 @@ use flatc_rs_compiler::{
     json::{binary_to_json, json_to_binary_with_opts, EncoderOptions, JsonOptions},
     CompilerOptions,
 };
+use flatc_rs_schema::resolved::ResolvedSchema;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -228,6 +229,15 @@ fn write_output(path: &Path, content: &str) -> Result<(), String> {
             tmp_path.display(),
             path.display()
         )
+    })
+}
+
+fn selected_root_type(override_name: Option<&str>, schema: &ResolvedSchema) -> Option<String> {
+    override_name.map(str::to_string).or_else(|| {
+        schema
+            .root_table_index
+            .and_then(|index| schema.objects.get(index))
+            .map(|object| object.fully_qualified_name())
     })
 }
 
@@ -467,17 +477,11 @@ fn main() {
     // -- JSON conversion --
     if cli.to_json || json_to_bin {
         // Determine root type from schema or --root-type flag
-        let root_type_name = cli
-            .root_type
-            .as_deref()
-            .or(schema
-                .root_table_index
-                .map(|idx| schema.objects[idx].name.as_str()))
-            .unwrap_or_else(|| {
+        let root_type_name =
+            selected_root_type(cli.root_type.as_deref(), schema).unwrap_or_else(|| {
                 eprintln!("error: no root_type in schema and --root-type not specified");
                 process::exit(1);
-            })
-            .to_string();
+            });
 
         let json_opts = JsonOptions {
             strict_json: cli.strict_json,
@@ -587,17 +591,11 @@ fn main() {
 
     // -- Annotate --
     if cli.annotate {
-        let root_type_name = cli
-            .root_type
-            .as_deref()
-            .or(schema
-                .root_table_index
-                .map(|idx| schema.objects[idx].name.as_str()))
-            .unwrap_or_else(|| {
+        let root_type_name =
+            selected_root_type(cli.root_type.as_deref(), schema).unwrap_or_else(|| {
                 eprintln!("error: no root_type in schema and --root-type not specified");
                 process::exit(1);
-            })
-            .to_string();
+            });
 
         let schema_name = cli
             .files

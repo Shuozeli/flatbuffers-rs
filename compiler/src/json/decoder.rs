@@ -5,7 +5,8 @@
 
 use flatc_rs_schema::buf_reader::BufReader;
 use flatc_rs_schema::resolved::{
-    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+    ObjectIndex, ObjectLookupError, ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema,
+    ResolvedType,
 };
 use flatc_rs_schema::BaseType;
 use serde_json::{json, Map, Value};
@@ -67,7 +68,7 @@ struct Decoder<'a> {
     reader: BufReader<'a>,
     schema: &'a ResolvedSchema,
     opts: &'a JsonOptions,
-    object_index: std::collections::HashMap<&'a str, usize>,
+    object_index: ObjectIndex,
 }
 
 impl<'a> Decoder<'a> {
@@ -103,18 +104,16 @@ impl<'a> Decoder<'a> {
     // -------------------------------------------------------------------
 
     fn find_object_index(&self, name: &str) -> Result<usize, JsonError> {
-        // If the name matches the schema's root_table, prefer using root_table_index
-        if let Some(idx) = self.schema.root_table_index {
-            if self.schema.objects[idx].name == name {
-                return Ok(idx);
-            }
-        }
-
         self.object_index
-            .get(name)
-            .copied()
-            .ok_or_else(|| JsonError::RootTypeNotFound {
-                name: name.to_string(),
+            .resolve(name)
+            .map_err(|error| match error {
+                ObjectLookupError::NotFound { .. } => JsonError::RootTypeNotFound {
+                    name: name.to_string(),
+                },
+                ObjectLookupError::Ambiguous { candidates, .. } => JsonError::AmbiguousRootType {
+                    name: name.to_string(),
+                    candidates,
+                },
             })
     }
 

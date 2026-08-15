@@ -194,6 +194,11 @@ pub enum WalkError {
     },
     #[error("root type '{name}' not found in schema")]
     RootTypeNotFound { name: String },
+    #[error("root type '{name}' is ambiguous; use one of: {}", candidates.join(", "))]
+    AmbiguousRootType {
+        name: String,
+        candidates: Vec<String>,
+    },
     #[error("invalid offset at 0x{offset:04X}: points to 0x{target:04X} which is out of bounds")]
     InvalidOffset { offset: usize, target: usize },
     #[error("walk depth exceeded maximum of {max}")]

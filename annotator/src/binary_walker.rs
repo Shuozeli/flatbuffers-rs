@@ -3,7 +3,8 @@ use std::ops::Range;
 
 use flatc_rs_schema::buf_reader::{BoundsError, BufReader};
 use flatc_rs_schema::resolved::{
-    ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+    ObjectIndex, ObjectLookupError, ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema,
+    ResolvedType,
 };
 use flatc_rs_schema::BaseType;
 
@@ -43,7 +44,7 @@ pub struct BinaryWalker<'a> {
     annotated: Vec<bool>,
     visited_tables: HashSet<usize>,
     visited_vtables: HashSet<usize>,
-    object_index: std::collections::HashMap<&'a str, usize>,
+    object_index: ObjectIndex,
 }
 
 impl<'a> BinaryWalker<'a> {
@@ -110,10 +111,15 @@ impl<'a> BinaryWalker<'a> {
 
     fn find_object_index(&self, name: &str) -> Result<usize, WalkError> {
         self.object_index
-            .get(name)
-            .copied()
-            .ok_or_else(|| WalkError::RootTypeNotFound {
-                name: name.to_string(),
+            .resolve(name)
+            .map_err(|error| match error {
+                ObjectLookupError::NotFound { .. } => WalkError::RootTypeNotFound {
+                    name: name.to_string(),
+                },
+                ObjectLookupError::Ambiguous { candidates, .. } => WalkError::AmbiguousRootType {
+                    name: name.to_string(),
+                    candidates,
+                },
             })
     }
 
@@ -1057,4 +1063,53 @@ fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, WalkErr
         .ok_or_else(|| WalkError::MissingTypeIndex {
             context: context.to_string(),
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flatc_rs_schema::{AdvancedFeatures, Namespace};
+
+    fn object(namespace: &str) -> ResolvedObject {
+        ResolvedObject {
+            name: "Root".to_string(),
+            fields: Vec::new(),
+            is_struct: false,
+            min_align: None,
+            byte_size: None,
+            attributes: None,
+            documentation: None,
+            declaration_file: None,
+            namespace: Some(Namespace {
+                namespace: Some(namespace.to_string()),
+            }),
+            span: None,
+        }
+    }
+
+    #[test]
+    fn root_lookup_supports_fqns_and_reports_ambiguous_short_names() {
+        let schema = ResolvedSchema {
+            objects: vec![object("A.Nested"), object("B")],
+            enums: Vec::new(),
+            file_ident: None,
+            file_ext: None,
+            root_table_index: None,
+            services: Vec::new(),
+            advanced_features: AdvancedFeatures::default(),
+            fbs_files: Vec::new(),
+        };
+        let walker = BinaryWalker::new(&[], &schema);
+
+        assert_eq!(walker.find_object_index("A.Nested.Root").unwrap(), 0);
+        assert_eq!(walker.find_object_index("B.Root").unwrap(), 1);
+        assert!(matches!(
+            walker.find_object_index("Root"),
+            Err(WalkError::AmbiguousRootType {
+                ref name,
+                ref candidates,
+            }) if name == "Root"
+                && candidates == &["A.Nested.Root".to_string(), "B.Root".to_string()]
+        ));
+    }
 }
