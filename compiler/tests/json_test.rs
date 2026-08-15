@@ -2,9 +2,13 @@
 
 use flatc_rs_compiler::{
     compile_single,
-    json::{binary_to_json, json_to_binary, json_to_binary_with_opts, EncoderOptions, JsonOptions},
+    json::{
+        binary_to_json, json_to_binary, json_to_binary_with_opts, EncoderOptions, JsonError,
+        JsonOptions,
+    },
 };
-use serde_json::json;
+use serde_json::{json, Value};
+use std::process::Command;
 
 fn default_opts() -> JsonOptions {
     JsonOptions {
@@ -482,6 +486,222 @@ fn encode_wrong_json_type_fails() {
     let input = json!("not an object");
     let err = json_to_binary(&input, &result.schema, "Monster");
     assert!(err.is_err());
+}
+
+fn integer_schema() -> flatc_rs_compiler::ResolvedSchema {
+    compile_single(
+        "table Scalars {
+            b:byte;
+            ub:ubyte;
+            s:short;
+            us:ushort;
+            i:int;
+            ui:uint;
+            l:long;
+            ul:ulong;
+         }
+         root_type Scalars;",
+    )
+    .unwrap()
+    .schema
+}
+
+fn assert_integer_accepted(schema: &flatc_rs_compiler::ResolvedSchema, field: &str, value: Value) {
+    // Arrange
+    let input = json!({ field: value });
+
+    // Act
+    let result = json_to_binary(&input, schema, "Scalars");
+
+    // Assert
+    assert!(result.is_ok(), "{field} rejected {}", input[field]);
+}
+
+fn assert_integer_rejected(schema: &flatc_rs_compiler::ResolvedSchema, field: &str, value: Value) {
+    // Arrange
+    let expected_value = value.to_string();
+    let input = json!({ field: value });
+
+    // Act
+    let error = json_to_binary(&input, schema, "Scalars").unwrap_err();
+
+    // Assert
+    match error {
+        JsonError::NumberOutOfRange {
+            field_name, value, ..
+        } => {
+            assert_eq!(field_name, field);
+            assert_eq!(value, expected_value);
+        }
+        other => panic!("expected NumberOutOfRange for {field}, got {other}"),
+    }
+}
+
+#[test]
+fn integer_scalar_boundaries_are_checked_without_narrowing() {
+    // Arrange
+    let schema = integer_schema();
+    let below_i64: Value = serde_json::from_str("-9223372036854775809").unwrap();
+    let above_u64: Value = serde_json::from_str("18446744073709551616").unwrap();
+    let cases = [
+        ("b", json!(-128), json!(127), json!(-129), json!(128)),
+        ("ub", json!(0), json!(255), json!(-1), json!(256)),
+        (
+            "s",
+            json!(-32768),
+            json!(32767),
+            json!(-32769),
+            json!(32768),
+        ),
+        ("us", json!(0), json!(65535), json!(-1), json!(65536)),
+        (
+            "i",
+            json!(-2147483648i64),
+            json!(2147483647i64),
+            json!(-2147483649i64),
+            json!(2147483648u64),
+        ),
+        (
+            "ui",
+            json!(0),
+            json!(4294967295u64),
+            json!(-1),
+            json!(4294967296u64),
+        ),
+        (
+            "l",
+            json!(i64::MIN),
+            json!(i64::MAX),
+            below_i64,
+            json!(9223372036854775808u64),
+        ),
+        ("ul", json!(0), json!(u64::MAX), json!(-1), above_u64),
+    ];
+
+    // Act / Assert
+    for (field, min, max, below, above) in cases {
+        assert_integer_accepted(&schema, field, min);
+        assert_integer_accepted(&schema, field, max);
+        assert_integer_accepted(&schema, field, json!(1.0));
+        assert_integer_rejected(&schema, field, below);
+        assert_integer_rejected(&schema, field, above);
+        assert_integer_rejected(&schema, field, json!(1.5));
+    }
+    assert_integer_accepted(&schema, "i", json!(1e3));
+    assert_integer_rejected(&schema, "l", json!(9007199254740993.0));
+}
+
+#[test]
+fn numeric_enum_values_use_the_underlying_integer_range() {
+    // Arrange
+    let result = compile_single(
+        "enum EB:byte { Zero = 0 }
+         enum EUB:ubyte { Zero = 0 }
+         enum ES:short { Zero = 0 }
+         enum EUS:ushort { Zero = 0 }
+         enum EI:int { Zero = 0 }
+         enum EUI:uint { Zero = 0 }
+         enum EL:long { Zero = 0 }
+         enum EUL:ulong { Zero = 0 }
+         table Enums { b:EB; ub:EUB; s:ES; us:EUS; i:EI; ui:EUI; l:EL; ul:EUL; }
+         root_type Enums;",
+    )
+    .unwrap();
+    let accepted = json!({
+        "b": 127,
+        "ub": 255,
+        "s": 32767,
+        "us": 65535,
+        "i": 2147483647,
+        "ui": 4294967295u64,
+        "l": i64::MAX,
+        "ul": u64::MAX
+    });
+
+    // Act
+    let encoded = json_to_binary(&accepted, &result.schema, "Enums");
+
+    // Assert
+    assert!(encoded.is_ok());
+    for (field, value) in [
+        ("b", json!(128)),
+        ("ub", json!(256)),
+        ("s", json!(32768)),
+        ("us", json!(65536)),
+        ("i", json!(2147483648u64)),
+        ("ui", json!(4294967296u64)),
+        ("l", json!(9223372036854775808u64)),
+        ("ul", json!(-1)),
+    ] {
+        let error = json_to_binary(&json!({ field: value }), &result.schema, "Enums");
+        assert!(
+            matches!(error, Err(JsonError::NumberOutOfRange { .. })),
+            "enum field {field} did not enforce its underlying range"
+        );
+    }
+    let fractional = json_to_binary(&json!({ "b": 1.5 }), &result.schema, "Enums");
+    assert!(matches!(
+        fractional,
+        Err(JsonError::NumberOutOfRange { .. })
+    ));
+}
+
+#[test]
+fn numeric_union_discriminants_are_checked() {
+    // Arrange
+    let result = compile_single(
+        "table Payload { value:int; }
+         union Choice { Payload }
+         table Root { choice:Choice; }
+         root_type Root;",
+    )
+    .unwrap();
+
+    // Act
+    let too_large = json_to_binary(
+        &json!({ "choice_type": 256, "choice": { "value": 1 } }),
+        &result.schema,
+        "Root",
+    );
+    let fractional = json_to_binary(
+        &json!({ "choice_type": 1.5, "choice": { "value": 1 } }),
+        &result.schema,
+        "Root",
+    );
+
+    // Assert
+    assert!(matches!(too_large, Err(JsonError::NumberOutOfRange { .. })));
+    assert!(matches!(
+        fractional,
+        Err(JsonError::NumberOutOfRange { .. })
+    ));
+}
+
+#[test]
+fn cli_reports_the_out_of_range_field_and_value() {
+    // Arrange
+    let tmp = tempfile::tempdir().unwrap();
+    let schema = tmp.path().join("scalars.fbs");
+    let input = tmp.path().join("invalid.json");
+    std::fs::write(&schema, "table Scalars { b:byte; } root_type Scalars;").unwrap();
+    std::fs::write(&input, r#"{"b":128}"#).unwrap();
+
+    // Act
+    let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-b")
+        .arg("-o")
+        .arg(tmp.path().join("out"))
+        .arg(&schema)
+        .arg("--")
+        .arg(&input)
+        .output()
+        .unwrap();
+
+    // Assert
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("field 'b'"), "stderr: {stderr}");
+    assert!(stderr.contains("128"), "stderr: {stderr}");
 }
 
 // ---------------------------------------------------------------------------

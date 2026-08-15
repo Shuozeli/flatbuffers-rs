@@ -4,7 +4,7 @@ use flatc_rs_schema::resolved::{
     ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
 };
 use flatc_rs_schema::BaseType;
-use serde_json::Value;
+use serde_json::{Number, Value};
 
 use super::error::{json_type_name, JsonError};
 
@@ -331,7 +331,9 @@ impl<'a> Encoder<'a> {
                 BaseType::BASE_TYPE_U_TYPE => {
                     let enum_idx = require_type_index(ty, fname)?;
                     let val = self.resolve_enum_value(json_val, enum_idx, fname)?;
-                    self.buf[field_pos] = val as u8;
+                    self.buf[field_pos] = u8::try_from(val).map_err(|_| {
+                        number_out_of_range(fname, BaseType::BASE_TYPE_U_TYPE, json_val)
+                    })?;
                 }
 
                 BaseType::BASE_TYPE_STRUCT => {
@@ -395,10 +397,17 @@ impl<'a> Encoder<'a> {
                         self.resolve_enum_value(disc_val, enum_idx, &type_field_name)?;
 
                     if discriminant != 0 {
+                        let discriminant = u8::try_from(discriminant).map_err(|_| {
+                            number_out_of_range(
+                                &type_field_name,
+                                BaseType::BASE_TYPE_U_TYPE,
+                                disc_val,
+                            )
+                        })?;
                         let target = self.encode_union_data(
                             json_val,
                             enum_idx,
-                            discriminant as u8,
+                            discriminant,
                             fname,
                             depth + 1,
                         )?;
@@ -441,7 +450,14 @@ impl<'a> Encoder<'a> {
             BaseType::BASE_TYPE_BOOL => {
                 let v = match json_val {
                     Value::Bool(b) => *b,
-                    Value::Number(n) => n.as_u64().unwrap_or(0) != 0,
+                    Value::Number(_) => {
+                        let value: u8 = checked_unsigned(json_val, field_name, bt)?;
+                        match value {
+                            0 => false,
+                            1 => true,
+                            _ => return Err(number_out_of_range(field_name, bt, json_val)),
+                        }
+                    }
                     _ => {
                         return Err(JsonError::ExpectedNumber {
                             field_name: field_name.to_string(),
@@ -455,42 +471,42 @@ impl<'a> Encoder<'a> {
             }
 
             BaseType::BASE_TYPE_BYTE => {
-                let v = json_as_i64(json_val, field_name, bt)? as i8;
+                let v: i8 = checked_signed(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
-            BaseType::BASE_TYPE_U_BYTE => {
-                let v = json_as_u64(json_val, field_name, bt)? as u8;
+            BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => {
+                let v: u8 = checked_unsigned(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_SHORT => {
-                let v = json_as_i64(json_val, field_name, bt)? as i16;
+                let v: i16 = checked_signed(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_U_SHORT => {
-                let v = json_as_u64(json_val, field_name, bt)? as u16;
+                let v: u16 = checked_unsigned(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_INT => {
-                let v = json_as_i64(json_val, field_name, bt)? as i32;
+                let v: i32 = checked_signed(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_U_INT => {
-                let v = json_as_u64(json_val, field_name, bt)? as u32;
+                let v: u32 = checked_unsigned(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_LONG => {
-                let v = json_as_i64(json_val, field_name, bt)?;
+                let v: i64 = checked_signed(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_U_LONG => {
-                let v = json_as_u64(json_val, field_name, bt)?;
+                let v: u64 = checked_unsigned(json_val, field_name, bt)?;
                 buf.extend_from_slice(&v.to_le_bytes());
                 Ok(())
             }
@@ -525,27 +541,33 @@ impl<'a> Encoder<'a> {
                 Ok(())
             }
             BaseType::BASE_TYPE_BYTE => {
-                buf.extend_from_slice(&(val as i8).to_le_bytes());
+                let value = checked_enum_value::<i8>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
-            BaseType::BASE_TYPE_U_BYTE => {
-                buf.extend_from_slice(&(val as u8).to_le_bytes());
+            BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => {
+                let value = checked_enum_value::<u8>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_SHORT => {
-                buf.extend_from_slice(&(val as i16).to_le_bytes());
+                let value = checked_enum_value::<i16>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_U_SHORT => {
-                buf.extend_from_slice(&(val as u16).to_le_bytes());
+                let value = checked_enum_value::<u16>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_INT => {
-                buf.extend_from_slice(&(val as i32).to_le_bytes());
+                let value = checked_enum_value::<i32>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_U_INT => {
-                buf.extend_from_slice(&(val as u32).to_le_bytes());
+                let value = checked_enum_value::<u32>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
             BaseType::BASE_TYPE_LONG => {
@@ -553,7 +575,8 @@ impl<'a> Encoder<'a> {
                 Ok(())
             }
             BaseType::BASE_TYPE_U_LONG => {
-                buf.extend_from_slice(&(val as u64).to_le_bytes());
+                let value = checked_enum_value::<u64>(val, bt, field_name)?;
+                buf.extend_from_slice(&value.to_le_bytes());
                 Ok(())
             }
             _ => Err(JsonError::NumberOutOfRange {
@@ -589,7 +612,9 @@ impl<'a> Encoder<'a> {
                     value: s.clone(),
                 })
             }
-            Value::Number(n) => Ok(n.as_i64().unwrap_or(0)),
+            Value::Number(_) => {
+                enum_number_as_i64(json_val, enum_def.underlying_type.base_type, field_name)
+            }
             _ => Err(JsonError::ExpectedNumber {
                 field_name: field_name.to_string(),
                 base_type: format!("enum {enum_name}"),
@@ -850,16 +875,77 @@ fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, JsonErr
         })
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ExactInteger {
+    negative: bool,
+    magnitude: u128,
+}
+
+fn number_out_of_range(field_name: &str, bt: BaseType, value: &Value) -> JsonError {
+    JsonError::NumberOutOfRange {
+        field_name: field_name.to_string(),
+        base_type: format!("{bt:?}"),
+        value: value.to_string(),
+    }
+}
+
+fn number_text_out_of_range(field_name: &str, bt: BaseType, value: impl ToString) -> JsonError {
+    JsonError::NumberOutOfRange {
+        field_name: field_name.to_string(),
+        base_type: format!("{bt:?}"),
+        value: value.to_string(),
+    }
+}
+
+fn checked_signed<T>(v: &Value, field_name: &str, bt: BaseType) -> Result<T, JsonError>
+where
+    T: TryFrom<i64>,
+{
+    let value = json_as_i64(v, field_name, bt)?;
+    T::try_from(value).map_err(|_| number_out_of_range(field_name, bt, v))
+}
+
+fn checked_unsigned<T>(v: &Value, field_name: &str, bt: BaseType) -> Result<T, JsonError>
+where
+    T: TryFrom<u64>,
+{
+    let value = json_as_u64(v, field_name, bt)?;
+    T::try_from(value).map_err(|_| number_out_of_range(field_name, bt, v))
+}
+
+fn checked_enum_value<T>(val: i64, bt: BaseType, field_name: &str) -> Result<T, JsonError>
+where
+    T: TryFrom<i64>,
+{
+    T::try_from(val).map_err(|_| number_text_out_of_range(field_name, bt, val))
+}
+
+fn enum_number_as_i64(value: &Value, bt: BaseType, field_name: &str) -> Result<i64, JsonError> {
+    match bt {
+        BaseType::BASE_TYPE_BYTE => checked_signed::<i8>(value, field_name, bt).map(i64::from),
+        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => {
+            checked_unsigned::<u8>(value, field_name, bt).map(i64::from)
+        }
+        BaseType::BASE_TYPE_SHORT => checked_signed::<i16>(value, field_name, bt).map(i64::from),
+        BaseType::BASE_TYPE_U_SHORT => {
+            checked_unsigned::<u16>(value, field_name, bt).map(i64::from)
+        }
+        BaseType::BASE_TYPE_INT => checked_signed::<i32>(value, field_name, bt).map(i64::from),
+        BaseType::BASE_TYPE_U_INT => checked_unsigned::<u32>(value, field_name, bt).map(i64::from),
+        BaseType::BASE_TYPE_LONG => checked_signed::<i64>(value, field_name, bt),
+        BaseType::BASE_TYPE_U_LONG => {
+            let value = checked_unsigned::<u64>(value, field_name, bt)?;
+            i64::try_from(value).map_err(|_| number_text_out_of_range(field_name, bt, value))
+        }
+        _ => Err(number_out_of_range(field_name, bt, value)),
+    }
+}
+
 fn json_as_i64(v: &Value, field_name: &str, bt: BaseType) -> Result<i64, JsonError> {
     match v {
-        Value::Number(n) => n
-            .as_i64()
-            .or_else(|| n.as_f64().map(|f| f as i64))
-            .ok_or_else(|| JsonError::NumberOutOfRange {
-                field_name: field_name.to_string(),
-                base_type: format!("{bt:?}"),
-                value: n.to_string(),
-            }),
+        Value::Number(n) => exact_integer(n)
+            .and_then(exact_integer_as_i64)
+            .ok_or_else(|| number_out_of_range(field_name, bt, v)),
         Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
         _ => Err(JsonError::ExpectedNumber {
             field_name: field_name.to_string(),
@@ -871,15 +957,9 @@ fn json_as_i64(v: &Value, field_name: &str, bt: BaseType) -> Result<i64, JsonErr
 
 fn json_as_u64(v: &Value, field_name: &str, bt: BaseType) -> Result<u64, JsonError> {
     match v {
-        Value::Number(n) => n
-            .as_u64()
-            .or_else(|| n.as_i64().map(|i| i as u64))
-            .or_else(|| n.as_f64().map(|f| f as u64))
-            .ok_or_else(|| JsonError::NumberOutOfRange {
-                field_name: field_name.to_string(),
-                base_type: format!("{bt:?}"),
-                value: n.to_string(),
-            }),
+        Value::Number(n) => exact_integer(n)
+            .and_then(exact_integer_as_u64)
+            .ok_or_else(|| number_out_of_range(field_name, bt, v)),
         Value::Bool(b) => Ok(if *b { 1 } else { 0 }),
         _ => Err(JsonError::ExpectedNumber {
             field_name: field_name.to_string(),
@@ -887,6 +967,97 @@ fn json_as_u64(v: &Value, field_name: &str, bt: BaseType) -> Result<u64, JsonErr
             actual: json_type_name(v),
         }),
     }
+}
+
+fn exact_integer(number: &Number) -> Option<ExactInteger> {
+    if let Some(value) = number.as_i64() {
+        return Some(ExactInteger {
+            negative: value.is_negative(),
+            magnitude: u128::from(value.unsigned_abs()),
+        });
+    }
+    if let Some(value) = number.as_u64() {
+        return Some(ExactInteger {
+            negative: false,
+            magnitude: u128::from(value),
+        });
+    }
+
+    const MAX_SAFE_F64_INTEGER: f64 = 9_007_199_254_740_991.0;
+    let float = number.as_f64()?;
+    if !float.is_finite() || float.abs() > MAX_SAFE_F64_INTEGER {
+        return None;
+    }
+
+    parse_exact_integer(&number.to_string())
+}
+
+fn parse_exact_integer(text: &str) -> Option<ExactInteger> {
+    let (mantissa, exponent) = match text.split_once(['e', 'E']) {
+        Some((mantissa, exponent)) => (mantissa, exponent.parse::<i32>().ok()?),
+        None => (text, 0),
+    };
+    let (negative, unsigned_mantissa) = match mantissa.strip_prefix('-') {
+        Some(value) => (true, value),
+        None => (false, mantissa.strip_prefix('+').unwrap_or(mantissa)),
+    };
+    let (whole, fraction) = match unsigned_mantissa.split_once('.') {
+        Some(parts) => parts,
+        None => (unsigned_mantissa, ""),
+    };
+    if whole.is_empty() || !whole.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    if !fraction.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+
+    let digits = format!("{whole}{fraction}");
+    let digits = digits.trim_start_matches('0');
+    if digits.is_empty() {
+        return Some(ExactInteger {
+            negative: false,
+            magnitude: 0,
+        });
+    }
+
+    let mut magnitude = digits.parse::<u128>().ok()?;
+    let fractional_digits = i32::try_from(fraction.len()).ok()?;
+    let scale = exponent.checked_sub(fractional_digits)?;
+    if scale >= 0 {
+        magnitude = magnitude.checked_mul(10u128.checked_pow(scale.unsigned_abs())?)?;
+    } else {
+        let divisor = 10u128.checked_pow(scale.unsigned_abs())?;
+        if !magnitude.is_multiple_of(divisor) {
+            return None;
+        }
+        magnitude /= divisor;
+    }
+
+    Some(ExactInteger {
+        negative,
+        magnitude,
+    })
+}
+
+fn exact_integer_as_i64(value: ExactInteger) -> Option<i64> {
+    if value.negative {
+        const I64_MIN_MAGNITUDE: u128 = 1u128 << 63;
+        if value.magnitude == I64_MIN_MAGNITUDE {
+            Some(i64::MIN)
+        } else {
+            i64::try_from(value.magnitude).ok()?.checked_neg()
+        }
+    } else {
+        i64::try_from(value.magnitude).ok()
+    }
+}
+
+fn exact_integer_as_u64(value: ExactInteger) -> Option<u64> {
+    if value.negative && value.magnitude != 0 {
+        return None;
+    }
+    u64::try_from(value.magnitude).ok()
 }
 
 fn json_as_f64(v: &Value, field_name: &str, bt: BaseType) -> Result<f64, JsonError> {
