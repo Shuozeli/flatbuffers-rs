@@ -22,6 +22,15 @@ pub enum JsonError {
     #[error("depth exceeded maximum of {max}")]
     MaxDepthExceeded { max: usize },
 
+    #[error("integer overflow while decoding {context}")]
+    ArithmeticOverflow { context: String },
+
+    #[error("vector has {count} elements, exceeding configured limit of {max}")]
+    VectorElementLimitExceeded { count: usize, max: usize },
+
+    #[error("failed to reserve JSON storage for {count} vector elements")]
+    VectorAllocationFailed { count: usize },
+
     // -- Encoder errors (JSON -> binary) --
     #[error("expected JSON object for table/struct '{type_name}', got {actual}")]
     ExpectedObject { type_name: String, actual: String },

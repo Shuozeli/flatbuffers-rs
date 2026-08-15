@@ -484,6 +484,7 @@ fn main() {
             output_defaults: cli.defaults_json,
             output_enum_identifiers: true,
             size_prefixed: cli.size_prefixed,
+            ..JsonOptions::default()
         };
 
         let enc_opts = EncoderOptions {

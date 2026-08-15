@@ -16,6 +16,7 @@ fn default_opts() -> JsonOptions {
         output_defaults: false,
         output_enum_identifiers: true,
         size_prefixed: false,
+        ..JsonOptions::default()
     }
 }
 
@@ -468,6 +469,112 @@ fn decode_empty_buffer_fails() {
 
     let err = binary_to_json(&[], &result.schema, "Monster", &default_opts());
     assert!(err.is_err());
+}
+
+fn read_u16_at(bytes: &[u8], offset: usize) -> u16 {
+    u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap())
+}
+
+fn read_u32_at(bytes: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
+}
+
+fn corrupt_vector_count(bytes: &mut [u8], field_id: usize) {
+    let root = read_u32_at(bytes, 0) as usize;
+    let vtable_distance = i32::from_le_bytes(bytes[root..root + 4].try_into().unwrap());
+    let vtable = root - usize::try_from(vtable_distance).unwrap();
+    let field_offset = read_u16_at(bytes, vtable + 4 + field_id * 2) as usize;
+    let field_position = root + field_offset;
+    let vector = field_position + read_u32_at(bytes, field_position) as usize;
+    bytes[vector..vector + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+}
+
+#[test]
+fn malformed_vector_counts_are_rejected_before_allocation() {
+    // Arrange
+    let cases = [
+        (
+            "scalar",
+            "table Root { values:[int]; } root_type Root;",
+            json!({ "values": [] }),
+            0,
+        ),
+        (
+            "string",
+            "table Root { values:[string]; } root_type Root;",
+            json!({ "values": [] }),
+            0,
+        ),
+        (
+            "table",
+            "table Child { value:int; } table Root { values:[Child]; } root_type Root;",
+            json!({ "values": [] }),
+            0,
+        ),
+        (
+            "struct",
+            "struct Child { value:int; } table Root { values:[Child]; } root_type Root;",
+            json!({ "values": [] }),
+            0,
+        ),
+        (
+            "union",
+            "table Child { value:int; } union Item { Child } table Root { values:[Item]; } root_type Root;",
+            json!({ "values_type": [], "values": [] }),
+            1,
+        ),
+    ];
+
+    // Act / Assert
+    for (name, source, input, field_id) in cases {
+        let result = compile_single(source).unwrap();
+        let mut bytes = json_to_binary(&input, &result.schema, "Root").unwrap();
+        corrupt_vector_count(&mut bytes, field_id);
+
+        let error = binary_to_json(&bytes, &result.schema, "Root", &default_opts());
+        assert!(
+            matches!(
+                error,
+                Err(JsonError::OutOfBounds { .. } | JsonError::ArithmeticOverflow { .. })
+            ),
+            "{name} vector did not fail structural validation: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn vector_element_limit_is_configurable() {
+    // Arrange
+    let result = compile_single("table Root { values:[int]; } root_type Root;").unwrap();
+    let bytes = json_to_binary(&json!({ "values": [1, 2, 3] }), &result.schema, "Root").unwrap();
+    let options = JsonOptions {
+        max_vector_elements: 2,
+        ..default_opts()
+    };
+
+    // Act
+    let error = binary_to_json(&bytes, &result.schema, "Root", &options);
+
+    // Assert
+    assert!(matches!(
+        error,
+        Err(JsonError::VectorElementLimitExceeded { count: 3, max: 2 })
+    ));
+}
+
+#[test]
+fn valid_large_vector_still_decodes() {
+    // Arrange
+    const ELEMENT_COUNT: usize = 100_000;
+    let result = compile_single("table Root { values:[uint]; } root_type Root;").unwrap();
+    let values: Vec<u32> = (0..ELEMENT_COUNT as u32).collect();
+    let bytes = json_to_binary(&json!({ "values": values }), &result.schema, "Root").unwrap();
+
+    // Act
+    let decoded = binary_to_json(&bytes, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert_eq!(decoded["values"].as_array().unwrap().len(), ELEMENT_COUNT);
 }
 
 #[test]

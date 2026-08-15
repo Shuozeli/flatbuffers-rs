@@ -13,6 +13,7 @@ use serde_json::{json, Map, Value};
 use super::error::JsonError;
 
 const MAX_DEPTH: usize = 64;
+pub const DEFAULT_MAX_VECTOR_ELEMENTS: usize = 1_000_000;
 
 /// Options controlling JSON output format.
 #[derive(Debug, Clone)]
@@ -25,6 +26,8 @@ pub struct JsonOptions {
     pub output_enum_identifiers: bool,
     /// Treat input binary as size-prefixed (4-byte length header before the FlatBuffer).
     pub size_prefixed: bool,
+    /// Maximum number of elements decoded from any single vector.
+    pub max_vector_elements: usize,
 }
 
 impl Default for JsonOptions {
@@ -34,6 +37,7 @@ impl Default for JsonOptions {
             output_defaults: false,
             output_enum_identifiers: true,
             size_prefixed: false,
+            max_vector_elements: DEFAULT_MAX_VECTOR_ELEMENTS,
         }
     }
 }
@@ -321,8 +325,12 @@ impl<'a> Decoder<'a> {
 
             // Vector
             BaseType::BASE_TYPE_VECTOR => {
-                let uoffset = self.reader.read_u32_le(offset)? as usize;
-                let vec_start = offset + uoffset;
+                let uoffset = usize::try_from(self.reader.read_u32_le(offset)?).map_err(|_| {
+                    JsonError::ArithmeticOverflow {
+                        context: format!("vector field '{fname}' offset"),
+                    }
+                })?;
+                let vec_start = checked_add(offset, uoffset, "vector field target")?;
                 let val = self.decode_vector(vec_start, ty, depth + 1)?;
                 Ok(Some(val))
             }
@@ -446,18 +454,40 @@ impl<'a> Decoder<'a> {
         ty: &ResolvedType,
         depth: usize,
     ) -> Result<Value, JsonError> {
-        let count = self.reader.read_u32_le(vec_start)? as usize;
-        let data_start = vec_start + 4;
-
+        let count = usize::try_from(self.reader.read_u32_le(vec_start)?).map_err(|_| {
+            JsonError::ArithmeticOverflow {
+                context: "vector element count".to_string(),
+            }
+        })?;
+        let data_start = checked_add(vec_start, 4, "vector data start")?;
         let elem_bt = ty.element_type.unwrap_or(BaseType::BASE_TYPE_U_BYTE);
+        let elem_size = match elem_bt {
+            bt if bt.is_scalar() => bt.scalar_byte_size(),
+            BaseType::BASE_TYPE_STRING | BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_UNION => 4,
+            BaseType::BASE_TYPE_STRUCT => {
+                let obj_idx = require_type_index(ty, "vector element")?;
+                self.get_object(obj_idx)?.byte_size.unwrap_or(0) as usize
+            }
+            _ => 0,
+        };
+        let storage_size = checked_mul(count, elem_size, "vector storage size")?;
+        self.reader.check_bounds(data_start, storage_size)?;
 
-        let mut arr = Vec::with_capacity(count);
+        if count > self.opts.max_vector_elements {
+            return Err(JsonError::VectorElementLimitExceeded {
+                count,
+                max: self.opts.max_vector_elements,
+            });
+        }
+
+        let mut arr = Vec::new();
+        arr.try_reserve_exact(count)
+            .map_err(|_| JsonError::VectorAllocationFailed { count })?;
 
         match elem_bt {
             bt if bt.is_scalar() => {
-                let elem_size = bt.scalar_byte_size();
                 for i in 0..count {
-                    let elem_offset = data_start + i * elem_size;
+                    let elem_offset = checked_vector_element_offset(data_start, i, elem_size)?;
                     let val = self.read_scalar_value(elem_offset, bt, ty)?;
                     arr.push(val);
                 }
@@ -465,11 +495,22 @@ impl<'a> Decoder<'a> {
 
             BaseType::BASE_TYPE_STRING => {
                 for i in 0..count {
-                    let elem_offset = data_start + i * 4;
-                    let uoffset = self.reader.read_u32_le(elem_offset)? as usize;
-                    let str_start = elem_offset + uoffset;
-                    let length = self.reader.read_u32_le(str_start)? as usize;
-                    let bytes = self.reader.read_bytes(str_start + 4, length)?;
+                    let elem_offset = checked_vector_element_offset(data_start, i, 4)?;
+                    let uoffset =
+                        usize::try_from(self.reader.read_u32_le(elem_offset)?).map_err(|_| {
+                            JsonError::ArithmeticOverflow {
+                                context: "string vector element offset".to_string(),
+                            }
+                        })?;
+                    let str_start = checked_add(elem_offset, uoffset, "string vector target")?;
+                    let length =
+                        usize::try_from(self.reader.read_u32_le(str_start)?).map_err(|_| {
+                            JsonError::ArithmeticOverflow {
+                                context: "string vector element length".to_string(),
+                            }
+                        })?;
+                    let bytes_start = checked_add(str_start, 4, "string vector data start")?;
+                    let bytes = self.reader.read_bytes(bytes_start, length)?;
                     let text = String::from_utf8_lossy(bytes);
                     arr.push(Value::String(text.into_owned()));
                 }
@@ -478,9 +519,14 @@ impl<'a> Decoder<'a> {
             BaseType::BASE_TYPE_TABLE => {
                 let obj_idx = require_type_index(ty, "vector element")?;
                 for i in 0..count {
-                    let elem_offset = data_start + i * 4;
-                    let uoffset = self.reader.read_u32_le(elem_offset)? as usize;
-                    let table_start = elem_offset + uoffset;
+                    let elem_offset = checked_vector_element_offset(data_start, i, 4)?;
+                    let uoffset =
+                        usize::try_from(self.reader.read_u32_le(elem_offset)?).map_err(|_| {
+                            JsonError::ArithmeticOverflow {
+                                context: "table vector element offset".to_string(),
+                            }
+                        })?;
+                    let table_start = checked_add(elem_offset, uoffset, "table vector target")?;
                     let val = self.decode_table(table_start, obj_idx, depth + 1)?;
                     arr.push(val);
                 }
@@ -491,11 +537,13 @@ impl<'a> Decoder<'a> {
                 let obj = self.get_object(obj_idx)?;
                 let struct_size = obj.byte_size.unwrap_or(0) as usize;
                 for i in 0..count {
-                    let elem_offset = data_start + i * struct_size;
+                    let elem_offset = checked_vector_element_offset(data_start, i, struct_size)?;
                     let val = self.decode_struct(elem_offset, obj_idx, depth + 1)?;
                     arr.push(val);
                 }
             }
+
+            BaseType::BASE_TYPE_UNION => {}
 
             _ => {}
         }
@@ -687,6 +735,30 @@ impl<'a> Decoder<'a> {
 // ---------------------------------------------------------------------------
 // Free functions
 // ---------------------------------------------------------------------------
+
+fn checked_add(base: usize, relative: usize, context: &str) -> Result<usize, JsonError> {
+    base.checked_add(relative)
+        .ok_or_else(|| JsonError::ArithmeticOverflow {
+            context: context.to_string(),
+        })
+}
+
+fn checked_mul(count: usize, size: usize, context: &str) -> Result<usize, JsonError> {
+    count
+        .checked_mul(size)
+        .ok_or_else(|| JsonError::ArithmeticOverflow {
+            context: context.to_string(),
+        })
+}
+
+fn checked_vector_element_offset(
+    data_start: usize,
+    index: usize,
+    elem_size: usize,
+) -> Result<usize, JsonError> {
+    let relative = checked_mul(index, elem_size, "vector element position")?;
+    checked_add(data_start, relative, "vector element address")
+}
 
 /// Extract a non-negative type index from a `ResolvedType`, or return a `JsonError`.
 fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, JsonError> {
