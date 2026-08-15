@@ -11,7 +11,7 @@ use flatc_rs_compiler::{
         generate_dart, generate_python, generate_rust, generate_typescript, CodeGenOptions,
         DartCodeGenOptions, PythonCodeGenOptions, TsCodeGenOptions,
     },
-    compile,
+    compile, compile_inputs,
     conform::check_conform,
     json::{binary_to_json, json_to_binary_with_opts, EncoderOptions, JsonOptions},
     CompilerOptions,
@@ -337,7 +337,7 @@ fn main() {
         include_paths: cli.include.clone(),
     };
 
-    let result = match compile(&cli.files, &options) {
+    let input_results = match compile_inputs(&cli.files, &options) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("error: {e}");
@@ -345,7 +345,7 @@ fn main() {
         }
     };
 
-    let schema = &result.schema;
+    let schema = &input_results[0].schema;
 
     // -- Conform check --
     if let Some(ref conform_file) = cli.conform {
@@ -366,20 +366,24 @@ fn main() {
                 process::exit(1);
             }
         };
-        if let Err(errors) = check_conform(schema, &base_result.schema) {
-            for err in &errors {
-                eprintln!("error: {err}");
+        for input_result in &input_results {
+            if let Err(errors) = check_conform(&input_result.schema, &base_result.schema) {
+                for err in &errors {
+                    eprintln!("error in {}: {err}", input_result.input_file.display());
+                }
+                eprintln!("{} conformance error(s) found", errors.len());
+                process::exit(1);
             }
-            eprintln!("{} conformance error(s) found", errors.len());
-            process::exit(1);
         }
     }
 
     // -- Private leak check --
     if cli.no_leak_private_annotation {
-        if let Err(e) = check_private_leak(schema) {
-            eprintln!("error: {e}");
-            process::exit(1);
+        for input_result in &input_results {
+            if let Err(e) = check_private_leak(&input_result.schema) {
+                eprintln!("error in {}: {e}", input_result.input_file.display());
+                process::exit(1);
+            }
         }
     }
 
@@ -405,35 +409,36 @@ fn main() {
     }
 
     if cli.binary_schema {
-        // Apply --bfbs-filenames path rewriting if set
-        let schema_for_bfbs = if let Some(ref bfbs_root) = cli.bfbs_filenames {
-            let mut schema = schema.clone();
-            let bfbs_root = fs::canonicalize(bfbs_root).unwrap_or_else(|_| bfbs_root.clone());
-            let root_str = bfbs_root.to_string_lossy();
-            for obj in &mut schema.objects {
-                if let Some(ref mut df) = obj.declaration_file {
-                    if !cli.bfbs_absolute_paths {
-                        if let Some(rel) = df.strip_prefix(&*root_str) {
-                            *df = rel.trim_start_matches('/').to_string();
+        for input_result in &input_results {
+            // Apply --bfbs-filenames path rewriting if set.
+            let schema_for_bfbs = if let Some(ref bfbs_root) = cli.bfbs_filenames {
+                let mut schema = input_result.schema.clone();
+                let bfbs_root = fs::canonicalize(bfbs_root).unwrap_or_else(|_| bfbs_root.clone());
+                let root_str = bfbs_root.to_string_lossy();
+                for obj in &mut schema.objects {
+                    if let Some(ref mut df) = obj.declaration_file {
+                        if !cli.bfbs_absolute_paths {
+                            if let Some(rel) = df.strip_prefix(&*root_str) {
+                                *df = rel.trim_start_matches('/').to_string();
+                            }
                         }
                     }
                 }
-            }
-            for enum_def in &mut schema.enums {
-                if let Some(ref mut df) = enum_def.declaration_file {
-                    if !cli.bfbs_absolute_paths {
-                        if let Some(rel) = df.strip_prefix(&*root_str) {
-                            *df = rel.trim_start_matches('/').to_string();
+                for enum_def in &mut schema.enums {
+                    if let Some(ref mut df) = enum_def.declaration_file {
+                        if !cli.bfbs_absolute_paths {
+                            if let Some(rel) = df.strip_prefix(&*root_str) {
+                                *df = rel.trim_start_matches('/').to_string();
+                            }
                         }
                     }
                 }
-            }
-            schema
-        } else {
-            schema.clone()
-        };
-        let bfbs = serialize_schema(&schema_for_bfbs);
-        for input_file in &cli.files {
+                schema
+            } else {
+                input_result.schema.clone()
+            };
+            let bfbs = serialize_schema(&schema_for_bfbs);
+            let input_file = &input_result.input_file;
             let stem = input_file
                 .file_stem()
                 .map(|s| s.to_string_lossy().to_string())
@@ -648,7 +653,9 @@ fn main() {
         }
     }
 
-    for input_file in &cli.files {
+    for input_result in &input_results {
+        let input_file = &input_result.input_file;
+        let schema = &input_result.schema;
         // Generate one output per direct input. Included declarations are added
         // to that output only when --gen-all is requested.
         let gen_only_files = codegen_file_filter(input_file, cli.gen_all).unwrap_or_else(|e| {
@@ -667,7 +674,7 @@ fn main() {
                 rust_pluggable_buffer: cli.rust_pluggable_buffer,
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("rs");
-            let code = match generate_rust(&result.schema, &rust_opts) {
+            let code = match generate_rust(schema, &rust_opts) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -698,7 +705,7 @@ fn main() {
                 gen_mutable: cli.gen_mutable,
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("ts");
-            let code = match generate_typescript(&result.schema, &ts_opts) {
+            let code = match generate_typescript(schema, &ts_opts) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -727,7 +734,7 @@ fn main() {
                 gen_only_files: gen_only_files.clone(),
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("py");
-            let code = match generate_python(&result.schema, &python_opts) {
+            let code = match generate_python(schema, &python_opts) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -757,7 +764,7 @@ fn main() {
                 gen_only_files: gen_only_files.clone(),
             };
             let ext = cli.filename_ext.as_deref().unwrap_or("dart");
-            let code = match generate_dart(&result.schema, &dart_opts) {
+            let code = match generate_dart(schema, &dart_opts) {
                 Ok(code) => code,
                 Err(e) => {
                     eprintln!("error: {e}");

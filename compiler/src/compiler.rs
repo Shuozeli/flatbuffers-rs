@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::analyzer;
@@ -61,6 +61,15 @@ pub struct CompilationResult {
     pub schema: ResolvedSchema,
 }
 
+/// Result of compiling one direct input and its transitive include closure.
+#[derive(Debug)]
+pub struct InputCompilationResult {
+    /// Canonical path of the direct input file.
+    pub input_file: PathBuf,
+    /// The fully resolved schema for this input and its includes.
+    pub schema: ResolvedSchema,
+}
+
 // ---------------------------------------------------------------------------
 // Internal types
 // ---------------------------------------------------------------------------
@@ -69,6 +78,12 @@ struct ParsedFile {
     path: PathBuf,
     schema: schema::Schema,
     state: ParserState,
+}
+
+struct ResolvedFiles {
+    parsed_files: Vec<ParsedFile>,
+    dependencies: HashMap<PathBuf, Vec<PathBuf>>,
+    input_files: Vec<PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +97,53 @@ pub fn compile(
     input_files: &[PathBuf],
     options: &CompilerOptions,
 ) -> Result<CompilationResult, CompilerError> {
+    let resolved = resolve_files(input_files, options)?;
+    let merged = merge_schemas(&resolved.parsed_files);
+    let schema = analyzer::analyze(merged)?;
+
+    Ok(CompilationResult { schema })
+}
+
+/// Compile each direct input against only its transitive include closure.
+///
+/// All files are parsed once, even when direct inputs share includes. Unlike
+/// [`compile`], independent direct inputs are not merged before analysis, so
+/// their root metadata and declarations cannot affect each other.
+pub fn compile_inputs(
+    input_files: &[PathBuf],
+    options: &CompilerOptions,
+) -> Result<Vec<InputCompilationResult>, CompilerError> {
+    let resolved = resolve_files(input_files, options)?;
+    let mut results = Vec::with_capacity(resolved.input_files.len());
+
+    for input_file in &resolved.input_files {
+        let closure = dependency_closure(input_file, &resolved.dependencies);
+        let merged = merge_schemas(
+            resolved
+                .parsed_files
+                .iter()
+                .filter(|file| closure.contains(&file.path) && file.path != *input_file)
+                .chain(
+                    resolved
+                        .parsed_files
+                        .iter()
+                        .filter(|file| file.path == *input_file),
+                ),
+        );
+        let schema = analyzer::analyze(merged)?;
+        results.push(InputCompilationResult {
+            input_file: input_file.clone(),
+            schema,
+        });
+    }
+
+    Ok(results)
+}
+
+fn resolve_files(
+    input_files: &[PathBuf],
+    options: &CompilerOptions,
+) -> Result<ResolvedFiles, CompilerError> {
     // Build include search paths: user-supplied paths + parent dirs of input files.
     let mut include_paths = options.include_paths.clone();
     for file in input_files {
@@ -100,25 +162,42 @@ pub fn compile(
     let mut resolver = IncludeResolver {
         include_paths,
         parsed_files: Vec::new(),
+        dependencies: HashMap::new(),
         seen: HashSet::new(),
         visiting: HashSet::new(),
     };
 
     // Parse each input file and its transitive includes.
+    let mut canonical_inputs = Vec::with_capacity(input_files.len());
     for file in input_files {
-        resolver.resolve_file(file, 0)?;
+        canonical_inputs.push(resolver.resolve_file(file, 0)?);
     }
 
-    // Collect parsed files in dependency order (includes first).
-    let parsed = resolver.into_parsed_files();
+    let (parsed_files, dependencies) = resolver.into_parts();
+    Ok(ResolvedFiles {
+        parsed_files,
+        dependencies,
+        input_files: canonical_inputs,
+    })
+}
 
-    // Merge schemas from all files.
-    let merged = merge_schemas(&parsed);
+fn dependency_closure(
+    root: &Path,
+    dependencies: &HashMap<PathBuf, Vec<PathBuf>>,
+) -> HashSet<PathBuf> {
+    let mut closure = HashSet::new();
+    let mut pending = vec![root.to_path_buf()];
 
-    // Run semantic analysis on the merged schema.
-    let schema = analyzer::analyze(merged)?;
+    while let Some(file) = pending.pop() {
+        if !closure.insert(file.clone()) {
+            continue;
+        }
+        if let Some(includes) = dependencies.get(&file) {
+            pending.extend(includes.iter().cloned());
+        }
+    }
 
-    Ok(CompilationResult { schema })
+    closure
 }
 
 /// Compile a single source string (no include resolution).
@@ -143,6 +222,8 @@ struct IncludeResolver {
     include_paths: Vec<PathBuf>,
     /// Parsed files in dependency order (includes before includers).
     parsed_files: Vec<ParsedFile>,
+    /// Canonical include targets keyed by canonical including file.
+    dependencies: HashMap<PathBuf, Vec<PathBuf>>,
     /// Canonical paths of files already parsed (deduplication).
     seen: HashSet<PathBuf>,
     /// Files currently being processed (for circular include detection).
@@ -156,7 +237,7 @@ const MAX_INCLUDE_DEPTH: usize = 64;
 const MAX_INCLUDED_FILES: usize = 1000;
 
 impl IncludeResolver {
-    fn resolve_file(&mut self, file_path: &Path, depth: usize) -> Result<(), CompilerError> {
+    fn resolve_file(&mut self, file_path: &Path, depth: usize) -> Result<PathBuf, CompilerError> {
         // G3.8: Prevent stack overflow from deep (non-circular) include chains
         if depth > MAX_INCLUDE_DEPTH {
             return Err(CompilerError::IncludeDepthLimit {
@@ -170,12 +251,12 @@ impl IncludeResolver {
 
         // Already parsed -- skip.
         if self.seen.contains(&canonical) {
-            return Ok(());
+            return Ok(canonical);
         }
 
         // Circular include -- skip (not an error; flatc handles this gracefully).
         if self.visiting.contains(&canonical) {
-            return Ok(());
+            return Ok(canonical);
         }
 
         self.visiting.insert(canonical.clone());
@@ -194,17 +275,19 @@ impl IncludeResolver {
         })?;
 
         // Recursively resolve includes.
+        let mut dependencies = Vec::new();
         for fbs_file in &output.schema.fbs_files {
             if let Some(include_name) = &fbs_file.filename {
                 let include_path = self.find_include(include_name, &canonical)?;
-                self.resolve_file(&include_path, depth + 1)?;
+                dependencies.push(self.resolve_file(&include_path, depth + 1)?);
             }
         }
 
         self.visiting.remove(&canonical);
         self.seen.insert(canonical.clone());
+        self.dependencies.insert(canonical.clone(), dependencies);
         self.parsed_files.push(ParsedFile {
-            path: canonical,
+            path: canonical.clone(),
             schema: output.schema,
             state: output.state,
         });
@@ -217,7 +300,7 @@ impl IncludeResolver {
             });
         }
 
-        Ok(())
+        Ok(canonical)
     }
 
     fn find_include(&self, name: &str, from_file: &Path) -> Result<PathBuf, CompilerError> {
@@ -291,8 +374,8 @@ impl IncludeResolver {
         })
     }
 
-    fn into_parsed_files(self) -> Vec<ParsedFile> {
-        self.parsed_files
+    fn into_parts(self) -> (Vec<ParsedFile>, HashMap<PathBuf, Vec<PathBuf>>) {
+        (self.parsed_files, self.dependencies)
     }
 }
 
@@ -301,7 +384,7 @@ impl IncludeResolver {
 // ---------------------------------------------------------------------------
 
 /// Merge schemas from multiple parsed files into a single `ParseOutput`.
-fn merge_schemas(files: &[ParsedFile]) -> ParseOutput {
+fn merge_schemas<'a>(files: impl IntoIterator<Item = &'a ParsedFile>) -> ParseOutput {
     let mut merged_schema = schema::Schema::default();
     let mut merged_state = ParserState::default();
 

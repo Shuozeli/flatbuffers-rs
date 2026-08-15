@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use flatc_rs_compiler::{compile, compile_single, CompilerOptions};
+use flatc_rs_compiler::{compile, compile_inputs, compile_single, CompilerOptions};
 use flatc_rs_schema::BaseType;
 
 #[test]
@@ -64,6 +64,84 @@ fn compile_with_include() {
         schema.objects[schema.root_table_index.unwrap()].name,
         "Monster"
     );
+}
+
+#[test]
+fn compile_inputs_isolates_direct_roots_and_reuses_shared_includes() {
+    // Arrange
+    let dir = tempfile::tempdir().unwrap();
+    let shared = dir.path().join("shared.fbs");
+    let schema_a = dir.path().join("a.fbs");
+    let schema_b = dir.path().join("b.fbs");
+    fs::write(&shared, "table Shared { value:int; }\n").unwrap();
+    fs::write(
+        &schema_a,
+        "include \"shared.fbs\";\nfile_identifier \"AONE\";\nfile_extension \"one\";\ntable Root { a:Shared; }\nroot_type Root;\n",
+    )
+    .unwrap();
+    fs::write(
+        &schema_b,
+        "include \"shared.fbs\";\nfile_identifier \"BTWO\";\nfile_extension \"two\";\ntable Root { b:Shared; }\nroot_type Root;\n",
+    )
+    .unwrap();
+
+    // Act
+    let results = compile_inputs(
+        &[schema_a.clone(), schema_b.clone()],
+        &CompilerOptions::default(),
+    )
+    .unwrap();
+
+    // Assert
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].input_file, fs::canonicalize(schema_a).unwrap());
+    assert_eq!(results[1].input_file, fs::canonicalize(schema_b).unwrap());
+    assert_eq!(results[0].schema.file_ident.as_deref(), Some("AONE"));
+    assert_eq!(results[1].schema.file_ident.as_deref(), Some("BTWO"));
+    assert_eq!(results[0].schema.file_ext.as_deref(), Some("one"));
+    assert_eq!(results[1].schema.file_ext.as_deref(), Some("two"));
+
+    for (result, field_name) in results.iter().zip(["a", "b"]) {
+        assert_eq!(result.schema.objects.len(), 2);
+        let root_index = result.schema.root_table_index.unwrap();
+        let root = &result.schema.objects[root_index];
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.fields[0].name, field_name);
+        assert!(result
+            .schema
+            .objects
+            .iter()
+            .any(|object| object.name == "Shared"));
+    }
+}
+
+#[test]
+fn compile_inputs_keeps_direct_root_metadata_in_include_cycles() {
+    // Arrange
+    let dir = tempfile::tempdir().unwrap();
+    let schema_a = dir.path().join("a.fbs");
+    let schema_b = dir.path().join("b.fbs");
+    fs::write(
+        &schema_a,
+        "include \"b.fbs\";\nfile_identifier \"AAAA\";\ntable RootA { value:int; }\nroot_type RootA;\n",
+    )
+    .unwrap();
+    fs::write(
+        &schema_b,
+        "include \"a.fbs\";\nfile_identifier \"BBBB\";\ntable RootB { value:int; }\nroot_type RootB;\n",
+    )
+    .unwrap();
+
+    // Act
+    let results = compile_inputs(&[schema_a, schema_b], &CompilerOptions::default()).unwrap();
+
+    // Assert
+    assert_eq!(results[0].schema.file_ident.as_deref(), Some("AAAA"));
+    assert_eq!(results[1].schema.file_ident.as_deref(), Some("BBBB"));
+    let root_a = results[0].schema.root_table_index.unwrap();
+    let root_b = results[1].schema.root_table_index.unwrap();
+    assert_eq!(results[0].schema.objects[root_a].name, "RootA");
+    assert_eq!(results[1].schema.objects[root_b].name, "RootB");
 }
 
 #[test]

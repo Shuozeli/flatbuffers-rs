@@ -192,7 +192,12 @@ pub fn generate_rust(
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
     #[cfg(feature = "grpc")]
-    if !schema.services.is_empty() && !opts.gen_object_api {
+    if schema
+        .services
+        .iter()
+        .any(|service| should_generate(service.declaration_file.as_deref(), &opts.gen_only_files))
+        && !opts.gen_object_api
+    {
         return Err(CodeGenError::Internal(
             "FlatBuffers gRPC code generation requires gen_object_api".to_string(),
         ));
@@ -204,7 +209,7 @@ pub fn generate_rust(
     // Append gRPC service stubs when grpc feature is enabled
     #[cfg(feature = "grpc")]
     let code = {
-        let service_code = service_gen::generate_services(schema)?;
+        let service_code = service_gen::generate_services(schema, &opts.gen_only_files)?;
         if service_code.is_empty() {
             code
         } else {

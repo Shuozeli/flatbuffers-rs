@@ -149,7 +149,18 @@ impl<'a> DartGenerator<'a> {
 
     /// Generate Dart gRPC client classes for all services in the schema.
     fn gen_services(&mut self) -> Result<(), CodeGenError> {
-        if self.schema.services.is_empty() {
+        let services = self
+            .schema
+            .services
+            .iter()
+            .filter(|service| {
+                super::should_generate(
+                    service.declaration_file.as_deref(),
+                    &self.opts.gen_only_files,
+                )
+            })
+            .collect::<Vec<_>>();
+        if services.is_empty() {
             return Ok(());
         }
 
@@ -157,7 +168,7 @@ impl<'a> DartGenerator<'a> {
         self.w.line("import 'package:grpc/grpc.dart';");
         self.w.blank();
 
-        for service in &self.schema.services {
+        for service in services {
             self.gen_service_client(service)?;
         }
 

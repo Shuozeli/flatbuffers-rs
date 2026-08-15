@@ -5,7 +5,7 @@
 //! request and response values satisfy gRPC's `Clone + Send + Sync + 'static`
 //! requirements without introducing a dependency back to this repository.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use crate::{type_map, CodeGenError};
 use flatc_rs_schema::resolved::{ResolvedObject, ResolvedRpcCall, ResolvedSchema, ResolvedService};
@@ -19,14 +19,22 @@ const FLATBUFFERS_CODEC_PATH: &str = "grpc_codec_flatbuffers::FlatBuffersCodec";
 
 /// Generate FlatBuffers codec implementations plus pure-grpc server and client
 /// stubs for every service in a schema.
-pub fn generate_services(schema: &ResolvedSchema) -> Result<String, CodeGenError> {
-    if schema.services.is_empty() {
+pub fn generate_services(
+    schema: &ResolvedSchema,
+    filter: &Option<HashSet<String>>,
+) -> Result<String, CodeGenError> {
+    let services = schema
+        .services
+        .iter()
+        .filter(|service| super::should_generate(service.declaration_file.as_deref(), filter))
+        .collect::<Vec<_>>();
+    if services.is_empty() {
         return Ok(String::new());
     }
 
     let mut tokens = TokenStream::new();
 
-    for object_index in rpc_message_indices(schema)? {
+    for object_index in rpc_message_indices(schema, &services)? {
         let object = schema.objects.get(object_index).ok_or_else(|| {
             CodeGenError::Internal(format!(
                 "RPC message index {object_index} is outside schema.objects"
@@ -35,7 +43,7 @@ pub fn generate_services(schema: &ResolvedSchema) -> Result<String, CodeGenError
         tokens.extend(generate_codec_impl(object)?);
     }
 
-    for service in &schema.services {
+    for service in services {
         let service = service_from_fbs(service, schema)?;
         tokens.extend(server_gen::generate(&service));
         tokens.extend(client_gen::generate(&service));
@@ -46,9 +54,12 @@ pub fn generate_services(schema: &ResolvedSchema) -> Result<String, CodeGenError
     Ok(prettyplease::unparse(&file))
 }
 
-fn rpc_message_indices(schema: &ResolvedSchema) -> Result<BTreeSet<usize>, CodeGenError> {
+fn rpc_message_indices(
+    schema: &ResolvedSchema,
+    services: &[&ResolvedService],
+) -> Result<BTreeSet<usize>, CodeGenError> {
     let mut indices = BTreeSet::new();
-    for service in &schema.services {
+    for service in services {
         for call in &service.calls {
             request_object(call, schema)?;
             response_object(call, schema)?;
@@ -344,7 +355,7 @@ mod tests {
         });
 
         // Act
-        let result = generate_services(&schema);
+        let result = generate_services(&schema, &None);
 
         // Assert
         assert!(matches!(
@@ -360,7 +371,7 @@ mod tests {
         let schema = schema_with_service();
 
         // Act
-        let generated = generate_services(&schema).expect("generate gRPC services");
+        let generated = generate_services(&schema, &None).expect("generate gRPC services");
 
         // Assert
         assert!(

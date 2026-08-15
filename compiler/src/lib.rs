@@ -35,7 +35,10 @@ pub use codegen::generate_dart;
 pub use codegen::generate_rust;
 pub use codegen::generate_typescript;
 pub use codegen::CodeGenError;
-pub use compiler::{compile, compile_single, CompilationResult, CompilerError, CompilerOptions};
+pub use compiler::{
+    compile, compile_inputs, compile_single, CompilationResult, CompilerError, CompilerOptions,
+    InputCompilationResult,
+};
 pub use error::AnalyzeError;
 pub use flatc_rs_parser as parser;
 pub use flatc_rs_schema as schema;
