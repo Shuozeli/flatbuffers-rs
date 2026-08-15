@@ -14,9 +14,9 @@
 //!    the type index. After this step, all `Type.index` values point to the
 //!    correct object or enum.
 //!
-//! 2b. **Insert union type fields** -- For each union-typed field in a table,
-//!     insert a companion `_type` discriminator field (an enum of the union's
-//!     underlying type). Processed back-to-front to avoid index invalidation.
+//! 2b. **Insert union type fields** -- For each union or vector-of-union field
+//!     in a table, insert a companion `_type` discriminator field. Vector
+//!     unions receive a vector of the union's underlying scalar type.
 //!
 //! 3. **Assign enum values** -- Walk every enum and assign sequential integer
 //!    values to variants that lack explicit values. Validates ranges against
@@ -210,11 +210,11 @@ fn resolve_field_types(schema: &mut schema::Schema, index: &TypeIndex) -> Result
     Ok(())
 }
 
-/// Insert companion `_type` fields for union fields in tables.
+/// Insert companion `_type` fields for union fields and union vectors in tables.
 ///
 /// In FlatBuffers, each union field in a table implicitly creates a companion
-/// discriminant field with a `_type` suffix. For example, `equipped: Equipment`
-/// generates both `equipped_type` (u8 discriminant) and `equipped` (table offset).
+/// discriminant field with a `_type` suffix. A vector of unions similarly
+/// creates a vector of discriminants.
 ///
 /// This function inserts these companion fields after type resolution, adjusting
 /// field IDs so the discriminant precedes its union value in the vtable.
@@ -242,7 +242,16 @@ fn insert_union_type_fields(schema: &mut schema::Schema) -> Result<()> {
                 .and_then(|t| t.base_type)
                 .unwrap_or(BaseType::BASE_TYPE_NONE);
 
-            if bt == BaseType::BASE_TYPE_UNION {
+            let element_type = schema.objects[obj_idx].fields[field_idx]
+                .type_
+                .as_ref()
+                .and_then(|t| t.element_type)
+                .unwrap_or(BaseType::BASE_TYPE_NONE);
+            let is_union = bt == BaseType::BASE_TYPE_UNION;
+            let is_union_vector =
+                bt == BaseType::BASE_TYPE_VECTOR && element_type == BaseType::BASE_TYPE_UNION;
+
+            if is_union || is_union_vector {
                 let union_field = &schema.objects[obj_idx].fields[field_idx];
                 let union_name = union_field.name.as_deref().unwrap_or("");
                 let union_field_id = union_field.id;
@@ -284,14 +293,27 @@ fn insert_union_type_fields(schema: &mut schema::Schema) -> Result<()> {
                     continue;
                 }
 
-                let mut type_field = schema::Field {
-                    name: Some(companion_name),
-                    type_: Some(schema::Type {
-                        base_type: Some(underlying_bt),
-                        base_size: Some(1),
+                let companion_type = if is_union_vector {
+                    schema::Type {
+                        base_type: Some(BaseType::BASE_TYPE_VECTOR),
+                        base_size: Some(4),
+                        element_type: Some(underlying_bt),
+                        element_size: scalar_size(underlying_bt),
                         index: enum_index,
                         ..schema::Type::default()
-                    }),
+                    }
+                } else {
+                    schema::Type {
+                        base_type: Some(underlying_bt),
+                        base_size: scalar_size(underlying_bt),
+                        index: enum_index,
+                        ..schema::Type::default()
+                    }
+                };
+
+                let mut type_field = schema::Field {
+                    name: Some(companion_name),
+                    type_: Some(companion_type),
                     is_deprecated: union_field.is_deprecated,
                     ..Default::default()
                 };

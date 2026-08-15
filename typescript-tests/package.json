@@ -1,0 +1,17 @@
+{
+  "name": "flatc-rs-typescript-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "cargo run --quiet -p flatc-rs-compiler --bin flatc -- --ts --gen-object-api -o generated schemas/union_vector.fbs",
+    "test": "pnpm run generate && tsc && node dist/union_vector.test.js"
+  },
+  "dependencies": {
+    "flatbuffers": "25.9.23"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "typescript": "7.0.2"
+  }
+}

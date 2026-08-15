@@ -108,7 +108,7 @@ export class Inventory implements flatbuffers.IUnpackableObject<InventoryT> {
     builder.addFieldOffset(2, colorsOffset, 0);
   }
 
-  static createColorsVector(builder:flatbuffers.Builder, data:number[]|Int8Array):flatbuffers.Offset {
+  static createColorsVector(builder:flatbuffers.Builder, data:Color[]|Int8Array):flatbuffers.Offset {
     builder.startVector(1, data.length, 1);
     for (let i = data.length - 1; i >= 0; i--) {
       builder.addInt8(data[i]!);
@@ -145,14 +145,14 @@ export class Inventory implements flatbuffers.IUnpackableObject<InventoryT> {
     return new InventoryT(
       this.bb!.createScalarList<number>(this.items.bind(this), this.itemsLength()),
       this.bb!.createScalarList<string>(this.names.bind(this), this.namesLength()),
-      this.bb!.createScalarList<number>(this.colors.bind(this), this.colorsLength())
+      this.bb!.createScalarList<Color>(this.colors.bind(this), this.colorsLength())
     );
   }
 
   unpackTo(_o:InventoryT):void {
     _o.items = this.bb!.createScalarList<number>(this.items.bind(this), this.itemsLength());
     _o.names = this.bb!.createScalarList<string>(this.names.bind(this), this.namesLength());
-    _o.colors = this.bb!.createScalarList<number>(this.colors.bind(this), this.colorsLength());
+    _o.colors = this.bb!.createScalarList<Color>(this.colors.bind(this), this.colorsLength());
   }
 }
 

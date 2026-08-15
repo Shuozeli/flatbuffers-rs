@@ -298,7 +298,7 @@ fn gen_vector_accessor(
             gen_struct_vector_accessor(w, schema, fname, field, vt_offset);
         }
         BaseType::BASE_TYPE_UNION => {
-            gen_union_vector_accessor(w, fname, vt_offset);
+            gen_union_vector_accessor(w, schema, fname, field, vt_offset);
         }
         _ => {}
     }
@@ -425,16 +425,42 @@ fn gen_struct_vector_accessor(
     );
 }
 
-fn gen_union_vector_accessor(w: &mut CodeWriter, fname: &str, vt_offset: u32) {
+fn gen_union_vector_accessor(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    fname: &str,
+    field: &ResolvedField,
+    vt_offset: u32,
+) {
+    let has_string = field
+        .type_
+        .index
+        .and_then(|idx| schema.enums.get(idx as usize))
+        .map(|enum_def| {
+            enum_def.values.iter().any(|variant| {
+                variant
+                    .union_type
+                    .as_ref()
+                    .map(|ty| ty.base_type == BaseType::BASE_TYPE_STRING)
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+    let union_method = if has_string {
+        "__union_with_string"
+    } else {
+        "__union"
+    };
+
     w.block(
-        &format!("{fname}<T extends flatbuffers.Table>(index: number, obj:T):T|null"),
+        &format!("{fname}(index: number, obj:any|string):any|string|null"),
         |w| {
             w.line(&format!(
                 "const offset = this.bb!.__offset(this.bb_pos, {vt_offset});"
             ));
-            w.line(
-                "return offset ? this.bb!.__union(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;",
-            );
+            w.line(&format!(
+                "return offset ? this.bb!.{union_method}(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;"
+            ));
         },
     );
 }

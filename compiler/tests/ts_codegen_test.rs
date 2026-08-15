@@ -180,6 +180,33 @@ fn ts_gen_vector_field() {
 }
 
 #[test]
+fn ts_object_api_packs_and_unpacks_union_vectors() {
+    // Arrange
+    let schema = r#"
+        table Cat { name:string; }
+        struct Tag { value:int; }
+        union Pet { Cat, Tag, Label:string }
+        table Zoo { pets:[Pet]; }
+        root_type Zoo;
+    "#;
+
+    // Act
+    let code = generate_ts_default(schema);
+
+    // Assert
+    assert!(code.contains("public petsType:(Pet)[] = []"));
+    assert!(code.contains("public pets:(CatT|TagT|string|null)[] = []"));
+    assert!(code.contains("Zoo.createPetsTypeVector(builder, this.petsType)"));
+    assert!(code.contains("if (this.petsType.length !== this.pets.length)"));
+    assert!(code.contains("if (type === Pet.NONE)"));
+    assert!(code.contains("if (offset === 0) builder.addInt32(0); else builder.addOffset(offset);"));
+    assert!(code.contains("values.push(null); continue;"));
+    assert!(code.contains("this.bb!.__union_with_string"));
+    assert!(code.contains("builder.addInt8(data[i]!)"));
+    assert!(!code.contains("unsupported vector element type"));
+}
+
+#[test]
 fn ts_gen_keyword_escape() {
     let schema = "table MyTable { type_: int; } root_type MyTable;";
     let code = generate_ts_default(schema);

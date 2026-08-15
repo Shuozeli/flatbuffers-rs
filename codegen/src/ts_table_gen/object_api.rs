@@ -4,6 +4,7 @@ use flatc_rs_schema::BaseType;
 use crate::field_type_index;
 use crate::ts_type_map;
 use crate::type_map;
+use crate::CodeGenError;
 use codegen_core::CodeWriter;
 
 use super::helpers;
@@ -68,9 +69,9 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
             let et = field.type_.element_type_or_none();
             match et {
                 et if type_map::is_scalar(et) => {
+                    let ts_type = helpers::scalar_field_ts_type(schema, field, et);
                     format!(
-                        "this.bb!.createScalarList<{ts_type}>(this.{fname}.bind(this), this.{fname}Length())",
-                        ts_type = ts_type_map::scalar_ts_type(et)
+                        "this.bb!.createScalarList<{ts_type}>(this.{fname}.bind(this), this.{fname}Length())"
                     )
                 }
                 BaseType::BASE_TYPE_STRING => {
@@ -92,6 +93,7 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
                         "this.bb!.createObjList<{struct_name}, {struct_name}T>(this.{fname}.bind(this), this.{fname}Length())"
                     )
                 }
+                BaseType::BASE_TYPE_UNION => unpack_union_vector_expr(schema, field, &fname),
                 _ => format!("this.{fname}()"),
             }
         }
@@ -111,12 +113,25 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
     }
 }
 
+fn unpack_union_vector_expr(schema: &ResolvedSchema, field: &ResolvedField, fname: &str) -> String {
+    let enum_index = field.type_.index.unwrap() as usize;
+    let enum_name = &schema.enums[enum_index].name;
+    let mut value_types = helpers::union_object_api_value_types(schema, enum_index);
+    value_types.push("null".to_string());
+    let value_type = value_types.join("|");
+
+    format!(
+        "(() => {{ const values:({value_type})[] = []; for (let i = 0; i < this.{fname}Length(); i++) {{ const type = this.{fname}Type(i); if (type === null || type === {enum_name}.NONE) {{ values.push(null); continue; }} const value = unionListTo{enum_name}(type, (index:number, obj:any) => this.{fname}(index, obj), i); values.push(value === null ? null : (typeof value === 'string' ? value : value.unpack())); }} return values; }})()"
+    )
+}
+
 pub(super) fn gen_object_api_class(
     w: &mut CodeWriter,
     schema: &ResolvedSchema,
     obj: &ResolvedObject,
     name: &str,
-) {
+) -> Result<(), CodeGenError> {
+    validate_object_api_vectors(obj)?;
     let t_name = format!("{name}T");
 
     w.block(
@@ -167,7 +182,7 @@ pub(super) fn gen_object_api_class(
                                 ));
                             }
                             BaseType::BASE_TYPE_VECTOR => {
-                                gen_pack_vector(w, field, &fname, name);
+                                gen_pack_vector(w, schema, field, &fname, name);
                             }
                             _ => {}
                         }
@@ -231,9 +246,40 @@ pub(super) fn gen_object_api_class(
             );
         },
     );
+    Ok(())
 }
 
-fn gen_pack_vector(w: &mut CodeWriter, field: &ResolvedField, fname: &str, table_name: &str) {
+fn validate_object_api_vectors(obj: &ResolvedObject) -> Result<(), CodeGenError> {
+    for field in &obj.fields {
+        if field.type_.base_type != BaseType::BASE_TYPE_VECTOR {
+            continue;
+        }
+        let element_type = field.type_.element_type_or_none();
+        if !type_map::is_scalar(element_type)
+            && !matches!(
+                element_type,
+                BaseType::BASE_TYPE_STRING
+                    | BaseType::BASE_TYPE_TABLE
+                    | BaseType::BASE_TYPE_STRUCT
+                    | BaseType::BASE_TYPE_UNION
+            )
+        {
+            return Err(CodeGenError::Internal(format!(
+                "TypeScript Object API cannot pack vector field '{}.{}' with element type {element_type:?}",
+                obj.name, field.name
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn gen_pack_vector(
+    w: &mut CodeWriter,
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+    fname: &str,
+    table_name: &str,
+) {
     let et = field.type_.element_type_or_none();
     let pascal = ts_type_map::escape_ts_keyword(&ts_type_map::to_pascal_case(&field.name));
 
@@ -296,10 +342,47 @@ fn gen_pack_vector(w: &mut CodeWriter, field: &ResolvedField, fname: &str, table
             });
             w.line(&format!("const {fname} = {fname}Offset;"));
         }
-        _ => {
+        BaseType::BASE_TYPE_UNION => {
+            let enum_index = field.type_.index.unwrap() as usize;
+            let enum_name = &schema.enums[enum_index].name;
+            let type_fname = format!("{fname}Type");
+            w.block(
+                &format!("if (this.{type_fname}.length !== this.{fname}.length)"),
+                |w| {
+                    w.line(&format!(
+                        "throw new Error('{table_name}.{fname} union type and value vectors must have equal lengths');"
+                    ));
+                },
+            );
+            w.line("const offsets: flatbuffers.Offset[] = [];");
+            w.block(&format!("for (let i = 0; i < this.{fname}.length; i++)"), |w| {
+                w.line(&format!("const type = this.{type_fname}[i]!;"));
+                w.line(&format!("const item = this.{fname}[i];"));
+                w.block(&format!("if (type === {enum_name}.NONE)"), |w| {
+                    w.block("if (item !== null)", |w| {
+                        w.line(&format!(
+                            "throw new Error('{table_name}.{fname} requires null for a NONE union element');"
+                        ));
+                    });
+                    w.line("offsets.push(0);");
+                    w.line("continue;");
+                });
+                w.block("if (item === null)", |w| {
+                    w.line(&format!(
+                        "throw new Error('{table_name}.{fname} requires a value for a non-NONE union element');"
+                    ));
+                });
+                w.line("offsets.push(typeof item === 'string' ? builder.createString(item) : item.pack(builder));");
+            });
             w.line(&format!(
-                "const {fname} = 0; // TODO: unsupported vector element type"
+                "{table_name}.start{pascal}Vector(builder, offsets.length);"
             ));
+            w.block("for (let i = offsets.length - 1; i >= 0; i--)", |w| {
+                w.line("const offset = offsets[i]!;");
+                w.line("if (offset === 0) builder.addInt32(0); else builder.addOffset(offset);");
+            });
+            w.line(&format!("const {fname} = builder.endVector();"));
         }
+        _ => unreachable!("vector element type was validated before generation"),
     }
 }

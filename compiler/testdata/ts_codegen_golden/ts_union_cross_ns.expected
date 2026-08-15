@@ -193,7 +193,7 @@ export namespace A {
     }
 
     static addUType(builder:flatbuffers.Builder, uType:MyUnion) {
-      builder.addFieldInt16(0, uType, 0);
+      builder.addFieldInt8(0, uType, 0);
     }
 
     static addU(builder:flatbuffers.Builder, uOffset:flatbuffers.Offset) {

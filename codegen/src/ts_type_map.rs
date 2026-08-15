@@ -71,12 +71,11 @@ pub fn bb_write_method(bt: BaseType) -> &'static str {
 /// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn builder_add_field_method(bt: BaseType) -> &'static str {
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => {
-            "addFieldInt8"
-        }
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT | BaseType::BASE_TYPE_U_TYPE => {
-            "addFieldInt16"
-        }
+        BaseType::BASE_TYPE_BOOL
+        | BaseType::BASE_TYPE_BYTE
+        | BaseType::BASE_TYPE_U_BYTE
+        | BaseType::BASE_TYPE_U_TYPE => "addFieldInt8",
+        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => "addFieldInt16",
         BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT => "addFieldInt32",
         BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG => "addFieldInt64",
         BaseType::BASE_TYPE_FLOAT => "addFieldFloat32",
@@ -111,12 +110,11 @@ pub fn builder_write_method(bt: BaseType) -> &'static str {
 /// Panics on non-scalar types (unreachable after analyzer validation).
 pub fn builder_add_method(bt: BaseType) -> &'static str {
     match bt {
-        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE | BaseType::BASE_TYPE_U_BYTE => {
-            "addInt8"
-        }
-        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT | BaseType::BASE_TYPE_U_TYPE => {
-            "addInt16"
-        }
+        BaseType::BASE_TYPE_BOOL
+        | BaseType::BASE_TYPE_BYTE
+        | BaseType::BASE_TYPE_U_BYTE
+        | BaseType::BASE_TYPE_U_TYPE => "addInt8",
+        BaseType::BASE_TYPE_SHORT | BaseType::BASE_TYPE_U_SHORT => "addInt16",
         BaseType::BASE_TYPE_INT | BaseType::BASE_TYPE_U_INT => "addInt32",
         BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG => "addInt64",
         BaseType::BASE_TYPE_FLOAT => "addFloat32",
@@ -132,7 +130,9 @@ pub fn builder_add_method(bt: BaseType) -> &'static str {
 pub fn typed_array_name(bt: BaseType) -> &'static str {
     match bt {
         BaseType::BASE_TYPE_BYTE => "Int8Array",
-        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_BOOL => "Uint8Array",
+        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE | BaseType::BASE_TYPE_BOOL => {
+            "Uint8Array"
+        }
         BaseType::BASE_TYPE_SHORT => "Int16Array",
         BaseType::BASE_TYPE_U_SHORT => "Uint16Array",
         BaseType::BASE_TYPE_INT => "Int32Array",

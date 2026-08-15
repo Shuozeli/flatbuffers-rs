@@ -250,7 +250,7 @@ export class Movie implements flatbuffers.IUnpackableObject<MovieT> {
   }
 
   static addMainCharacterTypeType(builder:flatbuffers.Builder, mainCharacterTypeType:Character) {
-    builder.addFieldInt16(0, mainCharacterTypeType, 0);
+    builder.addFieldInt8(0, mainCharacterTypeType, 0);
   }
 
   static addMainCharacterType(builder:flatbuffers.Builder, mainCharacterTypeOffset:flatbuffers.Offset) {

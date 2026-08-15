@@ -8,6 +8,7 @@ use flatc_rs_schema::BaseType;
 
 use super::ts_type_map;
 use super::type_map;
+use super::CodeGenError;
 use super::TsCodeGenOptions;
 use codegen_core::CodeWriter;
 
@@ -17,7 +18,7 @@ pub fn generate(
     schema: &ResolvedSchema,
     index: usize,
     opts: &TsCodeGenOptions,
-) {
+) -> Result<(), CodeGenError> {
     let gen_object_api = opts.gen_object_api;
     let obj = &schema.objects[index];
     let name = &obj.name;
@@ -178,6 +179,7 @@ pub fn generate(
     // Object API T class
     if gen_object_api {
         w.blank();
-        object_api::gen_object_api_class(w, schema, obj, name);
+        object_api::gen_object_api_class(w, schema, obj, name)?;
     }
+    Ok(())
 }

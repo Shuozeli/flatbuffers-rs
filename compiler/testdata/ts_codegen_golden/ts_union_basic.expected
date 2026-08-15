@@ -292,7 +292,7 @@ export class Hero implements flatbuffers.IUnpackableObject<HeroT> {
   }
 
   static addWeaponType(builder:flatbuffers.Builder, weaponType:Equipment) {
-    builder.addFieldInt16(1, weaponType, 0);
+    builder.addFieldInt8(1, weaponType, 0);
   }
 
   static addWeapon(builder:flatbuffers.Builder, weaponOffset:flatbuffers.Offset) {

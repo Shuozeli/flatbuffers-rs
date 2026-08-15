@@ -125,7 +125,7 @@ pub(super) fn gen_vector_helpers(
         // createXxxVector for scalar types
         let elem_size = et.scalar_byte_size();
         let add_method = ts_type_map::builder_add_method(et);
-        let ts_type = ts_type_map::scalar_ts_type(et);
+        let ts_type = helpers::scalar_field_ts_type(schema, field, et);
         let array_name = ts_type_map::typed_array_name(et);
 
         w.block(

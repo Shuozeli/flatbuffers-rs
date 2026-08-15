@@ -57,3 +57,20 @@ jobs:
 
       - name: Format check
         run: cargo fmt --all -- --check
+
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.3.0
+
+      - name: Install TypeScript test dependencies
+        run: pnpm --dir typescript-tests install --frozen-lockfile
+
+      - name: Type-check and run generated TypeScript
+        run: pnpm --dir typescript-tests test

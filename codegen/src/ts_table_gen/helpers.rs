@@ -139,6 +139,12 @@ pub(super) fn object_api_field_type_and_default(
                     let name = &schema.objects[idx].name;
                     format!("{name}T")
                 }
+                BaseType::BASE_TYPE_UNION => {
+                    let idx = field_type_index(field).unwrap();
+                    let mut types = union_object_api_value_types(schema, idx);
+                    types.push("null".to_string());
+                    types.join("|")
+                }
                 _ => "unknown".to_string(),
             };
 
@@ -187,4 +193,35 @@ pub(super) fn object_api_field_type_and_default(
         }
         _ => ("unknown".to_string(), "null".to_string()),
     }
+}
+
+pub(super) fn union_object_api_value_types(
+    schema: &ResolvedSchema,
+    enum_index: usize,
+) -> Vec<String> {
+    let mut types = Vec::new();
+    for variant in &schema.enums[enum_index].values {
+        if variant.name == "NONE" {
+            continue;
+        }
+
+        let variant_type = match variant
+            .union_type
+            .as_ref()
+            .map(|ty| ty.base_type)
+            .unwrap_or(BaseType::BASE_TYPE_NONE)
+        {
+            BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
+                let idx = union_variant_type_index(variant).unwrap();
+                format!("{}T", schema.objects[idx].name)
+            }
+            BaseType::BASE_TYPE_STRING => "string".to_string(),
+            _ => continue,
+        };
+
+        if !types.contains(&variant_type) {
+            types.push(variant_type);
+        }
+    }
+    types
 }

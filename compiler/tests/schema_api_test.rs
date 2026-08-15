@@ -369,6 +369,32 @@ fn union_companion_type_field() {
     assert_eq!(root.fields[1].type_.base_type, BaseType::BASE_TYPE_UNION);
 }
 
+#[test]
+fn union_vector_companion_type_field() {
+    // Arrange
+    let source = "table A { x:int; } union U { A } table Root { values:[U]; }";
+
+    // Act
+    let schema = analyze(source);
+
+    // Assert
+    let root = schema.objects.iter().find(|o| o.name == "Root").unwrap();
+    assert_eq!(root.fields.len(), 2);
+    assert_eq!(root.fields[0].name, "values_type");
+    assert_eq!(root.fields[0].type_.base_type, BaseType::BASE_TYPE_VECTOR);
+    assert_eq!(
+        root.fields[0].type_.element_type,
+        Some(BaseType::BASE_TYPE_U_TYPE)
+    );
+    assert_eq!(root.fields[0].type_.element_size, Some(1));
+    assert_eq!(root.fields[0].type_.index, Some(0));
+    assert_eq!(root.fields[1].name, "values");
+    assert_eq!(
+        root.fields[1].type_.element_type,
+        Some(BaseType::BASE_TYPE_UNION)
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Services and RPC
 // ---------------------------------------------------------------------------

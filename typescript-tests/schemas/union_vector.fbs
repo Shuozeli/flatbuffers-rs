@@ -1,0 +1,6 @@
+table Cat { name:string; }
+table Dog { age:int; }
+struct Tag { value:int; }
+union Pet { Cat, Dog, Tag, Label:string }
+table Zoo { pets:[Pet]; }
+root_type Zoo;
