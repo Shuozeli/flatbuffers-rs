@@ -316,8 +316,7 @@ impl IncludeResolver {
         if let Some(parent) = from_file.parent() {
             let relative = parent.join(name);
             if relative.exists() {
-                self.validate_no_traversal(name, &relative, parent, from_file)?;
-                return Ok(relative);
+                return self.validate_no_traversal(name, &relative, parent, from_file);
             }
         }
 
@@ -325,8 +324,7 @@ impl IncludeResolver {
         for path in &self.include_paths {
             let candidate = path.join(name);
             if candidate.exists() {
-                self.validate_no_traversal(name, &candidate, path, from_file)?;
-                return Ok(candidate);
+                return self.validate_no_traversal(name, &candidate, path, from_file);
             }
         }
 
@@ -347,24 +345,16 @@ impl IncludeResolver {
         resolved: &Path,
         search_root: &Path,
         from_file: &Path,
-    ) -> Result<(), CompilerError> {
-        // Fast path: no ".." means no traversal possible.
-        if !include_name.contains("..") {
-            return Ok(());
-        }
-
-        let canonical_resolved = match std::fs::canonicalize(resolved) {
-            Ok(c) => c,
-            Err(_) => return Ok(()), // Let resolve_file handle the error downstream.
+    ) -> Result<PathBuf, CompilerError> {
+        let not_found = || CompilerError::IncludeNotFound {
+            include: include_name.to_string(),
+            from: from_file.to_path_buf(),
         };
-
-        let canonical_root = match std::fs::canonicalize(search_root) {
-            Ok(c) => c,
-            Err(_) => return Ok(()),
-        };
+        let canonical_resolved = std::fs::canonicalize(resolved).map_err(|_| not_found())?;
+        let canonical_root = std::fs::canonicalize(search_root).map_err(|_| not_found())?;
 
         if canonical_resolved.starts_with(&canonical_root) {
-            return Ok(());
+            return Ok(canonical_resolved);
         }
 
         Err(CompilerError::PathTraversal {
@@ -473,6 +463,21 @@ mod tests {
     use super::*;
     use std::fs;
 
+    #[cfg(unix)]
+    fn create_file_symlink(target: &Path, link: &Path) -> bool {
+        std::os::unix::fs::symlink(target, link).unwrap();
+        true
+    }
+
+    #[cfg(windows)]
+    fn create_file_symlink(target: &Path, link: &Path) -> bool {
+        match std::os::windows::fs::symlink_file(target, link) {
+            Ok(()) => true,
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => false,
+            Err(error) => panic!("failed to create test symlink: {error}"),
+        }
+    }
+
     #[test]
     fn test_absolute_include_path_rejected() {
         let dir = tempfile::tempdir().unwrap();
@@ -490,13 +495,11 @@ mod tests {
 
     #[test]
     fn test_path_traversal_rejected() {
-        // Create dir structure: root/sub/main.fbs includes "../../escape.fbs"
         let dir = tempfile::tempdir().unwrap();
-        let sub = dir.path().join("sub");
-        fs::create_dir(&sub).unwrap();
-
-        // Create a file that would be outside the search root
-        let escape_path = dir.path().parent().unwrap().join("escape.fbs");
+        let root = dir.path().join("root");
+        let sub = root.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+        let escape_path = dir.path().join("escape.fbs");
         fs::write(&escape_path, "table Escaped { x:int; }").unwrap();
 
         let fbs_path = sub.join("main.fbs");
@@ -507,21 +510,9 @@ mod tests {
         .unwrap();
 
         let options = CompilerOptions::default();
-        let result = compile(&[fbs_path], &options);
+        let error = compile(&[fbs_path], &options).unwrap_err();
 
-        // Clean up the escape file before asserting
-        let _ = fs::remove_file(&escape_path);
-
-        match result {
-            Err(e) => {
-                let msg = e.to_string();
-                assert!(
-                    msg.contains("path traversal") || msg.contains("include not found"),
-                    "expected traversal or not-found error, got: {msg}"
-                );
-            }
-            Ok(_) => panic!("expected path traversal error, but compilation succeeded"),
-        }
+        assert!(matches!(error, CompilerError::PathTraversal { .. }));
     }
 
     #[test]
@@ -542,5 +533,74 @@ mod tests {
             "relative include should work: {:?}",
             result.err()
         );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn test_symlink_include_outside_root_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let outside = dir.path().join("outside");
+        fs::create_dir(&root).unwrap();
+        fs::create_dir(&outside).unwrap();
+        let outside_schema = outside.join("outside.fbs");
+        fs::write(&outside_schema, "table Outside { secret:string; }").unwrap();
+        if !create_file_symlink(Path::new("../outside/outside.fbs"), &root.join("link.fbs")) {
+            return;
+        }
+
+        let main = root.join("main.fbs");
+        fs::write(
+            &main,
+            "include \"link.fbs\";\ntable Main { value:int; }\nroot_type Main;",
+        )
+        .unwrap();
+
+        let error = compile(&[main.clone()], &CompilerOptions::default()).unwrap_err();
+
+        match error {
+            CompilerError::PathTraversal {
+                include,
+                resolved,
+                from,
+            } => {
+                assert_eq!(include, "link.fbs");
+                assert_eq!(resolved, fs::canonicalize(outside_schema).unwrap());
+                assert_eq!(from, fs::canonicalize(main).unwrap());
+            }
+            other => panic!("expected path traversal error, got: {other}"),
+        }
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn test_symlink_include_inside_root_allowed() {
+        let dir = tempfile::tempdir().unwrap();
+        let types = dir.path().join("types");
+        fs::create_dir(&types).unwrap();
+        fs::write(types.join("inside.fbs"), "table Inside { value:int; }").unwrap();
+        if !create_file_symlink(Path::new("types/inside.fbs"), &dir.path().join("link.fbs")) {
+            return;
+        }
+
+        let main = dir.path().join("main.fbs");
+        fs::write(
+            &main,
+            "include \"link.fbs\";\ntable Main { inside:Inside; }\nroot_type Main;",
+        )
+        .unwrap();
+
+        let result = compile(&[main], &CompilerOptions::default()).unwrap();
+
+        assert!(result
+            .schema
+            .objects
+            .iter()
+            .any(|object| object.name == "Inside"));
+        assert!(result
+            .schema
+            .objects
+            .iter()
+            .any(|object| object.name == "Main"));
     }
 }
