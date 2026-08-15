@@ -144,11 +144,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "codegen-core"
+version = "0.1.0"
+source = "git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2#92fdb379bfb4598c889680935b9d055730c89dc2"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "codegen-flatbuffers"
 version = "0.1.0"
 dependencies = [
- "codegen-core",
- "codegen-schema",
+ "codegen-core 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2)",
+ "codegen-schema 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2)",
  "flatc-rs-schema",
  "thiserror",
 ]
@@ -162,12 +170,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "codegen-schema"
+version = "0.1.0"
+source = "git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2#92fdb379bfb4598c889680935b9d055730c89dc2"
+dependencies = [
+ "heck",
+]
+
+[[package]]
 name = "codegen-writers"
 version = "0.1.0"
-source = "git+https://github.com/shuozeli/codegen-infra.git?branch=master#92fdb379bfb4598c889680935b9d055730c89dc2"
+source = "git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2#92fdb379bfb4598c889680935b9d055730c89dc2"
 dependencies = [
- "codegen-core",
- "codegen-schema",
+ "codegen-core 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2)",
+ "codegen-schema 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2)",
  "thiserror",
 ]
 
@@ -248,7 +264,7 @@ dependencies = [
 name = "flatc-rs-codegen"
 version = "0.1.0"
 dependencies = [
- "codegen-core",
+ "codegen-core 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?rev=92fdb379bfb4598c889680935b9d055730c89dc2)",
  "codegen-writers",
  "flatc-rs-schema",
  "grpc-codegen",
@@ -387,8 +403,8 @@ name = "grpc-codegen"
 version = "0.1.0"
 source = "git+https://github.com/Shuozeli/pure-grpc-rs.git?rev=2f13145a9d1f0dfa36a430a44e2fceb9ca24b44e#2f13145a9d1f0dfa36a430a44e2fceb9ca24b44e"
 dependencies = [
- "codegen-core",
- "codegen-schema",
+ "codegen-core 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?branch=master)",
+ "codegen-schema 0.1.0 (git+https://github.com/shuozeli/codegen-infra.git?branch=master)",
  "heck",
  "prettyplease",
  "proc-macro2",

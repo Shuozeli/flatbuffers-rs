@@ -3,6 +3,7 @@ name = "flatc-rs-grammar"
 version = "0.1.0"
 edition = "2021"
 description = "Tree-sitter grammar for FlatBuffers schema files"
+publish = false
 
 [dependencies]
 tree-sitter-language = "0.1"

@@ -3,6 +3,7 @@ name = "flatc-rs-wasm"
 version = "0.1.0"
 edition = "2021"
 description = "WASM bindings for the FlatBuffers Rust compiler"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]

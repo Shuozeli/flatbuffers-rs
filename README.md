@@ -163,7 +163,11 @@ An interactive binary visualizer built on this compiler is available at
 
 The workspace commits `Cargo.lock` because it ships the `flatc` binary. CI uses
 that lock for both default and all-feature release suites, plus strict default
-and all-feature production-target Clippy contracts.
+and all-feature production-target Clippy contracts. The CLI and code-generation
+crates are currently installed from source because their pinned infrastructure
+dependencies are not published on crates.io. See
+[docs/releasing.md](docs/releasing.md) for the public crate boundary and
+reproducible install/package commands.
 
 ```bash
 # Run all tests

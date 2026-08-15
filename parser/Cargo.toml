@@ -1,6 +1,7 @@
 [package]
 name = "flatc-rs-parser"
 description = "Hand-written recursive-descent parser for FlatBuffers schema files"
+publish = false
 version.workspace = true
 edition.workspace = true
 license.workspace = true

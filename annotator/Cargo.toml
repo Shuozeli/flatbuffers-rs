@@ -1,6 +1,7 @@
 [package]
 name = "flatc-rs-annotator"
 description = "FlatBuffers binary annotation engine"
+publish = false
 version.workspace = true
 edition.workspace = true
 license.workspace = true

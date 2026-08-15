@@ -1,6 +1,7 @@
 [package]
 name = "flatc-rs-compiler"
 description = "FlatBuffers schema compiler (Rust implementation)"
+publish = false
 version.workspace = true
 edition.workspace = true
 license.workspace = true

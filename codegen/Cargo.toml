@@ -1,6 +1,7 @@
 [package]
 name = "flatc-rs-codegen"
 description = "Code generators for FlatBuffers schemas (Rust, TypeScript)"
+publish = false
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -29,5 +30,5 @@ proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 syn = { version = "2", optional = true }
 prettyplease = { version = "0.2", optional = true }
-codegen-core = { git = "https://github.com/shuozeli/codegen-infra.git", branch = "master" }
-codegen-writers = { git = "https://github.com/shuozeli/codegen-infra.git", branch = "master" }
+codegen-core = { git = "https://github.com/shuozeli/codegen-infra.git", rev = "92fdb379bfb4598c889680935b9d055730c89dc2" }
+codegen-writers = { git = "https://github.com/shuozeli/codegen-infra.git", rev = "92fdb379bfb4598c889680935b9d055730c89dc2" }

@@ -138,3 +138,26 @@ jobs:
 
       - name: Test generated WASM package in Node.js
         run: pnpm --dir wasm-api test
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Verify public crate set
+        shell: bash
+        run: |
+          diff -u \
+            <(printf '%s\n' flatc-rs-runtime flatc-rs-schema) \
+            <(cargo metadata --no-deps --format-version 1 | \
+              jq -r '.packages[] | select(.publish == null or (.publish | length > 0)) | .name' | \
+              sort)
+
+      - name: Package public crates
+        run: |
+          cargo package --locked -p flatc-rs-runtime
+          cargo package --locked -p flatc-rs-schema
