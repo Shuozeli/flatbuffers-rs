@@ -104,3 +104,37 @@ jobs:
 
       - name: Test Rust grammar binding
         run: cargo test --release -p flatc-rs-grammar --locked
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.3.0
+
+      - name: Install WASM test dependencies
+        run: pnpm --dir wasm-api install --frozen-lockfile
+
+      - name: Install wasm-bindgen CLI
+        run: cargo install wasm-bindgen-cli --version 0.2.114 --locked
+
+      - name: Build release WASM package
+        run: |
+          cargo build --release -p flatc-rs-wasm \
+            --target wasm32-unknown-unknown \
+            --locked
+          wasm-bindgen \
+            target/wasm32-unknown-unknown/release/flatc_rs_wasm.wasm \
+            --out-dir wasm-api/pkg \
+            --target nodejs
+
+      - name: Test generated WASM package in Node.js
+        run: pnpm --dir wasm-api test

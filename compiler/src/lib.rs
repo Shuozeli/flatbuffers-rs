@@ -36,8 +36,8 @@ pub use codegen::generate_rust;
 pub use codegen::generate_typescript;
 pub use codegen::CodeGenError;
 pub use compiler::{
-    compile, compile_inputs, compile_single, CompilationResult, CompilerError, CompilerOptions,
-    InputCompilationResult,
+    compile, compile_inputs, compile_single, compile_virtual, CompilationResult, CompilerError,
+    CompilerOptions, InputCompilationResult, VirtualFile,
 };
 pub use error::AnalyzeError;
 pub use flatc_rs_parser as parser;

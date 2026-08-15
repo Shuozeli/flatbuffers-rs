@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
 
-use flatc_rs_compiler::{compile, compile_inputs, compile_single, CompilerOptions};
+use flatc_rs_compiler::{
+    compile, compile_inputs, compile_single, compile_virtual, CompilerError, CompilerOptions,
+    VirtualFile,
+};
 use flatc_rs_schema::BaseType;
 
 #[test]
@@ -116,7 +119,7 @@ fn compile_inputs_isolates_direct_roots_and_reuses_shared_includes() {
 }
 
 #[test]
-fn compile_inputs_keeps_direct_root_metadata_in_include_cycles() {
+fn compile_inputs_rejects_include_cycles() {
     // Arrange
     let dir = tempfile::tempdir().unwrap();
     let schema_a = dir.path().join("a.fbs");
@@ -133,15 +136,10 @@ fn compile_inputs_keeps_direct_root_metadata_in_include_cycles() {
     .unwrap();
 
     // Act
-    let results = compile_inputs(&[schema_a, schema_b], &CompilerOptions::default()).unwrap();
+    let error = compile_inputs(&[schema_a, schema_b], &CompilerOptions::default()).unwrap_err();
 
     // Assert
-    assert_eq!(results[0].schema.file_ident.as_deref(), Some("AAAA"));
-    assert_eq!(results[1].schema.file_ident.as_deref(), Some("BBBB"));
-    let root_a = results[0].schema.root_table_index.unwrap();
-    let root_b = results[1].schema.root_table_index.unwrap();
-    assert_eq!(results[0].schema.objects[root_a].name, "RootA");
-    assert_eq!(results[1].schema.objects[root_b].name, "RootB");
+    assert!(matches!(error, CompilerError::IncludeCycle { .. }));
 }
 
 #[test]
@@ -201,15 +199,91 @@ fn compile_circular_include() {
     )
     .unwrap();
 
-    // Should handle circular includes gracefully (not error)
-    let result = compile(&[dir.path().join("a.fbs")], &CompilerOptions::default()).unwrap();
-    let schema = &result.schema;
+    let error = compile(&[dir.path().join("a.fbs")], &CompilerOptions::default()).unwrap_err();
 
-    // Both tables should be in the merged schema
-    assert_eq!(schema.objects.len(), 2);
-    let names: Vec<&str> = schema.objects.iter().map(|o| o.name.as_str()).collect();
-    assert!(names.contains(&"TableA"));
-    assert!(names.contains(&"TableB"));
+    assert!(matches!(error, CompilerError::IncludeCycle { .. }));
+}
+
+#[test]
+fn compile_virtual_nested_includes() {
+    let files = vec![
+        VirtualFile::new(
+            "schemas/main.fbs",
+            "include \"model/monster.fbs\"; root_type Monster;",
+        ),
+        VirtualFile::new(
+            "schemas/model/monster.fbs",
+            "include \"types.fbs\"; table Monster { pos:Vec3; }",
+        ),
+        VirtualFile::new(
+            "shared/types.fbs",
+            "struct Vec3 { x:float; y:float; z:float; }",
+        ),
+    ];
+    let options = CompilerOptions {
+        include_paths: vec![PathBuf::from("shared")],
+    };
+
+    let result = compile_virtual(
+        PathBuf::from("schemas/main.fbs").as_path(),
+        &files,
+        &options,
+    )
+    .expect("nested virtual includes should compile");
+
+    assert_eq!(result.schema.objects.len(), 2);
+    assert!(result
+        .schema
+        .objects
+        .iter()
+        .any(|object| object.name == "Vec3"));
+    assert!(result
+        .schema
+        .objects
+        .iter()
+        .any(|object| object.name == "Monster"));
+}
+
+#[test]
+fn compile_virtual_reports_include_failures() {
+    let missing = vec![VirtualFile::new(
+        "main.fbs",
+        "include \"missing.fbs\"; table Main { value:int; }",
+    )];
+    let error = compile_virtual(
+        PathBuf::from("main.fbs").as_path(),
+        &missing,
+        &CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert!(matches!(error, CompilerError::IncludeNotFound { .. }));
+
+    let cyclic = vec![
+        VirtualFile::new("a.fbs", "include \"b.fbs\"; table A { value:int; }"),
+        VirtualFile::new("b.fbs", "include \"a.fbs\"; table B { value:int; }"),
+    ];
+    let error = compile_virtual(
+        PathBuf::from("a.fbs").as_path(),
+        &cyclic,
+        &CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert!(matches!(error, CompilerError::IncludeCycle { .. }));
+
+    let escaping = vec![
+        VirtualFile::new(
+            "schemas/main.fbs",
+            "include \"../secret.fbs\"; table Main { value:int; }",
+        ),
+        VirtualFile::new("secret.fbs", "table Secret { value:string; }"),
+    ];
+    let error = compile_virtual(
+        PathBuf::from("schemas/main.fbs").as_path(),
+        &escaping,
+        &CompilerOptions::default(),
+    )
+    .unwrap_err();
+    assert!(matches!(error, CompilerError::PathTraversal { .. }));
 }
 
 #[test]

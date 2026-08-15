@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::analyzer;
@@ -44,6 +45,15 @@ pub enum CompilerError {
     #[error("included file limit exceeded: {count} files exceeds limit of {limit}")]
     IncludedFileLimit { count: usize, limit: usize },
 
+    #[error("include cycle detected while processing {file}")]
+    IncludeCycle { file: PathBuf },
+
+    #[error("invalid virtual file path '{path}': {reason}")]
+    InvalidVirtualPath { path: PathBuf, reason: String },
+
+    #[error("duplicate virtual file path after normalization: {path}")]
+    DuplicateVirtualPath { path: PathBuf },
+
     #[error("semantic error: {0}")]
     AnalyzeError(#[from] AnalyzeError),
 }
@@ -52,6 +62,22 @@ pub enum CompilerError {
 pub struct CompilerOptions {
     /// Search paths for include directives (like flatc -I).
     pub include_paths: Vec<PathBuf>,
+}
+
+/// One source file in an in-memory schema filesystem.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VirtualFile {
+    pub path: PathBuf,
+    pub source: String,
+}
+
+impl VirtualFile {
+    pub fn new(path: impl Into<PathBuf>, source: impl Into<String>) -> Self {
+        Self {
+            path: path.into(),
+            source: source.into(),
+        }
+    }
 }
 
 /// Result of compiling one or more .fbs files.
@@ -144,6 +170,14 @@ fn resolve_files(
     input_files: &[PathBuf],
     options: &CompilerOptions,
 ) -> Result<ResolvedFiles, CompilerError> {
+    resolve_files_with(input_files, options, &NativeFileSystem)
+}
+
+fn resolve_files_with<F: SchemaFileSystem>(
+    input_files: &[PathBuf],
+    options: &CompilerOptions,
+    file_system: &F,
+) -> Result<ResolvedFiles, CompilerError> {
     // Build include search paths: user-supplied paths + parent dirs of input files.
     let mut include_paths = options.include_paths.clone();
     for file in input_files {
@@ -160,6 +194,7 @@ fn resolve_files(
     }
 
     let mut resolver = IncludeResolver {
+        file_system,
         include_paths,
         parsed_files: Vec::new(),
         dependencies: HashMap::new(),
@@ -214,11 +249,161 @@ pub fn compile_single(source: &str) -> Result<CompilationResult, CompilerError> 
     Ok(CompilationResult { schema })
 }
 
+/// Compile an entry schema and its transitive includes from an in-memory
+/// filesystem.
+///
+/// Paths are normalized lexically and must be relative to the virtual root.
+/// Include resolution uses the same traversal, cycle, depth, and file-count
+/// rules as [`compile`].
+pub fn compile_virtual(
+    entry_file: &Path,
+    files: &[VirtualFile],
+    options: &CompilerOptions,
+) -> Result<CompilationResult, CompilerError> {
+    let file_system = VirtualFileSystem::new(files)?;
+    let entry_file = normalize_virtual_file_path(entry_file)?;
+    let include_paths = options
+        .include_paths
+        .iter()
+        .map(|path| {
+            normalize_virtual_path(path).map_err(|reason| invalid_virtual_path(path, reason))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let options = CompilerOptions { include_paths };
+    let resolved = resolve_files_with(&[entry_file], &options, &file_system)?;
+    let merged = merge_schemas(&resolved.parsed_files);
+    let schema = analyzer::analyze(merged)?;
+
+    Ok(CompilationResult { schema })
+}
+
 // ---------------------------------------------------------------------------
 // Include resolver
 // ---------------------------------------------------------------------------
 
-struct IncludeResolver {
+trait SchemaFileSystem {
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf>;
+    fn exists(&self, path: &Path) -> bool;
+    fn read_to_string(&self, path: &Path) -> io::Result<String>;
+}
+
+struct NativeFileSystem;
+
+impl SchemaFileSystem for NativeFileSystem {
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+        std::fs::canonicalize(path)
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        std::fs::read_to_string(path)
+    }
+}
+
+struct VirtualFileSystem {
+    files: HashMap<PathBuf, String>,
+    directories: HashSet<PathBuf>,
+}
+
+impl VirtualFileSystem {
+    fn new(files: &[VirtualFile]) -> Result<Self, CompilerError> {
+        let mut sources = HashMap::with_capacity(files.len());
+        let mut directories = HashSet::new();
+        directories.insert(PathBuf::new());
+
+        for file in files {
+            let path = normalize_virtual_file_path(&file.path)?;
+            if sources.insert(path.clone(), file.source.clone()).is_some() {
+                return Err(CompilerError::DuplicateVirtualPath { path });
+            }
+
+            let mut parent = path.parent();
+            while let Some(directory) = parent {
+                directories.insert(directory.to_path_buf());
+                if directory.as_os_str().is_empty() {
+                    break;
+                }
+                parent = directory.parent();
+            }
+        }
+
+        Ok(Self {
+            files: sources,
+            directories,
+        })
+    }
+}
+
+impl SchemaFileSystem for VirtualFileSystem {
+    fn canonicalize(&self, path: &Path) -> io::Result<PathBuf> {
+        let normalized = normalize_virtual_path(path)
+            .map_err(|reason| io::Error::new(io::ErrorKind::InvalidInput, reason))?;
+        if self.files.contains_key(&normalized) || self.directories.contains(&normalized) {
+            Ok(normalized)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "virtual path not found",
+            ))
+        }
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        normalize_virtual_path(path)
+            .ok()
+            .is_some_and(|normalized| self.files.contains_key(&normalized))
+    }
+
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        let normalized = normalize_virtual_path(path)
+            .map_err(|reason| io::Error::new(io::ErrorKind::InvalidInput, reason))?;
+        self.files
+            .get(&normalized)
+            .cloned()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "virtual file not found"))
+    }
+}
+
+fn normalize_virtual_file_path(path: &Path) -> Result<PathBuf, CompilerError> {
+    let normalized =
+        normalize_virtual_path(path).map_err(|reason| invalid_virtual_path(path, reason))?;
+    if normalized.as_os_str().is_empty() {
+        return Err(invalid_virtual_path(path, "file path is empty"));
+    }
+    Ok(normalized)
+}
+
+fn normalize_virtual_path(path: &Path) -> Result<PathBuf, &'static str> {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(part) => normalized.push(part),
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                if !normalized.pop() {
+                    return Err("path escapes the virtual root");
+                }
+            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                return Err("absolute paths are not allowed");
+            }
+        }
+    }
+    Ok(normalized)
+}
+
+fn invalid_virtual_path(path: &Path, reason: impl Into<String>) -> CompilerError {
+    CompilerError::InvalidVirtualPath {
+        path: path.to_path_buf(),
+        reason: reason.into(),
+    }
+}
+
+struct IncludeResolver<'a, F> {
+    file_system: &'a F,
     include_paths: Vec<PathBuf>,
     /// Parsed files in dependency order (includes before includers).
     parsed_files: Vec<ParsedFile>,
@@ -236,7 +421,7 @@ const MAX_INCLUDE_DEPTH: usize = 64;
 /// Maximum number of included files to prevent OOM on malicious schemas (G3.20).
 const MAX_INCLUDED_FILES: usize = 1000;
 
-impl IncludeResolver {
+impl<F: SchemaFileSystem> IncludeResolver<'_, F> {
     fn resolve_file(&mut self, file_path: &Path, depth: usize) -> Result<PathBuf, CompilerError> {
         // G3.8: Prevent stack overflow from deep (non-circular) include chains
         if depth > MAX_INCLUDE_DEPTH {
@@ -246,7 +431,9 @@ impl IncludeResolver {
             });
         }
 
-        let canonical = std::fs::canonicalize(file_path)
+        let canonical = self
+            .file_system
+            .canonicalize(file_path)
             .map_err(|_| CompilerError::FileNotFound(file_path.to_path_buf()))?;
 
         // Already parsed -- skip.
@@ -254,18 +441,22 @@ impl IncludeResolver {
             return Ok(canonical);
         }
 
-        // Circular include -- skip (not an error; flatc handles this gracefully).
+        // Reject circular includes explicitly so all frontends receive a
+        // deterministic, structured error instead of a partial dependency graph.
         if self.visiting.contains(&canonical) {
-            return Ok(canonical);
+            return Err(CompilerError::IncludeCycle { file: canonical });
         }
 
         self.visiting.insert(canonical.clone());
 
         // Read and parse.
-        let source = std::fs::read_to_string(&canonical).map_err(|e| CompilerError::IoError {
-            path: canonical.clone(),
-            source: e,
-        })?;
+        let source =
+            self.file_system
+                .read_to_string(&canonical)
+                .map_err(|e| CompilerError::IoError {
+                    path: canonical.clone(),
+                    source: e,
+                })?;
 
         let parser =
             FbsParser::new(&source).with_file_name(canonical.to_string_lossy().to_string());
@@ -315,7 +506,7 @@ impl IncludeResolver {
         // 1. Try relative to the including file's directory.
         if let Some(parent) = from_file.parent() {
             let relative = parent.join(name);
-            if relative.exists() {
+            if self.file_system.exists(&relative) {
                 return self.validate_no_traversal(name, &relative, parent, from_file);
             }
         }
@@ -323,7 +514,7 @@ impl IncludeResolver {
         // 2. Try each include search path.
         for path in &self.include_paths {
             let candidate = path.join(name);
-            if candidate.exists() {
+            if self.file_system.exists(&candidate) {
                 return self.validate_no_traversal(name, &candidate, path, from_file);
             }
         }
@@ -350,8 +541,14 @@ impl IncludeResolver {
             include: include_name.to_string(),
             from: from_file.to_path_buf(),
         };
-        let canonical_resolved = std::fs::canonicalize(resolved).map_err(|_| not_found())?;
-        let canonical_root = std::fs::canonicalize(search_root).map_err(|_| not_found())?;
+        let canonical_resolved = self
+            .file_system
+            .canonicalize(resolved)
+            .map_err(|_| not_found())?;
+        let canonical_root = self
+            .file_system
+            .canonicalize(search_root)
+            .map_err(|_| not_found())?;
 
         if canonical_resolved.starts_with(&canonical_root) {
             return Ok(canonical_resolved);

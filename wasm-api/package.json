@@ -1,0 +1,9 @@
+{
+  "name": "flatc-rs-wasm-tests",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "test": "node tests/node.cjs"
+  }
+}
