@@ -550,7 +550,15 @@ impl<F: SchemaFileSystem> IncludeResolver<'_, F> {
             .canonicalize(search_root)
             .map_err(|_| not_found())?;
 
-        if canonical_resolved.starts_with(&canonical_root) {
+        let is_within_another_root = from_file
+            .parent()
+            .into_iter()
+            .chain(self.include_paths.iter().map(PathBuf::as_path))
+            .filter(|root| *root != search_root)
+            .filter_map(|root| self.file_system.canonicalize(root).ok())
+            .any(|root| canonical_resolved.starts_with(root));
+
+        if canonical_resolved.starts_with(&canonical_root) || is_within_another_root {
             return Ok(canonical_resolved);
         }
 
@@ -710,6 +718,33 @@ mod tests {
         let error = compile(&[fbs_path], &options).unwrap_err();
 
         assert!(matches!(error, CompilerError::PathTraversal { .. }));
+    }
+
+    #[test]
+    fn test_parent_include_within_explicit_search_root_allowed() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        let schemas = root.join("schemas");
+        fs::create_dir_all(&schemas).unwrap();
+        fs::write(root.join("common.fbs"), "table Common { value:int; }").unwrap();
+
+        let main = schemas.join("main.fbs");
+        fs::write(
+            &main,
+            "include \"../common.fbs\";\ntable Main { common:Common; }\nroot_type Main;",
+        )
+        .unwrap();
+
+        let options = CompilerOptions {
+            include_paths: vec![root],
+        };
+        let result = compile(&[main], &options).unwrap();
+
+        assert!(result
+            .schema
+            .objects
+            .iter()
+            .any(|object| object.name == "Common"));
     }
 
     #[test]
