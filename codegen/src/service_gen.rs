@@ -160,7 +160,7 @@ fn method_from_fbs(
 
     Ok(MethodDef {
         name: call.name.clone(),
-        rust_name: Some(type_map::to_snake_case(&call.name)),
+        rust_name: Some(type_map::to_rust_snake_case(&call.name)),
         input_type: format!("super::{}", rust_type_path(request, true)),
         output_type: format!("super::{}", rust_type_path(response, true)),
         streaming,
@@ -201,7 +201,7 @@ fn rust_type_path(object: &ResolvedObject, owned: bool) -> String {
         .into_iter()
         .flat_map(|namespace| namespace.split('.'))
         .filter(|segment| !segment.is_empty())
-        .map(type_map::to_snake_case)
+        .map(type_map::to_rust_snake_case)
         .collect::<Vec<_>>();
     segments.push(if owned {
         format!("{}T", object.name)
@@ -319,8 +319,8 @@ mod tests {
         let method = &service.methods[0];
         assert_eq!(method.name, "SayHello");
         assert_eq!(method.rust_name.as_deref(), Some("say_hello"));
-        assert_eq!(method.input_type, "super::hello::v1::HelloRequestT");
-        assert_eq!(method.output_type, "super::hello::v1::HelloReplyT");
+        assert_eq!(method.input_type, "super::hello::v_1::HelloRequestT");
+        assert_eq!(method.output_type, "super::hello::v_1::HelloReplyT");
         assert_eq!(method.streaming, StreamingType::None);
         assert_eq!(method.codec_path, FLATBUFFERS_CODEC_PATH);
         assert_eq!(method.comments, ["Greets one caller."]);
@@ -375,10 +375,10 @@ mod tests {
 
         // Assert
         assert!(
-            generated.contains("FlatBufferGrpcMessage for hello::v1::HelloRequestT"),
+            generated.contains("FlatBufferGrpcMessage for hello::v_1::HelloRequestT"),
             "{generated}"
         );
-        assert!(generated.contains("hello::v1::HelloReply"), "{generated}");
+        assert!(generated.contains("hello::v_1::HelloReply"), "{generated}");
         assert!(generated.contains("pub mod greeter_server"), "{generated}");
         assert!(generated.contains("pub mod greeter_client"), "{generated}");
         assert!(
