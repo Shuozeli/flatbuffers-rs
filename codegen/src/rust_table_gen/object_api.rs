@@ -33,7 +33,7 @@ pub(super) fn gen_object_api(
             if helpers::is_union_type_field(schema, field) {
                 return Ok(None);
             }
-            let fname = type_map::to_snake_case(&type_map::escape_keyword(&field.name));
+            let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
             let owned_type = table_owned_field_type(schema, field, bt, current_ns)?;
             let default = table_owned_field_default(schema, field, bt, current_ns)?;
             Ok(Some((fname, owned_type, default)))
@@ -244,7 +244,7 @@ fn gen_pack_body(
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
 
         match bt {
             bt if type_map::is_scalar(bt) => {
@@ -278,7 +278,8 @@ fn gen_pack_body(
             BaseType::BASE_TYPE_UNION => {
                 let idx = field_type_index(field)?;
                 let ename = type_map::resolve_enum_name(schema, current_ns, idx);
-                let snake = type_map::to_snake_case(ename.split("::").last().unwrap_or(&ename));
+                let snake =
+                    type_map::to_rust_snake_case(ename.split("::").last().unwrap_or(&ename));
                 w.line(&format!("let {fname}_type = self.{fname}.{snake}_type();"));
                 w.line(&format!("let {fname} = self.{fname}.pack(_fbb);"));
             }
@@ -294,7 +295,7 @@ fn gen_pack_body(
             continue;
         }
         let bt = field.type_.base_type;
-        let fname = type_map::to_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
         if bt == BaseType::BASE_TYPE_UNION || helpers::is_union_type_field(schema, field) {
             // Union generates two Args fields: {name}_type and {name}
             // The discriminator field has the _type suffix in args
@@ -410,7 +411,7 @@ fn gen_unpack_body(
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
 
         match bt {
             bt if type_map::is_scalar(bt) => {
@@ -462,7 +463,7 @@ fn gen_unpack_body(
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
         w.line(&format!("{fname},"));
     }
     w.dedent();
@@ -571,7 +572,7 @@ fn gen_unpack_union_field(
         // Sanitize FQN: const uses underscores, T variant uses PascalCase
         let const_name = type_map::escape_keyword(&type_map::sanitize_union_const_name(vname));
         let t_variant = type_map::escape_keyword(&type_map::fqn_to_pascal(vname));
-        let variant_snake = type_map::to_snake_case(&const_name);
+        let variant_snake = type_map::to_rust_snake_case(&const_name);
         let variant_bt = val
             .union_type
             .as_ref()

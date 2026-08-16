@@ -284,6 +284,75 @@ fn rust_gen_vector_field() {
 }
 
 #[test]
+fn rust_gen_matches_official_naming_root_helpers_and_follow_types() {
+    // Arrange
+    let schema = r#"
+namespace xlqy3;
+enum EntityKind:byte { Unknown }
+table SnapEntity { kind:EntityKind; }
+table S2cWorldSnapshot { entities:[SnapEntity]; }
+root_type S2cWorldSnapshot;
+"#;
+
+    // Act
+    let code = generate_rust_code(schema);
+
+    // Assert
+    assert!(code.contains("pub mod xlqy_3 {"));
+    assert!(code.contains("ENUM_MIN_ENTITY_KIND"));
+    assert!(code.contains("pub fn root_as_s2c_world_snapshot_with_opts"));
+    assert!(code.contains("pub unsafe fn size_prefixed_root_as_s2c_world_snapshot_unchecked"));
+    assert!(code.contains("pub fn finish_s2c_world_snapshot_buffer"));
+    assert!(code.contains(
+        "pub fn entities(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<SnapEntity<'a>>>>"
+    ));
+    assert!(code.contains(
+        "self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<SnapEntity>>>>"
+    ));
+
+    let helper_position = code.find("pub fn root_as_s2c_world_snapshot").unwrap();
+    let namespace_end = code.find("} // pub mod xlqy3").unwrap();
+    assert!(
+        helper_position < namespace_end,
+        "root helpers must remain inside the root table namespace"
+    );
+}
+
+#[test]
+fn rust_gen_preserves_schema_documentation() {
+    // Arrange
+    let schema = r#"
+/// A position.
+struct Position {
+  /// Horizontal coordinate.
+  x:float;
+}
+/// Entity kinds.
+enum EntityKind:byte {
+  /// An unknown entity.
+  Unknown
+}
+/// A world entity.
+table Entity {
+  /// Its position.
+  position:Position;
+}
+root_type Entity;
+"#;
+
+    // Act
+    let code = generate_rust_code(schema);
+
+    // Assert
+    assert!(code.contains("/// A position.\n#[repr(transparent)]"));
+    assert!(code.contains("/// Horizontal coordinate.\n  pub fn x("));
+    assert!(code.contains("/// Entity kinds.\n#[derive(Clone, Copy"));
+    assert!(code.contains("/// An unknown entity.\n  pub const Unknown"));
+    assert!(code.contains("/// A world entity.\n#[derive(Copy, Clone"));
+    assert!(code.contains("/// Its position.\n  #[inline]\n  pub fn position("));
+}
+
+#[test]
 fn rust_gen_keyword_escape() {
     let schema = "table MyTable { type_: int; } root_type MyTable;";
     let code = generate_rust_code(schema);

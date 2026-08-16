@@ -24,12 +24,11 @@ struct GenScalarAccessorContext<'a> {
 /// `pub enum FooOffset {}`
 pub(super) fn gen_offset_marker(w: &mut CodeWriter, name: &str, vis: &str) {
     w.line(&format!("{vis} enum {name}Offset {{}}"));
-    w.line("#[derive(Copy, Clone, PartialEq)]");
 }
 
 /// Reader struct with lifetime.
 pub(super) fn gen_reader_struct(w: &mut CodeWriter, name: &str, vis: &str, opts: &CodeGenOptions) {
-    w.blank();
+    w.line("#[derive(Copy, Clone, PartialEq)]");
     if opts.rust_pluggable_buffer {
         w.block(
             &format!(
@@ -99,7 +98,7 @@ pub(super) fn gen_impl_block(
         .map(|field| {
             let fname = &field.name;
             let escaped = type_map::escape_keyword(fname);
-            let upper = type_map::to_upper_snake_case(&escaped);
+            let upper = type_map::to_rust_upper_snake_case(&escaped);
             let slot = field_id(field)?;
             let vt_offset = 4 + 2 * slot;
             Ok((upper, vt_offset))
@@ -184,8 +183,8 @@ fn gen_field_accessor(
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
-    let accessor_name = type_map::to_snake_case(&escaped);
-    let upper = type_map::to_upper_snake_case(&escaped);
+    let accessor_name = type_map::to_rust_snake_case(&escaped);
+    let upper = type_map::to_rust_upper_snake_case(&escaped);
 
     let bt = field.type_.base_type;
 
@@ -196,6 +195,7 @@ fn gen_field_accessor(
     if is_deprecated {
         w.line("#[deprecated]");
     }
+    type_map::gen_rust_doc_comment(w, field.documentation.as_ref());
     w.line("#[inline]");
 
     match bt {
@@ -293,19 +293,8 @@ fn gen_scalar_accessor(
     if has_type_index(ctx.field) {
         let enum_idx = field_type_index(ctx.field)?;
         let enum_name = type_map::resolve_enum_name(ctx.schema, ctx.current_ns, enum_idx);
-        let is_bitflags = type_map::is_bitflags_enum(ctx.schema, enum_idx);
-
-        // Determine default
-        let default = if let Some(ref ds) = ctx.field.default_string {
-            format!("{enum_name}::{ds}")
-        } else {
-            let dv = ctx.field.default_integer.unwrap_or(0);
-            if is_bitflags {
-                format!("{enum_name}::from_bits_retain({dv})")
-            } else {
-                format!("{enum_name}({dv})")
-            }
-        };
+        let default =
+            helpers::scalar_builder_default(ctx.schema, ctx.field, ctx.bt, ctx.current_ns)?;
 
         if ctx.is_optional {
             w.line(&format!(
@@ -563,7 +552,9 @@ fn gen_vector_accessor(
     let full_type = if opts.rust_pluggable_buffer {
         format!("__flatc_rs_runtime::Vector<'a, B, {vector_inner}>")
     } else {
-        format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {vector_inner}>>")
+        let follow_inner =
+            helpers::vector_follow_element_type(schema, field, element_bt, "'a", current_ns)?;
+        format!("::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, {follow_inner}>>")
     };
 
     if has_default {
@@ -705,7 +696,7 @@ fn gen_union_accessor(
             }
             // Sanitize FQN for enum constant reference and accessor name
             let const_name = type_map::escape_keyword(&type_map::sanitize_union_const_name(vname));
-            let variant_snake = type_map::to_snake_case(&const_name);
+            let variant_snake = type_map::to_rust_snake_case(&const_name);
             let variant_bt = val
                 .union_type
                 .as_ref()
@@ -825,7 +816,7 @@ pub(super) fn gen_verifiable_impl(
 
             let fname = &field.name;
             let escaped = type_map::escape_keyword(fname);
-            let upper = type_map::to_upper_snake_case(&escaped);
+            let upper = type_map::to_rust_upper_snake_case(&escaped);
             let is_required = field.is_required
                 || (helpers::has_key_attribute(field) && bt == BaseType::BASE_TYPE_STRING);
 
@@ -853,7 +844,7 @@ pub(super) fn gen_verifiable_impl(
                         ))
                     })?;
                 let type_escaped = type_map::escape_keyword(&type_field.name);
-                let type_upper = type_map::to_upper_snake_case(&type_escaped);
+                let type_upper = type_map::to_rust_upper_snake_case(&type_escaped);
                 let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
                 let variants = union_enum
                     .values
@@ -991,7 +982,7 @@ pub(super) fn gen_debug_impl(
                     }
                     let fname = &field.name;
                     let escaped = type_map::escape_keyword(fname);
-                    let accessor = type_map::to_snake_case(&escaped);
+                    let accessor = type_map::to_rust_snake_case(&escaped);
                     w.line(&format!("ds.field(\"{fname}\", &self.{accessor}());"));
                 }
                 w.line("ds.finish()");
@@ -1016,14 +1007,17 @@ pub(super) fn gen_debug_impl(
                         .filter(|f| !f.is_deprecated && !helpers::is_union_field(f))
                         .count();
                     w.line("use ::serde::ser::SerializeStruct;");
-                    w.line(&format!("let mut s = serializer.serialize_struct(\"{name}\", {n})?;"));
+                    let mutability = if n > 0 { "mut " } else { "" };
+                    w.line(&format!(
+                        "let {mutability}s = serializer.serialize_struct(\"{name}\", {n})?;"
+                    ));
                     for field in &obj.fields {
                         if field.is_deprecated || helpers::is_union_field(field) {
                             continue;
                         }
                         let fname = &field.name;
                         let escaped = type_map::escape_keyword(fname);
-                        let accessor = type_map::to_snake_case(&escaped);
+                        let accessor = type_map::to_rust_snake_case(&escaped);
                         if field.type_.base_type == BaseType::BASE_TYPE_VECTOR {
                             let tmp = format!("{accessor}_vec");
                             if field.default_string.is_some() {
@@ -1051,6 +1045,7 @@ pub(super) fn gen_debug_impl(
 
 /// Generate the inline `create()` method inside the impl block (C++ flatc style).
 fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
+    let has_fields = obj.fields.iter().any(|field| !field.is_deprecated);
     let needs_lifetime = obj.fields.iter().filter(|f| !f.is_deprecated).any(|f| {
         let bt = f.type_.base_type;
         matches!(
@@ -1064,15 +1059,21 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
 
     let args_lifetime = if needs_lifetime { "<'args>" } else { "" };
 
-    w.line("#[allow(unused_mut)]");
+    if has_fields {
+        w.line("#[allow(unused_mut)]");
+    }
     w.line("pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(");
     w.indent();
     w.line("_fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,");
-    w.line(&format!("args: &'args {name}Args{args_lifetime}"));
+    let args_name = if has_fields { "args" } else { "_args" };
+    w.line(&format!("{args_name}: &'args {name}Args{args_lifetime}"));
     w.dedent();
     w.line(&format!(") -> ::flatbuffers::WIPOffset<{name}<'bldr>> {{"));
     w.indent();
-    w.line(&format!("let mut builder = {name}Builder::new(_fbb);"));
+    let mutability = if has_fields { "mut " } else { "" };
+    w.line(&format!(
+        "let {mutability}builder = {name}Builder::new(_fbb);"
+    ));
 
     // Build field add calls -- C++ sorts scalars by alignment size descending,
     // then by field index descending within same size. Non-scalars first (reversed).
@@ -1095,7 +1096,7 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     for (_, field) in non_scalar_fields.iter().rev() {
         let fname = &field.name;
         let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_snake_case(&escaped);
+        let accessor = type_map::to_rust_snake_case(&escaped);
         w.line(&format!(
             "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
         ));
@@ -1111,7 +1112,7 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     for (_, field) in &scalar_fields {
         let fname = &field.name;
         let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_snake_case(&escaped);
+        let accessor = type_map::to_rust_snake_case(&escaped);
         if field.is_optional {
             w.line(&format!(
                 "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
@@ -1136,7 +1137,7 @@ fn gen_key_methods(
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
-    let accessor = type_map::to_snake_case(&escaped);
+    let accessor = type_map::to_rust_snake_case(&escaped);
     let bt = field.type_.base_type;
 
     // Determine the key type and comparison style

@@ -57,6 +57,44 @@ pub(super) fn vector_element_type(
     }
 }
 
+/// Get the vector element spelling used inside `Table::get`. The official
+/// generator relies on `Follow`'s associated type to infer table lifetimes in
+/// this context, while accessor return types retain explicit lifetimes.
+pub(super) fn vector_follow_element_type(
+    schema: &ResolvedSchema,
+    field: &ResolvedField,
+    element_bt: BaseType,
+    lifetime: &str,
+    current_ns: &str,
+) -> Result<String, CodeGenError> {
+    match element_bt {
+        bt if type_map::is_scalar(bt) => {
+            if has_type_index(field) {
+                let enum_idx = field_type_index(field)?;
+                if enum_idx < schema.enums.len() {
+                    return Ok(type_map::resolve_enum_name(schema, current_ns, enum_idx));
+                }
+            }
+            Ok(type_map::scalar_rust_type(bt).to_string())
+        }
+        BaseType::BASE_TYPE_STRING => {
+            Ok(format!("::flatbuffers::ForwardsUOffset<&{lifetime} str>"))
+        }
+        BaseType::BASE_TYPE_TABLE => {
+            let idx = field_type_index(field)?;
+            let table_name = type_map::resolve_object_name(schema, current_ns, idx);
+            Ok(format!("::flatbuffers::ForwardsUOffset<{table_name}>"))
+        }
+        BaseType::BASE_TYPE_STRUCT => {
+            let idx = field_type_index(field)?;
+            Ok(type_map::resolve_object_name(schema, current_ns, idx))
+        }
+        _ => Err(CodeGenError::Internal(format!(
+            "unhandled vector follow element type {element_bt:?}"
+        ))),
+    }
+}
+
 /// Get the Rust type string for a vector element in pluggable-buffer reader mode.
 pub(super) fn pluggable_vector_element_type(
     schema: &ResolvedSchema,
@@ -119,7 +157,7 @@ pub(super) fn verifier_type_str(
         }
         BaseType::BASE_TYPE_VECTOR => {
             let element_bt = field.type_.element_type_or_none();
-            let inner = vector_element_type(schema, field, element_bt, "'_", current_ns)?;
+            let inner = vector_follow_element_type(schema, field, element_bt, "'_", current_ns)?;
             Ok(format!(
                 "::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, {inner}>>"
             ))
@@ -186,6 +224,14 @@ pub(super) fn scalar_builder_default(
             let dv = field.default_integer.unwrap_or(0);
             if is_bitflags {
                 Ok(format!("{enum_name}::from_bits_retain({dv})"))
+            } else if let Some(value) = schema.enums[idx]
+                .values
+                .iter()
+                .find(|value| value.value == dv)
+            {
+                let variant =
+                    type_map::escape_keyword(&type_map::sanitize_union_const_name(&value.name));
+                Ok(format!("{enum_name}::{variant}"))
             } else {
                 Ok(format!("{enum_name}({dv})"))
             }

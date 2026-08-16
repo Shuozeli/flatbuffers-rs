@@ -166,14 +166,14 @@ fn main() {
             inventory: Some(inventory),
         },
     );
-    pluggable_buffer_check::finish_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_monster_buffer(&mut fbb, root);
     let bytes = fbb.finished_data();
     let counting = CountingBuffer {
         bytes,
         reads: Cell::new(0),
     };
 
-    let monster = pluggable_buffer_check::root_as_monster_in(&counting).expect("read root");
+    let monster = pluggable_buffer_check::my_game::sample::root_as_monster_in(&counting).expect("read root");
     assert_eq!(monster.hp(), 42);
     assert_eq!(monster.name(), "orc");
     let inventory = monster.inventory().expect("inventory vector");
@@ -231,12 +231,12 @@ fn main() {
             inventory: None,
         },
     );
-    pluggable_buffer_check::finish_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_monster_buffer(&mut fbb, root);
     let buffer = RangeOnlyBuffer {
         bytes: fbb.finished_data(),
     };
 
-    assert!(pluggable_buffer_check::root_as_monster_in(&buffer).is_err());
+    assert!(pluggable_buffer_check::my_game::sample::root_as_monster_in(&buffer).is_err());
 }
 "#,
     );
@@ -269,9 +269,9 @@ fn build_reader() -> Monster<'static> {
             inventory: None,
         },
     );
-    pluggable_buffer_check::finish_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_monster_buffer(&mut fbb, root);
     let bytes = fbb.finished_data();
-    pluggable_buffer_check::root_as_monster(bytes).unwrap()
+    pluggable_buffer_check::my_game::sample::root_as_monster(bytes).unwrap()
 }
 
 fn main() {
@@ -326,12 +326,12 @@ fn main() {
             inventory: None,
         },
     );
-    pluggable_buffer_check::finish_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_monster_buffer(&mut fbb, root);
     let mut buffer = OwnedBuffer {
         bytes: fbb.finished_data().to_vec(),
     };
 
-    let monster = pluggable_buffer_check::root_as_monster_in(&buffer).unwrap();
+    let monster = pluggable_buffer_check::my_game::sample::root_as_monster_in(&buffer).unwrap();
     buffer.bytes.clear();
     let _ = monster.hp();
 }
@@ -384,13 +384,13 @@ fn main() {
             inventory: None,
         },
     );
-    pluggable_buffer_check::finish_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_monster_buffer(&mut fbb, root);
     let mut buffer = OwnedBuffer {
         bytes: fbb.finished_data().to_vec(),
     };
 
     {
-        let monster = pluggable_buffer_check::root_as_monster_in(&buffer).unwrap();
+        let monster = pluggable_buffer_check::my_game::sample::root_as_monster_in(&buffer).unwrap();
         assert_eq!(monster.hp(), 42);
     }
 
@@ -488,9 +488,9 @@ fn main() {
             inventory: Some(inventory),
         },
     );
-    pluggable_buffer_check::finish_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_monster_buffer(&mut fbb, root);
     let bytes = fbb.finished_data();
-    let monster = pluggable_buffer_check::root_as_monster(bytes).unwrap();
+    let monster = pluggable_buffer_check::my_game::sample::root_as_monster(bytes).unwrap();
     assert_eq!(monster.hp(), 42);
     assert_eq!(monster.name(), "orc");
 }
@@ -652,12 +652,12 @@ fn main() {
             inventory: None,
         },
     );
-    pluggable_buffer_check::finish_size_prefixed_monster_buffer(&mut fbb, root);
+    pluggable_buffer_check::my_game::sample::finish_size_prefixed_monster_buffer(&mut fbb, root);
     let buffer = OwnedBuffer {
         bytes: fbb.finished_data().to_vec(),
     };
 
-    let monster = pluggable_buffer_check::size_prefixed_root_as_monster_in(&buffer).unwrap();
+    let monster = pluggable_buffer_check::my_game::sample::size_prefixed_root_as_monster_in(&buffer).unwrap();
     assert_eq!(monster.hp(), 42);
     assert_eq!(monster.name(), "orc");
 }

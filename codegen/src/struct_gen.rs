@@ -23,6 +23,7 @@ pub fn generate(
 
     // Struct definition
     w.line(&format!("// struct {name}, aligned to {min_align}"));
+    type_map::gen_rust_doc_comment(w, obj.documentation.as_ref());
     w.line("#[repr(transparent)]");
     w.line("#[derive(Clone, Copy, PartialEq)]");
     w.line(&format!("{vis} struct {name}(pub [u8; {byte_size}]);"));
@@ -44,7 +45,7 @@ pub fn generate(
                 w.line(&format!("let mut s = f.debug_struct(\"{name}\");"));
                 for field in &obj.fields {
                     let fname = &field.name;
-                    let accessor = escape_keyword(&type_map::to_snake_case(fname));
+                    let accessor = escape_keyword(&type_map::to_rust_snake_case(fname));
                     w.line(&format!("s.field(\"{fname}\", &self.{accessor}());"));
                 }
                 w.line("s.finish()");
@@ -63,7 +64,7 @@ pub fn generate(
                     w.line(&format!("let mut s = serializer.serialize_struct(\"{name}\", {n})?;"));
                     for field in &obj.fields {
                         let fname = &field.name;
-                        let accessor = type_map::to_snake_case(fname);
+                        let accessor = type_map::to_rust_snake_case(fname);
                         w.line(&format!("s.serialize_field(\"{fname}\", &self.{accessor}())?;"));
                     }
                     w.line("s.end()");
@@ -216,7 +217,7 @@ fn gen_constructor(
         .fields
         .iter()
         .map(|f| {
-            let fname = escape_keyword(&type_map::to_snake_case(&f.name));
+            let fname = escape_keyword(&type_map::to_rust_snake_case(&f.name));
             let bt = f.type_.base_type;
             if bt == BaseType::BASE_TYPE_ARRAY {
                 let (elem_type_str, fixed_len) = array_element_info(schema, f)?;
@@ -235,7 +236,7 @@ fn gen_constructor(
     w.block(&format!("pub fn new({}) -> Self", params.join(", ")), |w| {
         w.line(&format!("let mut s = Self([0; {byte_size}]);"));
         for field in &obj.fields {
-            let fname = escape_keyword(&type_map::to_snake_case(&field.name));
+            let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
             w.line(&format!("s.set_{fname}({fname});"));
         }
         w.line("s");
@@ -249,7 +250,8 @@ fn gen_field_getter(
     schema: &ResolvedSchema,
     field: &ResolvedField,
 ) -> Result<(), CodeGenError> {
-    let fname = escape_keyword(&type_map::to_snake_case(&field.name));
+    type_map::gen_rust_doc_comment(w, field.documentation.as_ref());
+    let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
     let offset = field_offset(field)?;
 
     let bt = field.type_.base_type;
@@ -348,7 +350,7 @@ fn gen_field_setter(
     schema: &ResolvedSchema,
     field: &ResolvedField,
 ) -> Result<(), CodeGenError> {
-    let fname = escape_keyword(&type_map::to_snake_case(&field.name));
+    let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
     let offset = field_offset(field)?;
 
     let bt = field.type_.base_type;
@@ -569,7 +571,7 @@ fn gen_object_api(
     w.line(&format!("#[derive({})]", derives.join(", ")));
     w.block(&format!("{vis} struct {t_name}"), |w| {
         for (i, field) in obj.fields.iter().enumerate() {
-            let fname = escape_keyword(&type_map::to_snake_case(&field.name));
+            let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
             let owned_type = &field_owned_types[i];
             w.line(&format!("pub {fname}: {owned_type},"));
         }
@@ -584,7 +586,7 @@ fn gen_object_api(
                 .fields
                 .iter()
                 .map(|f| {
-                    let fname = escape_keyword(&type_map::to_snake_case(&f.name));
+                    let fname = escape_keyword(&type_map::to_rust_snake_case(&f.name));
                     let bt = f.type_.base_type;
                     if bt == BaseType::BASE_TYPE_STRUCT {
                         // Nested struct: pack and pass by reference
@@ -605,7 +607,7 @@ fn gen_object_api(
             w.line(&format!("{t_name} {{"));
             w.indent();
             for field in &obj.fields {
-                let fname = escape_keyword(&type_map::to_snake_case(&field.name));
+                let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
                 let bt = field.type_.base_type;
                 if bt == BaseType::BASE_TYPE_STRUCT {
                     w.line(&format!("{fname}: self.{fname}().unpack(),"));
@@ -651,7 +653,7 @@ fn gen_struct_key_methods(
     struct_name: &str,
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
-    let accessor = escape_keyword(&type_map::to_snake_case(fname));
+    let accessor = escape_keyword(&type_map::to_rust_snake_case(fname));
     let rust_type = field_rust_type(schema, field)?;
 
     w.line("#[inline]");

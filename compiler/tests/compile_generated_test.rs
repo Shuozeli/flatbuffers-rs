@@ -504,11 +504,15 @@ fn root_type_build_and_read() {
 
     // Verify identifier
     assert!(monster_buffer_has_identifier(buf));
+    assert!(!monster_size_prefixed_buffer_has_identifier(buf));
 
     // Read back
     let monster = root_as_monster(buf).unwrap();
     assert_eq!(monster.hp(), 300);
     assert_eq!(monster.name(), "Orc");
+    let options = ::flatbuffers::VerifierOptions::default();
+    assert_eq!(root_as_monster_with_opts(&options, buf).unwrap().hp(), 300);
+    assert_eq!(unsafe { root_as_monster_unchecked(buf) }.hp(), 300);
 }
 
 #[test]
@@ -524,9 +528,21 @@ fn root_type_size_prefixed() {
     finish_size_prefixed_monster_buffer(&mut fbb, offset);
     let buf = fbb.finished_data();
 
+    assert!(monster_size_prefixed_buffer_has_identifier(buf));
     let monster = size_prefixed_root_as_monster(buf).unwrap();
     assert_eq!(monster.hp(), 50);
     assert_eq!(monster.name(), "Goblin");
+    let options = ::flatbuffers::VerifierOptions::default();
+    assert_eq!(
+        size_prefixed_root_as_monster_with_opts(&options, buf)
+            .unwrap()
+            .hp(),
+        50
+    );
+    assert_eq!(
+        unsafe { size_prefixed_root_as_monster_unchecked(buf) }.hp(),
+        50
+    );
 }
 
 #[test]
@@ -1176,9 +1192,9 @@ fn namespace_simple_build_and_read() {
         color: Color::Green,
     };
     let offset = Monster::create(&mut fbb, &args);
-    fbb.finish_minimal(offset);
+    finish_monster_buffer(&mut fbb, offset);
     let buf = fbb.finished_data();
-    let m = ::flatbuffers::root::<Monster>(buf).unwrap();
+    let m = root_as_monster(buf).unwrap();
     assert_eq!(m.hp(), 200);
     assert_eq!(m.color(), Color::Green);
 }
@@ -1227,7 +1243,7 @@ fn namespace_multi_build_root() {
 
 #[test]
 fn namespace_multi_build_helper() {
-    use namespace_multi_runtime::my_game::example2::*;
+    use namespace_multi_runtime::my_game::example_2::*;
     let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
     let args = HelperArgs { count: 42 };
     let offset = Helper::create(&mut fbb, &args);
@@ -1848,9 +1864,9 @@ fn optional_scalars_defaults() {
     // Reading an empty buffer should return defaults
     use optional_scalars_runtime::*;
     let s = ::flatbuffers::root::<ScalarStuff>(&[0; 8]).unwrap();
-    assert_eq!(s.just_i8(), 0);
-    assert_eq!(s.maybe_i8(), None);
-    assert_eq!(s.default_i8(), 42);
+    assert_eq!(s.just_i_8(), 0);
+    assert_eq!(s.maybe_i_8(), None);
+    assert_eq!(s.default_i_8(), 42);
     assert_eq!(s.just_bool(), false);
     assert_eq!(s.maybe_bool(), None);
     assert_eq!(s.default_bool(), true);
@@ -1863,9 +1879,9 @@ fn optional_scalars_set_and_read() {
     let ss = ScalarStuff::create(
         &mut builder,
         &ScalarStuffArgs {
-            just_i8: 5,
-            maybe_i8: Some(5),
-            default_i8: 5,
+            just_i_8: 5,
+            maybe_i_8: Some(5),
+            default_i_8: 5,
             just_bool: true,
             maybe_bool: Some(true),
             default_bool: false,
@@ -1874,9 +1890,9 @@ fn optional_scalars_set_and_read() {
     builder.finish_minimal(ss);
     let buf = builder.finished_data();
     let s = ::flatbuffers::root::<ScalarStuff>(buf).unwrap();
-    assert_eq!(s.just_i8(), 5);
-    assert_eq!(s.maybe_i8(), Some(5));
-    assert_eq!(s.default_i8(), 5);
+    assert_eq!(s.just_i_8(), 5);
+    assert_eq!(s.maybe_i_8(), Some(5));
+    assert_eq!(s.default_i_8(), 5);
     assert_eq!(s.just_bool(), true);
     assert_eq!(s.maybe_bool(), Some(true));
     assert_eq!(s.default_bool(), false);
@@ -1886,9 +1902,9 @@ fn optional_scalars_set_and_read() {
 fn optional_scalars_object_api_defaults() {
     use optional_scalars_runtime::*;
     let t = ScalarStuffT::default();
-    assert_eq!(t.just_i8, 0);
-    assert_eq!(t.maybe_i8, None);
-    assert_eq!(t.default_i8, 42);
+    assert_eq!(t.just_i_8, 0);
+    assert_eq!(t.maybe_i_8, None);
+    assert_eq!(t.default_i_8, 42);
     assert_eq!(t.just_bool, false);
     assert_eq!(t.maybe_bool, None);
     assert_eq!(t.default_bool, true);
@@ -1898,9 +1914,9 @@ fn optional_scalars_object_api_defaults() {
 fn optional_scalars_object_api_pack_unpack() {
     use optional_scalars_runtime::*;
     let orig = ScalarStuffT {
-        just_i8: 5,
-        maybe_i8: Some(5),
-        default_i8: 5,
+        just_i_8: 5,
+        maybe_i_8: Some(5),
+        default_i_8: 5,
         just_bool: true,
         maybe_bool: Some(true),
         default_bool: false,
@@ -1910,9 +1926,9 @@ fn optional_scalars_object_api_pack_unpack() {
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let s = ::flatbuffers::root::<ScalarStuff>(buf).unwrap();
-    assert_eq!(s.just_i8(), 5);
-    assert_eq!(s.maybe_i8(), Some(5));
-    assert_eq!(s.default_i8(), 5);
+    assert_eq!(s.just_i_8(), 5);
+    assert_eq!(s.maybe_i_8(), Some(5));
+    assert_eq!(s.default_i_8(), 5);
     assert_eq!(s.just_bool(), true);
     assert_eq!(s.maybe_bool(), Some(true));
     assert_eq!(s.default_bool(), false);
@@ -1929,12 +1945,12 @@ fn optional_scalars_object_api_none_roundtrip() {
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let s = ::flatbuffers::root::<ScalarStuff>(buf).unwrap();
-    assert_eq!(s.maybe_i8(), None);
+    assert_eq!(s.maybe_i_8(), None);
     assert_eq!(s.maybe_bool(), None);
     let unpacked = s.unpack();
-    assert_eq!(unpacked.maybe_i8, None);
+    assert_eq!(unpacked.maybe_i_8, None);
     assert_eq!(unpacked.maybe_bool, None);
-    assert_eq!(unpacked.default_i8, 42);
+    assert_eq!(unpacked.default_i_8, 42);
     assert_eq!(unpacked.default_bool, true);
 }
 

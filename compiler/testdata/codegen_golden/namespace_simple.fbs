@@ -4,3 +4,4 @@ table Monster {
   hp: int = 100;
   color: Color = Blue;
 }
+root_type Monster;

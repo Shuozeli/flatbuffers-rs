@@ -9,13 +9,16 @@ use std::fs;
 use std::process::Command;
 
 #[test]
-fn deprecated_field_object_api_compiles_with_warnings_denied() {
+fn generated_rust_compiles_with_warnings_denied() {
     // Arrange
     let source = r#"
 namespace warning.clean;
 
 table TextPayload {
   value: string;
+}
+
+table EmptyPayload {
 }
 
 union Payload {
@@ -44,6 +47,18 @@ root_type MobileEvent;
         },
     )
     .expect("generate Object API and serde Rust");
+    assert!(
+        generated.contains("_args: &'args EmptyPayloadArgs"),
+        "empty table create arguments must be explicitly unused"
+    );
+    assert!(
+        generated.contains("let builder = EmptyPayloadBuilder::new(_fbb);"),
+        "empty table builders must not be unnecessarily mutable"
+    );
+    assert!(
+        generated.contains("let s = serializer.serialize_struct(\"EmptyPayload\", 0)?;"),
+        "empty table serializers must not be unnecessarily mutable"
+    );
     assert!(
         generated.contains(
             ".visit_field::<::flatbuffers::ForwardsUOffset<&str>>(\"old_id\", Self::VT_OLD_ID, false)?"

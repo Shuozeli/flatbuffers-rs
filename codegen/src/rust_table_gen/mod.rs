@@ -22,6 +22,8 @@ pub fn generate(
     let current_ns = type_map::object_namespace(obj);
 
     reader::gen_offset_marker(w, name, vis);
+    w.blank();
+    type_map::gen_rust_doc_comment(w, obj.documentation.as_ref());
     reader::gen_reader_struct(w, name, vis, opts);
     w.blank();
     reader::gen_follow_impl(w, name, opts);

@@ -1,5 +1,6 @@
+use codegen_core::CodeWriter;
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema};
-use flatc_rs_schema::BaseType;
+use flatc_rs_schema::{BaseType, Documentation};
 
 // Re-export case conversion helpers from codegen_writers
 pub use codegen_writers::to_pascal_case;
@@ -98,6 +99,71 @@ pub fn to_upper_snake_case(name: &str) -> String {
     to_snake_case(name).to_uppercase()
 }
 
+/// Convert a schema identifier using the official Rust generator's
+/// `Case::kSnake` rules. FlatBuffers treats ASCII digits as uppercase for word
+/// boundary purposes, so `Vec3` becomes `vec_3` and `xlqy3` becomes `xlqy_3`.
+pub fn to_rust_snake_case(name: &str) -> String {
+    let bytes = name.as_bytes();
+    let mut result = String::with_capacity(name.len() + 4);
+
+    for (index, byte) in bytes.iter().copied().enumerate() {
+        if index == 0 {
+            result.push(byte.to_ascii_lowercase() as char);
+        } else if byte == b'_' {
+            result.push('_');
+        } else if !byte.is_ascii_lowercase() {
+            let previous = bytes[index - 1];
+            if previous.is_ascii_lowercase()
+                || (previous.is_ascii_digit() && !byte.is_ascii_digit())
+            {
+                result.push('_');
+            }
+            result.push(byte.to_ascii_lowercase() as char);
+        } else {
+            result.push(byte as char);
+        }
+    }
+
+    result
+}
+
+/// Convert a schema identifier using the official Rust generator's
+/// `Case::kScreamingSnake` rules.
+pub fn to_rust_upper_snake_case(name: &str) -> String {
+    let snake = to_rust_snake_case(name);
+    let bytes = snake.as_bytes();
+    let mut result = String::with_capacity(snake.len() + 4);
+
+    for (index, byte) in bytes.iter().copied().enumerate() {
+        if index == 0 {
+            result.push(byte.to_ascii_uppercase() as char);
+        } else if byte == b'_' {
+            result.push('_');
+        } else if !byte.is_ascii_lowercase() {
+            let previous = bytes[index - 1];
+            if previous.is_ascii_lowercase()
+                || (previous.is_ascii_digit() && !byte.is_ascii_digit())
+            {
+                result.push('_');
+            }
+            result.push(byte.to_ascii_uppercase() as char);
+        } else {
+            result.push(byte.to_ascii_uppercase() as char);
+        }
+    }
+
+    result
+}
+
+/// Emit schema documentation exactly as the official Rust generator does.
+pub fn gen_rust_doc_comment(w: &mut CodeWriter, documentation: Option<&Documentation>) {
+    if let Some(documentation) = documentation {
+        for line in &documentation.lines {
+            w.line(&format!("///{line}"));
+        }
+    }
+}
+
 /// Build FQN like "MyGame.Example.Monster".
 pub fn build_fqn(obj: &ResolvedObject) -> String {
     let name = &obj.name;
@@ -190,10 +256,8 @@ pub fn escape_keyword(name: &str) -> String {
 /// Compute the qualified Rust module path for a type in `target_ns` when
 /// referenced from `current_ns`. Both use dot-separated format (e.g., "Game.Items").
 ///
-/// With the `use super::*;` chain in each generated module, all ancestor
-/// namespace items are visible. So we only need to add a module path prefix
-/// when the target namespace diverges from the current one (i.e., is not
-/// an ancestor of the current namespace).
+/// Paths are relative to the current generated namespace module, matching the
+/// official Rust generator's explicit `super::` qualification.
 pub fn qualified_name(current_ns: &str, target_ns: &str, type_name: &str) -> String {
     if current_ns == target_ns {
         return type_name.to_string();
@@ -217,19 +281,18 @@ pub fn qualified_name(current_ns: &str, target_ns: &str, type_name: &str) -> Str
         .take_while(|(a, b)| a == b)
         .count();
 
-    // If target is a prefix of (or equal to) current, then the target's items
-    // are visible via the `use super::*;` chain -- no qualification needed.
-    if common_len == target_parts.len() {
-        return type_name.to_string();
+    let mut path = vec!["super".to_string(); current_parts.len() - common_len];
+    path.extend(
+        target_parts[common_len..]
+            .iter()
+            .map(|p| to_rust_snake_case(p)),
+    );
+
+    if path.is_empty() {
+        type_name.to_string()
+    } else {
+        format!("{}::{type_name}", path.join("::"))
     }
-
-    // Otherwise, build the module path from the divergence point.
-    let suffix: Vec<String> = target_parts[common_len..]
-        .iter()
-        .map(|p| to_snake_case(p))
-        .collect();
-
-    format!("{}::{}", suffix.join("::"), type_name)
 }
 
 /// Extract the dot-separated namespace string from a resolved object.
@@ -293,6 +356,19 @@ mod tests {
     }
 
     #[test]
+    fn official_rust_snake_case_conversions() {
+        assert_eq!(to_rust_snake_case("xlqy3"), "xlqy_3");
+        assert_eq!(to_rust_snake_case("Vec3"), "vec_3");
+        assert_eq!(to_rust_snake_case("EntityKind"), "entity_kind");
+        assert_eq!(to_rust_snake_case("HPMax"), "hpmax");
+        assert_eq!(to_rust_snake_case("URL2Value"), "url2_value");
+        assert_eq!(to_rust_snake_case("already_snake"), "already_snake");
+        assert_eq!(to_rust_upper_snake_case("EntityKind"), "ENTITY_KIND");
+        assert_eq!(to_rust_upper_snake_case("C2sMsgType"), "C_2S_MSG_TYPE");
+        assert_eq!(to_rust_upper_snake_case("AnyS2c"), "ANY_S_2C");
+    }
+
+    #[test]
     fn scalar_types() {
         assert_eq!(scalar_rust_type(BaseType::BASE_TYPE_INT), "i32");
         assert_eq!(scalar_rust_type(BaseType::BASE_TYPE_BOOL), "bool");
@@ -309,17 +385,16 @@ mod tests {
     fn qualified_name_sibling_namespace() {
         assert_eq!(
             qualified_name("Game.Player", "Game.Items", "Item"),
-            "items::Item"
+            "super::items::Item"
         );
     }
 
     #[test]
     fn qualified_name_ancestor_namespace() {
-        // Target is ancestor of current - visible via use super::*
-        assert_eq!(qualified_name("Game.Player", "Game", "Root"), "Root");
+        assert_eq!(qualified_name("Game.Player", "Game", "Root"), "super::Root");
         assert_eq!(
             qualified_name("Game.Player", "", "GlobalTable"),
-            "GlobalTable"
+            "super::super::GlobalTable"
         );
     }
 
@@ -335,7 +410,10 @@ mod tests {
 
     #[test]
     fn qualified_name_distant_namespace() {
-        assert_eq!(qualified_name("A.B.C", "A.D.E", "Stuff"), "d::e::Stuff");
+        assert_eq!(
+            qualified_name("A.B.C", "A.D.E", "Stuff"),
+            "super::super::d::e::Stuff"
+        );
     }
 
     #[test]

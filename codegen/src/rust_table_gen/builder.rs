@@ -74,7 +74,7 @@ pub(super) fn gen_builder(
                         if field.is_required || is_key_string {
                             let fname = &field.name;
                             let escaped = type_map::escape_keyword(fname);
-                            let upper = type_map::to_upper_snake_case(&escaped);
+                            let upper = type_map::to_rust_upper_snake_case(&escaped);
                             w.line(&format!(
                                 "self.fbb_.required(o, {},\"{fname}\");",
                                 table_vt_ref(name, &upper, opts)
@@ -99,8 +99,8 @@ fn gen_builder_add_method(
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
     let escaped = type_map::escape_keyword(fname);
-    let accessor = type_map::to_snake_case(&escaped);
-    let upper = type_map::to_upper_snake_case(&escaped);
+    let accessor = type_map::to_rust_snake_case(&escaped);
+    let upper = type_map::to_rust_upper_snake_case(&escaped);
 
     let bt = field.type_.base_type;
 
@@ -238,7 +238,7 @@ pub(super) fn gen_args_struct(
         .map(|field| {
             let fname = &field.name;
             let escaped = type_map::escape_keyword(fname);
-            let accessor = type_map::to_snake_case(&escaped);
+            let accessor = type_map::to_rust_snake_case(&escaped);
             let arg_type = helpers::args_field_type(schema, field, current_ns)?;
             let default = helpers::args_field_default(schema, field, current_ns)?;
             let is_required = field.is_required || helpers::has_key_attribute(field);

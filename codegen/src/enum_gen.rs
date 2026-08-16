@@ -48,7 +48,7 @@ fn generate_bitflags(
     let vis = type_visibility(enum_def.attributes.as_ref(), opts);
     let underlying_bt = enum_def.underlying_type.base_type;
     let rust_type = type_map::scalar_rust_type(underlying_bt);
-    let mod_name = format!("bitflags_{}", type_map::to_snake_case(name));
+    let mod_name = format!("bitflags_{}", type_map::to_rust_snake_case(name));
 
     // Pre-compute bit values so we don't need Result inside closures
     let bit_entries: Vec<(&str, u64)> = enum_def
@@ -66,23 +66,13 @@ fn generate_bitflags(
     w.block(&format!("mod {mod_name}"), |w| {
         // bitflags! macro invocation
         w.block("::flatbuffers::bitflags::bitflags!", |w| {
-            // Documentation
-            if let Some(doc) = &enum_def.documentation {
-                for line in &doc.lines {
-                    w.line(&format!("/// {line}"));
-                }
-            }
+            type_map::gen_rust_doc_comment(w, enum_def.documentation.as_ref());
 
             w.line("#[derive(Default, Debug, Clone, Copy, PartialEq)]");
             w.block(&format!("pub struct {name}: {rust_type}"), |w| {
                 for (i, val) in enum_def.values.iter().enumerate() {
                     let (vname, bit_val) = bit_entries[i];
-                    // Documentation for individual values
-                    if let Some(doc) = &val.documentation {
-                        for line in &doc.lines {
-                            w.line(&format!("/// {line}"));
-                        }
-                    }
+                    type_map::gen_rust_doc_comment(w, val.documentation.as_ref());
                     w.line(&format!("const {vname} = {bit_val};"));
                 }
             });
@@ -204,10 +194,10 @@ fn generate_regular(
     let val_values: Vec<i64> = enum_def.values.iter().map(|v| v.value).collect();
 
     // Deprecated global constants (non-union enums only, matching C++ flatc)
-    if !is_union && !enum_def.values.is_empty() {
+    if !enum_def.values.is_empty() {
         let min_val = *val_values.iter().min().unwrap_or(&0);
         let max_val = *val_values.iter().max().unwrap_or(&0);
-        let upper_name = name.to_uppercase();
+        let upper_name = type_map::to_rust_upper_snake_case(name);
         let depr = "#[deprecated(since = \"2.0.0\", note = \"Use associated constants instead. This will no longer be generated in 2021.\")]";
         w.line(depr);
         w.line(&format!(
@@ -236,6 +226,7 @@ fn generate_regular(
     }
 
     // Struct definition
+    type_map::gen_rust_doc_comment(w, enum_def.documentation.as_ref());
     w.line("#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]");
     w.line("#[repr(transparent)]");
     w.line(&format!("{vis} struct {name}(pub {rust_type});"));
@@ -250,6 +241,7 @@ fn generate_regular(
             let sanitized = type_map::sanitize_union_const_name(vname);
             let escaped = type_map::escape_keyword(&sanitized);
             let vval = val_values[i];
+            type_map::gen_rust_doc_comment(w, val.documentation.as_ref());
             w.line(&format!("pub const {escaped}: Self = Self({vval});"));
         }
 
@@ -529,7 +521,7 @@ fn gen_union_object_api(
     w.blank();
 
     // Type discriminator method
-    let snake = type_map::to_snake_case(name);
+    let snake = type_map::to_rust_snake_case(name);
     w.block(&format!("impl {t_name}"), |w| {
         w.block(&format!("pub fn {snake}_type(&self) -> {name}"), |w| {
             w.block("match self", |w| {

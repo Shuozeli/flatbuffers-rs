@@ -492,20 +492,22 @@ fn generate_code(schema_source: &str, opts: &CodeGenOptions) -> String {
 }
 
 #[test]
-fn no_includes_omits_use_super() {
+fn no_includes_omits_pluggable_runtime_parent_import() {
     let schema = r#"
 namespace Game;
 table Monster { hp: int; }
 "#;
-    // Default: should contain "use super::*;"
-    let code_with = generate_code(schema, &default_opts());
+    let mut opts = default_opts();
+    opts.rust_pluggable_buffer = true;
+
+    // Pluggable readers import the generated runtime adapter from their parent.
+    let code_with = generate_code(schema, &opts);
     assert!(
         code_with.contains("use super::*;"),
-        "default codegen should include 'use super::*;'"
+        "pluggable-buffer codegen should import its parent runtime adapter"
     );
 
-    // With --no-includes: should NOT contain "use super::*;"
-    let mut opts = default_opts();
+    // With --no-includes the parent import is explicitly suppressed.
     opts.no_includes = true;
     let code_without = generate_code(schema, &opts);
     assert!(

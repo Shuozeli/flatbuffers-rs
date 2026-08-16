@@ -608,50 +608,15 @@ fn merge_schemas<'a>(files: impl IntoIterator<Item = &'a ParsedFile>) -> ParseOu
             merged_schema.fbs_files.push(fbs_file.clone());
         }
 
-        // Use file-level metadata from the root file (last one wins).
-        // G3.11: Warn when conflicting values are detected across includes.
-        if file.schema.file_ident.is_some() {
-            if let Some(ref existing) = merged_schema.file_ident {
-                if file.schema.file_ident.as_ref() != Some(existing) {
-                    eprintln!(
-                        "warning: conflicting file_identifier in {}: '{}' overrides '{}'",
-                        file.path.display(),
-                        file.schema.file_ident.as_deref().unwrap_or(""),
-                        existing
-                    );
-                }
-            }
-            merged_schema.file_ident = file.schema.file_ident.clone();
-        }
-        if file.schema.file_ext.is_some() {
-            if let Some(ref existing) = merged_schema.file_ext {
-                if file.schema.file_ext.as_ref() != Some(existing) {
-                    eprintln!(
-                        "warning: conflicting file_extension in {}: '{}' overrides '{}'",
-                        file.path.display(),
-                        file.schema.file_ext.as_deref().unwrap_or(""),
-                        existing
-                    );
-                }
-            }
-            merged_schema.file_ext = file.schema.file_ext.clone();
-        }
+        // Files are in dependency order, with the entry schema last. FlatBuffers
+        // file metadata belongs to that entry schema and is not inherited from
+        // includes, even when an included file declares its own root or identifier.
+        merged_schema.file_ident = file.schema.file_ident.clone();
+        merged_schema.file_ext = file.schema.file_ext.clone();
+        merged_state.root_type_name = file.state.root_type_name.clone();
+        merged_state.root_type_namespace = file.state.root_type_namespace.clone();
 
-        // Merge parser state.
-        if file.state.root_type_name.is_some() {
-            if let Some(ref existing) = merged_state.root_type_name {
-                if file.state.root_type_name.as_ref() != Some(existing) {
-                    eprintln!(
-                        "warning: conflicting root_type in {}: '{}' overrides '{}'",
-                        file.path.display(),
-                        file.state.root_type_name.as_deref().unwrap_or(""),
-                        existing
-                    );
-                }
-            }
-            merged_state.root_type_name = file.state.root_type_name.clone();
-            merged_state.root_type_namespace = file.state.root_type_namespace.clone();
-        }
+        // Merge parser state shared across files.
         merged_state
             .declared_attributes
             .extend(file.state.declared_attributes.iter().cloned());
@@ -765,6 +730,60 @@ mod tests {
             "relative include should work: {:?}",
             result.err()
         );
+    }
+
+    #[test]
+    fn entry_schema_metadata_overrides_included_schema_metadata() {
+        // Arrange
+        let files = [
+            VirtualFile {
+                path: PathBuf::from("included.fbs"),
+                source: "namespace metadata; table Included { value:int; } root_type Included; file_identifier \"INCL\"; file_extension \"inc\";".to_string(),
+            },
+            VirtualFile {
+                path: PathBuf::from("entry.fbs"),
+                source: "include \"included.fbs\"; namespace metadata; table Entry { value:int; } root_type Entry; file_identifier \"ENTR\"; file_extension \"ent\";".to_string(),
+            },
+        ];
+
+        // Act
+        let result =
+            compile_virtual(Path::new("entry.fbs"), &files, &CompilerOptions::default()).unwrap();
+
+        // Assert
+        assert_eq!(
+            result
+                .schema
+                .root_table_index
+                .map(|index| result.schema.objects[index].name.as_str()),
+            Some("Entry")
+        );
+        assert_eq!(result.schema.file_ident.as_deref(), Some("ENTR"));
+        assert_eq!(result.schema.file_ext.as_deref(), Some("ent"));
+    }
+
+    #[test]
+    fn entry_schema_does_not_inherit_metadata_from_includes() {
+        // Arrange
+        let files = [
+            VirtualFile {
+                path: PathBuf::from("included.fbs"),
+                source: "namespace metadata; table Included { value:int; } root_type Included; file_identifier \"INCL\"; file_extension \"inc\";".to_string(),
+            },
+            VirtualFile {
+                path: PathBuf::from("entry.fbs"),
+                source: "include \"included.fbs\"; namespace metadata; table Entry { value:int; }".to_string(),
+            },
+        ];
+
+        // Act
+        let result =
+            compile_virtual(Path::new("entry.fbs"), &files, &CompilerOptions::default()).unwrap();
+
+        // Assert
+        assert_eq!(result.schema.root_table_index, None);
+        assert_eq!(result.schema.file_ident, None);
+        assert_eq!(result.schema.file_ext, None);
     }
 
     #[cfg(any(unix, windows))]
