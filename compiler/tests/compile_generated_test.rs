@@ -680,6 +680,7 @@ fn union_build_and_read_shield() {
     let shield = h.weapon_as_shield().unwrap();
     assert_eq!(shield.armor(), 100);
     assert!(h.weapon_as_sword().is_none());
+    assert!(format!("{h:?}").contains("weapon: Shield { armor: 100 }"));
 }
 
 #[test]
@@ -1864,9 +1865,9 @@ fn optional_scalars_defaults() {
     // Reading an empty buffer should return defaults
     use optional_scalars_runtime::*;
     let s = ::flatbuffers::root::<ScalarStuff>(&[0; 8]).unwrap();
-    assert_eq!(s.just_i_8(), 0);
-    assert_eq!(s.maybe_i_8(), None);
-    assert_eq!(s.default_i_8(), 42);
+    assert_eq!(s.just_i8(), 0);
+    assert_eq!(s.maybe_i8(), None);
+    assert_eq!(s.default_i8(), 42);
     assert_eq!(s.just_bool(), false);
     assert_eq!(s.maybe_bool(), None);
     assert_eq!(s.default_bool(), true);
@@ -1879,9 +1880,9 @@ fn optional_scalars_set_and_read() {
     let ss = ScalarStuff::create(
         &mut builder,
         &ScalarStuffArgs {
-            just_i_8: 5,
-            maybe_i_8: Some(5),
-            default_i_8: 5,
+            just_i8: 5,
+            maybe_i8: Some(5),
+            default_i8: 5,
             just_bool: true,
             maybe_bool: Some(true),
             default_bool: false,
@@ -1890,9 +1891,9 @@ fn optional_scalars_set_and_read() {
     builder.finish_minimal(ss);
     let buf = builder.finished_data();
     let s = ::flatbuffers::root::<ScalarStuff>(buf).unwrap();
-    assert_eq!(s.just_i_8(), 5);
-    assert_eq!(s.maybe_i_8(), Some(5));
-    assert_eq!(s.default_i_8(), 5);
+    assert_eq!(s.just_i8(), 5);
+    assert_eq!(s.maybe_i8(), Some(5));
+    assert_eq!(s.default_i8(), 5);
     assert_eq!(s.just_bool(), true);
     assert_eq!(s.maybe_bool(), Some(true));
     assert_eq!(s.default_bool(), false);
@@ -1902,9 +1903,9 @@ fn optional_scalars_set_and_read() {
 fn optional_scalars_object_api_defaults() {
     use optional_scalars_runtime::*;
     let t = ScalarStuffT::default();
-    assert_eq!(t.just_i_8, 0);
-    assert_eq!(t.maybe_i_8, None);
-    assert_eq!(t.default_i_8, 42);
+    assert_eq!(t.just_i8, 0);
+    assert_eq!(t.maybe_i8, None);
+    assert_eq!(t.default_i8, 42);
     assert_eq!(t.just_bool, false);
     assert_eq!(t.maybe_bool, None);
     assert_eq!(t.default_bool, true);
@@ -1914,9 +1915,9 @@ fn optional_scalars_object_api_defaults() {
 fn optional_scalars_object_api_pack_unpack() {
     use optional_scalars_runtime::*;
     let orig = ScalarStuffT {
-        just_i_8: 5,
-        maybe_i_8: Some(5),
-        default_i_8: 5,
+        just_i8: 5,
+        maybe_i8: Some(5),
+        default_i8: 5,
         just_bool: true,
         maybe_bool: Some(true),
         default_bool: false,
@@ -1926,9 +1927,9 @@ fn optional_scalars_object_api_pack_unpack() {
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let s = ::flatbuffers::root::<ScalarStuff>(buf).unwrap();
-    assert_eq!(s.just_i_8(), 5);
-    assert_eq!(s.maybe_i_8(), Some(5));
-    assert_eq!(s.default_i_8(), 5);
+    assert_eq!(s.just_i8(), 5);
+    assert_eq!(s.maybe_i8(), Some(5));
+    assert_eq!(s.default_i8(), 5);
     assert_eq!(s.just_bool(), true);
     assert_eq!(s.maybe_bool(), Some(true));
     assert_eq!(s.default_bool(), false);
@@ -1945,12 +1946,12 @@ fn optional_scalars_object_api_none_roundtrip() {
     fbb.finish_minimal(offset);
     let buf = fbb.finished_data();
     let s = ::flatbuffers::root::<ScalarStuff>(buf).unwrap();
-    assert_eq!(s.maybe_i_8(), None);
+    assert_eq!(s.maybe_i8(), None);
     assert_eq!(s.maybe_bool(), None);
     let unpacked = s.unpack();
-    assert_eq!(unpacked.maybe_i_8, None);
+    assert_eq!(unpacked.maybe_i8, None);
     assert_eq!(unpacked.maybe_bool, None);
-    assert_eq!(unpacked.default_i_8, 42);
+    assert_eq!(unpacked.default_i8, 42);
     assert_eq!(unpacked.default_bool, true);
 }
 

@@ -112,68 +112,14 @@ pub mod game {
 
     impl ::core::fmt::Debug for ItemStats {
       fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        let mut s = f.debug_struct("ItemStats");
-        s.field("attack", &self.attack());
-        s.field("defense", &self.defense());
-        s.finish()
+        f.debug_struct("ItemStats")
+          .field("attack", &self.attack())
+          .field("defense", &self.defense())
+          .finish()
       }
     }
 
-    impl ItemStats {
-      pub fn new(attack: i32, defense: i32) -> Self {
-        let mut s = Self([0; 8]);
-        s.set_attack(attack);
-        s.set_defense(defense);
-        s
-      }
-
-      pub fn attack(&self) -> i32 {
-        let mut mem = ::core::mem::MaybeUninit::<<i32 as ::flatbuffers::EndianScalar>::Scalar>::uninit();
-        ::flatbuffers::EndianScalar::from_little_endian(unsafe {
-          ::core::ptr::copy_nonoverlapping(
-            self.0[0..].as_ptr(),
-            mem.as_mut_ptr() as *mut u8,
-            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
-          );
-          mem.assume_init()
-        })
-      }
-
-      pub fn set_attack(&mut self, attack: i32) {
-        let attack_le = ::flatbuffers::EndianScalar::to_little_endian(attack);
-        unsafe {
-          ::core::ptr::copy_nonoverlapping(
-            &attack_le as *const _ as *const u8,
-            self.0[0..].as_mut_ptr(),
-            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
-          );
-        }
-      }
-
-      pub fn defense(&self) -> i32 {
-        let mut mem = ::core::mem::MaybeUninit::<<i32 as ::flatbuffers::EndianScalar>::Scalar>::uninit();
-        ::flatbuffers::EndianScalar::from_little_endian(unsafe {
-          ::core::ptr::copy_nonoverlapping(
-            self.0[4..].as_ptr(),
-            mem.as_mut_ptr() as *mut u8,
-            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
-          );
-          mem.assume_init()
-        })
-      }
-
-      pub fn set_defense(&mut self, defense: i32) {
-        let defense_le = ::flatbuffers::EndianScalar::to_little_endian(defense);
-        unsafe {
-          ::core::ptr::copy_nonoverlapping(
-            &defense_le as *const _ as *const u8,
-            self.0[4..].as_mut_ptr(),
-            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
-          );
-        }
-      }
-
-    }
+    impl ::flatbuffers::SimpleToVerifyInSlice for ItemStats {}
 
     impl<'a> ::flatbuffers::Follow<'a> for ItemStats {
       type Inner = &'a ItemStats;
@@ -211,7 +157,78 @@ pub mod game {
       }
     }
 
-    impl ::flatbuffers::SimpleToVerifyInSlice for ItemStats {}
+
+    impl<'a> ItemStats {
+      #[allow(clippy::too_many_arguments)]
+      pub fn new(
+        attack: i32,
+        defense: i32,
+      ) -> Self {
+        let mut s = Self([0; 8]);
+        s.set_attack(attack);
+        s.set_defense(defense);
+        s
+      }
+
+      pub fn attack(&self) -> i32 {
+        let mut mem = ::core::mem::MaybeUninit::<<i32 as ::flatbuffers::EndianScalar>::Scalar>::uninit();
+        // Safety:
+        // Created from a valid Table for this object
+        // Which contains a valid value in this slot
+        ::flatbuffers::EndianScalar::from_little_endian(unsafe {
+          ::core::ptr::copy_nonoverlapping(
+            self.0[0..].as_ptr(),
+            mem.as_mut_ptr() as *mut u8,
+            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
+          );
+          mem.assume_init()
+        })
+      }
+
+      pub fn set_attack(&mut self, x: i32) {
+        let x_le = ::flatbuffers::EndianScalar::to_little_endian(x);
+        // Safety:
+        // Created from a valid Table for this object
+        // Which contains a valid value in this slot
+        unsafe {
+          ::core::ptr::copy_nonoverlapping(
+            &x_le as *const _ as *const u8,
+            self.0[0..].as_mut_ptr(),
+            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
+          );
+        }
+      }
+
+      pub fn defense(&self) -> i32 {
+        let mut mem = ::core::mem::MaybeUninit::<<i32 as ::flatbuffers::EndianScalar>::Scalar>::uninit();
+        // Safety:
+        // Created from a valid Table for this object
+        // Which contains a valid value in this slot
+        ::flatbuffers::EndianScalar::from_little_endian(unsafe {
+          ::core::ptr::copy_nonoverlapping(
+            self.0[4..].as_ptr(),
+            mem.as_mut_ptr() as *mut u8,
+            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
+          );
+          mem.assume_init()
+        })
+      }
+
+      pub fn set_defense(&mut self, x: i32) {
+        let x_le = ::flatbuffers::EndianScalar::to_little_endian(x);
+        // Safety:
+        // Created from a valid Table for this object
+        // Which contains a valid value in this slot
+        unsafe {
+          ::core::ptr::copy_nonoverlapping(
+            &x_le as *const _ as *const u8,
+            self.0[4..].as_mut_ptr(),
+            ::core::mem::size_of::<<i32 as ::flatbuffers::EndianScalar>::Scalar>(),
+          );
+        }
+      }
+
+    }
 
     #[derive(Debug, Clone, PartialEq, Default)]
     pub struct ItemStatsT {

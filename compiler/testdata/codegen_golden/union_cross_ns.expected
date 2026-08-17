@@ -308,22 +308,37 @@ pub mod a {
     }
     #[inline]
     pub fn u(&self) -> Option<::flatbuffers::Table<'a>> {
+      // Safety:
+      // Created from valid Table for this object
+      // which contains a valid value in this slot
       unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>(Root::VT_U, None)}
     }
 
     #[inline]
+    #[allow(non_snake_case)]
     pub fn u_as_foo(&self) -> Option<Foo<'a>> {
       if self.u_type() == MyUnion::Foo {
-        self.u().map(|t| unsafe { Foo::init_from_table(t) })
+        self.u().map(|t| {
+          // Safety:
+          // Created from a valid Table for this object
+          // Which contains a valid union in this slot
+          unsafe { Foo::init_from_table(t) }
+        })
       } else {
         None
       }
     }
 
     #[inline]
+    #[allow(non_snake_case)]
     pub fn u_as_b_bar(&self) -> Option<super::b::Bar<'a>> {
       if self.u_type() == MyUnion::B_Bar {
-        self.u().map(|t| unsafe { super::b::Bar::init_from_table(t) })
+        self.u().map(|t| {
+          // Safety:
+          // Created from a valid Table for this object
+          // Which contains a valid union in this slot
+          unsafe { super::b::Bar::init_from_table(t) }
+        })
       } else {
         None
       }
@@ -393,6 +408,26 @@ pub mod a {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
       let mut ds = f.debug_struct("Root");
       ds.field("u_type", &self.u_type());
+      match self.u_type() {
+        MyUnion::Foo => {
+          if let Some(x) = self.u_as_foo() {
+            ds.field("u", &x)
+          } else {
+            ds.field("u", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        MyUnion::B_Bar => {
+          if let Some(x) = self.u_as_b_bar() {
+            ds.field("u", &x)
+          } else {
+            ds.field("u", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        _ => {
+          let x: Option<()> = None;
+          ds.field("u", &x)
+        },
+      };
       ds.finish()
     }
   }

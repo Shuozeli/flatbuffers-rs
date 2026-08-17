@@ -1,4 +1,4 @@
-use super::type_map::{escape_keyword, has_type_index};
+use super::type_map::has_type_index;
 use super::{field_offset, field_type_index, obj_byte_size, obj_min_align, type_index};
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
@@ -21,9 +21,8 @@ pub fn generate(
 
     let vis = type_visibility(obj.attributes.as_ref(), opts);
 
-    // Struct definition
-    w.line(&format!("// struct {name}, aligned to {min_align}"));
     type_map::gen_rust_doc_comment(w, obj.documentation.as_ref());
+    w.line(&format!("// struct {name}, aligned to {min_align}"));
     w.line("#[repr(transparent)]");
     w.line("#[derive(Clone, Copy, PartialEq)]");
     w.line(&format!("{vis} struct {name}(pub [u8; {byte_size}]);"));
@@ -42,64 +41,22 @@ pub fn generate(
         w.block(
             "fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result",
             |w| {
-                w.line(&format!("let mut s = f.debug_struct(\"{name}\");"));
+                w.line(&format!("f.debug_struct(\"{name}\")"));
+                w.indent();
                 for field in &obj.fields {
-                    let fname = &field.name;
-                    let accessor = escape_keyword(&type_map::to_rust_snake_case(fname));
-                    w.line(&format!("s.field(\"{fname}\", &self.{accessor}());"));
+                    let accessor = type_map::rust_field_name(&field.name);
+                    w.line(&format!(".field(\"{accessor}\", &self.{accessor}())"));
                 }
-                w.line("s.finish()");
+                w.line(".finish()");
+                w.dedent();
             },
         );
     });
-
-    if opts.rust_serialize {
-        w.blank();
-        w.block(&format!("impl ::serde::Serialize for {name}"), |w| {
-            w.block(
-                "fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\nwhere S: ::serde::Serializer",
-                |w| {
-                    let n = obj.fields.len();
-                    w.line("use ::serde::ser::SerializeStruct;");
-                    w.line(&format!("let mut s = serializer.serialize_struct(\"{name}\", {n})?;"));
-                    for field in &obj.fields {
-                        let fname = &field.name;
-                        let accessor = type_map::to_rust_snake_case(fname);
-                        w.line(&format!("s.serialize_field(\"{fname}\", &self.{accessor}())?;"));
-                    }
-                    w.line("s.end()");
-                },
-            );
-        });
-    }
-
     w.blank();
 
-    // Main impl block: constructor + accessors
-    // Use impl<'a> if there are array fields (array getters return Array<'a, T, N>)
-    let impl_header = if has_array_fields(obj) {
-        format!("impl<'a> {name}")
-    } else {
-        format!("impl {name}")
-    };
-    w.try_block(&impl_header, |w| {
-        gen_constructor(w, schema, obj)?;
-        w.blank();
-
-        // Generate getters and setters for each field
-        for field in &obj.fields {
-            gen_field_getter(w, schema, field)?;
-            w.blank();
-            gen_field_setter(w, schema, field)?;
-            w.blank();
-        }
-
-        // Key comparison methods (for fields with `key` attribute)
-        if let Some(key_field) = find_key_field(obj) {
-            gen_struct_key_methods(w, schema, key_field, name)?;
-        }
-        Ok(())
-    })?;
+    w.line(&format!(
+        "impl ::flatbuffers::SimpleToVerifyInSlice for {name} {{}}"
+    ));
     w.blank();
 
     // Follow<'a> for T (returns &T)
@@ -173,10 +130,47 @@ pub fn generate(
     );
     w.blank();
 
-    // SimpleToVerifyInSlice marker
-    w.line(&format!(
-        "impl ::flatbuffers::SimpleToVerifyInSlice for {name} {{}}"
-    ));
+    if opts.rust_serialize {
+        w.blank();
+        w.block(&format!("impl ::serde::Serialize for {name}"), |w| {
+            w.block(
+                "fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\nwhere S: ::serde::Serializer",
+                |w| {
+                    let n = obj.fields.len();
+                    w.line("use ::serde::ser::SerializeStruct;");
+                    let mutability = if n == 0 { "" } else { "mut " };
+                    w.line(&format!(
+                        "let {mutability}s = serializer.serialize_struct(\"{name}\", {n})?;"
+                    ));
+                    for field in &obj.fields {
+                        let accessor = type_map::rust_field_name(&field.name);
+                        w.line(&format!(
+                            "s.serialize_field(\"{accessor}\", &self.{accessor}())?;"
+                        ));
+                    }
+                    w.line("s.end()");
+                },
+            );
+        });
+    }
+
+    w.blank();
+    w.try_block(&format!("impl<'a> {name}"), |w| {
+        gen_constructor(w, schema, obj)?;
+        w.blank();
+
+        for field in &obj.fields {
+            gen_field_getter(w, schema, field)?;
+            w.blank();
+            gen_field_setter(w, schema, field)?;
+            w.blank();
+        }
+
+        if let Some(key_field) = find_key_field(obj) {
+            gen_struct_key_methods(w, schema, key_field, name)?;
+        }
+        Ok(())
+    })?;
 
     if opts.rust_pluggable_buffer {
         w.blank();
@@ -212,12 +206,11 @@ fn gen_constructor(
         return Ok(());
     }
 
-    // Build parameter list
     let params: Vec<String> = obj
         .fields
         .iter()
         .map(|f| {
-            let fname = escape_keyword(&type_map::to_rust_snake_case(&f.name));
+            let fname = type_map::rust_field_name(&f.name);
             let bt = f.type_.base_type;
             if bt == BaseType::BASE_TYPE_ARRAY {
                 let (elem_type_str, fixed_len) = array_element_info(schema, f)?;
@@ -233,14 +226,23 @@ fn gen_constructor(
         .collect::<Result<Vec<_>, CodeGenError>>()?;
 
     let byte_size = obj_byte_size(obj)?;
-    w.block(&format!("pub fn new({}) -> Self", params.join(", ")), |w| {
-        w.line(&format!("let mut s = Self([0; {byte_size}]);"));
-        for field in &obj.fields {
-            let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
-            w.line(&format!("s.set_{fname}({fname});"));
-        }
-        w.line("s");
-    });
+    w.line("#[allow(clippy::too_many_arguments)]");
+    w.line("pub fn new(");
+    w.indent();
+    for param in params {
+        w.line(&format!("{param},"));
+    }
+    w.dedent();
+    w.line(") -> Self {");
+    w.indent();
+    w.line(&format!("let mut s = Self([0; {byte_size}]);"));
+    for field in &obj.fields {
+        let fname = type_map::rust_field_name(&field.name);
+        w.line(&format!("s.set_{fname}({fname});"));
+    }
+    w.line("s");
+    w.dedent();
+    w.line("}");
     Ok(())
 }
 
@@ -251,7 +253,7 @@ fn gen_field_getter(
     field: &ResolvedField,
 ) -> Result<(), CodeGenError> {
     type_map::gen_rust_doc_comment(w, field.documentation.as_ref());
-    let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
+    let fname = type_map::rust_field_name(&field.name);
     let offset = field_offset(field)?;
 
     let bt = field.type_.base_type;
@@ -263,6 +265,9 @@ fn gen_field_getter(
             "pub fn {fname}(&'a self) -> ::flatbuffers::Array<'a, {elem_type_str}, {fixed_len}> {{"
         ));
         w.indent();
+        w.line("// Safety:");
+        w.line("// Created from a valid Table for this object");
+        w.line("// Which contains a valid array in this slot");
         w.line("use ::flatbuffers::Follow;");
         w.line(&format!(
             "unsafe {{ ::flatbuffers::Array::follow(&self.0, {offset}) }}"
@@ -282,6 +287,9 @@ fn gen_field_getter(
 
         w.line(&format!("pub fn {fname}(&self) -> &{struct_name} {{"));
         w.indent();
+        w.line("// Safety:");
+        w.line("// Created from a valid Table for this object");
+        w.line("// Which contains a valid struct in this slot");
         w.line(&format!(
             "unsafe {{ &*(self.0[{offset}..{offset}+{struct_size}].as_ptr() as *const {struct_name}) }}"
         ));
@@ -290,41 +298,15 @@ fn gen_field_getter(
         return Ok(());
     }
 
-    // Check if this is an enum-typed field (scalar base type with index)
-    if type_map::is_scalar(bt) && has_type_index(field) {
-        let enum_idx = field_type_index(field)?;
-        let enum_name = &schema.enums[enum_idx].name;
-
-        // Use EndianScalar trait methods on the enum type directly.
-        // This works for both regular enums and bitflags (avoids private field access).
-        w.line(&format!("pub fn {fname}(&self) -> {enum_name} {{"));
-        w.indent();
-        w.line(&format!(
-            "let mut mem = ::core::mem::MaybeUninit::<<{enum_name} as ::flatbuffers::EndianScalar>::Scalar>::uninit();"
-        ));
-        w.block("unsafe", |w| {
-            w.line("::core::ptr::copy_nonoverlapping(");
-            w.indent();
-            w.line(&format!("self.0[{offset}..].as_ptr(),"));
-            w.line("mem.as_mut_ptr() as *mut u8,");
-            w.line(&format!(
-                "::core::mem::size_of::<<{enum_name} as ::flatbuffers::EndianScalar>::Scalar>(),"
-            ));
-            w.dedent();
-            w.line(");");
-        });
-        w.line(&format!("<{enum_name} as ::flatbuffers::EndianScalar>::from_little_endian(unsafe {{ mem.assume_init() }})"));
-        w.dedent();
-        w.line("}");
-        return Ok(());
-    }
-
-    // Regular scalar field
+    // Scalar or enum field.
     w.line(&format!("pub fn {fname}(&self) -> {ftype} {{"));
     w.indent();
     w.line(&format!(
         "let mut mem = ::core::mem::MaybeUninit::<<{ftype} as ::flatbuffers::EndianScalar>::Scalar>::uninit();"
     ));
+    w.line("// Safety:");
+    w.line("// Created from a valid Table for this object");
+    w.line("// Which contains a valid value in this slot");
     w.line("::flatbuffers::EndianScalar::from_little_endian(unsafe {");
     w.indent();
     w.line("::core::ptr::copy_nonoverlapping(");
@@ -350,7 +332,7 @@ fn gen_field_setter(
     schema: &ResolvedSchema,
     field: &ResolvedField,
 ) -> Result<(), CodeGenError> {
-    let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
+    let fname = type_map::rust_field_name(&field.name);
     let offset = field_offset(field)?;
 
     let bt = field.type_.base_type;
@@ -360,15 +342,22 @@ fn gen_field_setter(
         let et = field.type_.element_type_or_none();
         let (elem_type_str, fixed_len) = array_element_info(schema, field)?;
 
-        if et == BaseType::BASE_TYPE_STRUCT {
-            // Struct arrays: raw byte copy
-            let struct_idx = field_type_index(field)?;
-            let struct_size = obj_byte_size(&schema.objects[struct_idx])?;
-            let total_bytes = struct_size * fixed_len;
+        if et == BaseType::BASE_TYPE_STRUCT || has_type_index(field) {
+            // Official flatc copies struct and enum arrays as their encoded bytes.
+            let element_size = if et == BaseType::BASE_TYPE_STRUCT {
+                let struct_idx = field_type_index(field)?;
+                obj_byte_size(&schema.objects[struct_idx])?
+            } else {
+                et.scalar_byte_size()
+            };
+            let total_bytes = element_size * fixed_len;
             w.line(&format!(
                 "pub fn set_{fname}(&mut self, x: &[{elem_type_str}; {fixed_len}]) {{"
             ));
             w.indent();
+            w.line("// Safety:");
+            w.line("// Created from a valid Table for this object");
+            w.line("// Which contains a valid array in this slot");
             w.block("unsafe", |w| {
                 w.line("::core::ptr::copy(");
                 w.indent();
@@ -386,6 +375,9 @@ fn gen_field_setter(
                 "pub fn set_{fname}(&mut self, items: &[{elem_type_str}; {fixed_len}]) {{"
             ));
             w.indent();
+            w.line("// Safety:");
+            w.line("// Created from a valid Table for this object");
+            w.line("// Which contains a valid array in this slot");
             w.line(&format!(
                 "unsafe {{ ::flatbuffers::emplace_scalar_array(&mut self.0, {offset}, items) }};"
             ));
@@ -401,12 +393,13 @@ fn gen_field_setter(
         let struct_name = &schema.objects[struct_idx].name;
         let struct_size = obj_byte_size(&schema.objects[struct_idx])?;
 
+        w.line("#[allow(clippy::identity_op)]");
         w.line(&format!(
-            "pub fn set_{fname}(&mut self, {fname}: &{struct_name}) {{"
+            "pub fn set_{fname}(&mut self, x: &{struct_name}) {{"
         ));
         w.indent();
         w.line(&format!(
-            "self.0[{offset}..{offset}+{struct_size}].copy_from_slice(&{fname}.0);"
+            "self.0[{offset}..{offset} + {struct_size}].copy_from_slice(&x.0);"
         ));
         w.dedent();
         w.line("}");
@@ -415,46 +408,17 @@ fn gen_field_setter(
 
     let ftype = field_rust_type(schema, field)?;
 
-    // Enum-typed field: use EndianScalar trait to avoid private field access (bitflags)
-    if type_map::is_scalar(bt) && has_type_index(field) {
-        let enum_idx = field_type_index(field)?;
-        let enum_name = &schema.enums[enum_idx].name;
-
-        w.line(&format!(
-            "pub fn set_{fname}(&mut self, {fname}: {enum_name}) {{"
-        ));
-        w.indent();
-        w.line(&format!(
-            "let {fname}_le = <{enum_name} as ::flatbuffers::EndianScalar>::to_little_endian({fname});"
-        ));
-        w.block("unsafe", |w| {
-            w.line("::core::ptr::copy_nonoverlapping(");
-            w.indent();
-            w.line(&format!("&{fname}_le as *const _ as *const u8,"));
-            w.line(&format!("self.0[{offset}..].as_mut_ptr(),"));
-            w.line(&format!(
-                "::core::mem::size_of::<<{enum_name} as ::flatbuffers::EndianScalar>::Scalar>(),"
-            ));
-            w.dedent();
-            w.line(");");
-        });
-        w.dedent();
-        w.line("}");
-        return Ok(());
-    }
-
-    // Regular scalar
-    w.line(&format!(
-        "pub fn set_{fname}(&mut self, {fname}: {ftype}) {{"
-    ));
+    // Scalar or enum field.
+    w.line(&format!("pub fn set_{fname}(&mut self, x: {ftype}) {{"));
     w.indent();
-    w.line(&format!(
-        "let {fname}_le = ::flatbuffers::EndianScalar::to_little_endian({fname});"
-    ));
+    w.line("let x_le = ::flatbuffers::EndianScalar::to_little_endian(x);");
+    w.line("// Safety:");
+    w.line("// Created from a valid Table for this object");
+    w.line("// Which contains a valid value in this slot");
     w.block("unsafe", |w| {
         w.line("::core::ptr::copy_nonoverlapping(");
         w.indent();
-        w.line(&format!("&{fname}_le as *const _ as *const u8,"));
+        w.line("&x_le as *const _ as *const u8,");
         w.line(&format!("self.0[{offset}..].as_mut_ptr(),"));
         w.line(&format!(
             "::core::mem::size_of::<<{ftype} as ::flatbuffers::EndianScalar>::Scalar>(),"
@@ -571,7 +535,7 @@ fn gen_object_api(
     w.line(&format!("#[derive({})]", derives.join(", ")));
     w.block(&format!("{vis} struct {t_name}"), |w| {
         for (i, field) in obj.fields.iter().enumerate() {
-            let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
+            let fname = type_map::rust_field_name(&field.name);
             let owned_type = &field_owned_types[i];
             w.line(&format!("pub {fname}: {owned_type},"));
         }
@@ -586,7 +550,7 @@ fn gen_object_api(
                 .fields
                 .iter()
                 .map(|f| {
-                    let fname = escape_keyword(&type_map::to_rust_snake_case(&f.name));
+                    let fname = type_map::rust_field_name(&f.name);
                     let bt = f.type_.base_type;
                     if bt == BaseType::BASE_TYPE_STRUCT {
                         // Nested struct: pack and pass by reference
@@ -607,7 +571,7 @@ fn gen_object_api(
             w.line(&format!("{t_name} {{"));
             w.indent();
             for field in &obj.fields {
-                let fname = escape_keyword(&type_map::to_rust_snake_case(&field.name));
+                let fname = type_map::rust_field_name(&field.name);
                 let bt = field.type_.base_type;
                 if bt == BaseType::BASE_TYPE_STRUCT {
                     w.line(&format!("{fname}: self.{fname}().unpack(),"));
@@ -653,7 +617,7 @@ fn gen_struct_key_methods(
     struct_name: &str,
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
-    let accessor = escape_keyword(&type_map::to_rust_snake_case(fname));
+    let accessor = type_map::rust_field_name(fname);
     let rust_type = field_rust_type(schema, field)?;
 
     w.line("#[inline]");

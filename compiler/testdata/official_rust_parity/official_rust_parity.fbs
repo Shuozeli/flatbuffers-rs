@@ -1,0 +1,38 @@
+namespace xlqy3.parity;
+
+/// A compact schema covering Rust source parity-sensitive constructs.
+enum PayloadKind:ubyte {
+  Unknown,
+  Item2
+}
+
+struct Vec3 {
+  type:float;
+  item0:ushort;
+  kind:PayloadKind;
+}
+
+struct ArrayHolder {
+  values:[int:3];
+  kinds:[PayloadKind:2];
+}
+
+table Sword {
+  damage:int;
+}
+
+union Payload {
+  Sword
+}
+
+table Envelope {
+  type:int;
+  item0:string;
+  position:Vec3;
+  arrays:ArrayHolder;
+  values:[int];
+  payload:Payload;
+}
+
+root_type Envelope;
+file_identifier "PRTY";

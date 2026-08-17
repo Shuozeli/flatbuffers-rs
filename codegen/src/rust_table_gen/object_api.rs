@@ -33,7 +33,7 @@ pub(super) fn gen_object_api(
             if helpers::is_union_type_field(schema, field) {
                 return Ok(None);
             }
-            let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
+            let fname = type_map::rust_field_name(&field.name);
             let owned_type = table_owned_field_type(schema, field, bt, current_ns)?;
             let default = table_owned_field_default(schema, field, bt, current_ns)?;
             Ok(Some((fname, owned_type, default)))
@@ -244,7 +244,7 @@ fn gen_pack_body(
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::rust_field_name(&field.name);
 
         match bt {
             bt if type_map::is_scalar(bt) => {
@@ -295,7 +295,7 @@ fn gen_pack_body(
             continue;
         }
         let bt = field.type_.base_type;
-        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::rust_field_name(&field.name);
         if bt == BaseType::BASE_TYPE_UNION || helpers::is_union_type_field(schema, field) {
             // Union generates two Args fields: {name}_type and {name}
             // The discriminator field has the _type suffix in args
@@ -411,7 +411,7 @@ fn gen_unpack_body(
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::rust_field_name(&field.name);
 
         match bt {
             bt if type_map::is_scalar(bt) => {
@@ -463,7 +463,7 @@ fn gen_unpack_body(
         if helpers::is_union_type_field(schema, field) {
             continue;
         }
-        let fname = type_map::to_rust_snake_case(&type_map::escape_keyword(&field.name));
+        let fname = type_map::rust_field_name(&field.name);
         w.line(&format!("{fname},"));
     }
     w.dedent();

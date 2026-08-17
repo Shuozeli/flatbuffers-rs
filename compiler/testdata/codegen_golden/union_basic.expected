@@ -445,22 +445,37 @@ impl<'a> Hero<'a> {
   }
   #[inline]
   pub fn weapon(&self) -> Option<::flatbuffers::Table<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>(Hero::VT_WEAPON, None)}
   }
 
   #[inline]
+  #[allow(non_snake_case)]
   pub fn weapon_as_sword(&self) -> Option<Sword<'a>> {
     if self.weapon_type() == Equipment::Sword {
-      self.weapon().map(|t| unsafe { Sword::init_from_table(t) })
+      self.weapon().map(|t| {
+        // Safety:
+        // Created from a valid Table for this object
+        // Which contains a valid union in this slot
+        unsafe { Sword::init_from_table(t) }
+      })
     } else {
       None
     }
   }
 
   #[inline]
+  #[allow(non_snake_case)]
   pub fn weapon_as_shield(&self) -> Option<Shield<'a>> {
     if self.weapon_type() == Equipment::Shield {
-      self.weapon().map(|t| unsafe { Shield::init_from_table(t) })
+      self.weapon().map(|t| {
+        // Safety:
+        // Created from a valid Table for this object
+        // Which contains a valid union in this slot
+        unsafe { Shield::init_from_table(t) }
+      })
     } else {
       None
     }
@@ -538,6 +553,26 @@ impl ::core::fmt::Debug for Hero<'_> {
     let mut ds = f.debug_struct("Hero");
     ds.field("name", &self.name());
     ds.field("weapon_type", &self.weapon_type());
+    match self.weapon_type() {
+      Equipment::Sword => {
+        if let Some(x) = self.weapon_as_sword() {
+          ds.field("weapon", &x)
+        } else {
+          ds.field("weapon", &"InvalidFlatbuffer: Union discriminant does not match value.")
+        }
+      },
+      Equipment::Shield => {
+        if let Some(x) = self.weapon_as_shield() {
+          ds.field("weapon", &x)
+        } else {
+          ds.field("weapon", &"InvalidFlatbuffer: Union discriminant does not match value.")
+        }
+      },
+      _ => {
+        let x: Option<()> = None;
+        ds.field("weapon", &x)
+      },
+    };
     ds.finish()
   }
 }

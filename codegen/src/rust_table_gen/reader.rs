@@ -97,8 +97,7 @@ pub(super) fn gen_impl_block(
         .iter()
         .map(|field| {
             let fname = &field.name;
-            let escaped = type_map::escape_keyword(fname);
-            let upper = type_map::to_rust_upper_snake_case(&escaped);
+            let upper = type_map::rust_field_offset_name(fname);
             let slot = field_id(field)?;
             let vt_offset = 4 + 2 * slot;
             Ok((upper, vt_offset))
@@ -182,9 +181,8 @@ fn gen_field_accessor(
     opts: &CodeGenOptions,
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
-    let escaped = type_map::escape_keyword(fname);
-    let accessor_name = type_map::to_rust_snake_case(&escaped);
-    let upper = type_map::to_rust_upper_snake_case(&escaped);
+    let accessor_name = type_map::rust_field_name(fname);
+    let upper = type_map::rust_field_offset_name(fname);
 
     let bt = field.type_.base_type;
 
@@ -667,6 +665,9 @@ fn gen_union_accessor(
         ));
     }
     w.indent();
+    w.line("// Safety:");
+    w.line("// Created from valid Table for this object");
+    w.line("// which contains a valid value in this slot");
     if opts.rust_pluggable_buffer {
         w.line(&format!(
             "__flatc_rs_runtime::table_field_loc(self._buf, self._loc, Self::VT_{upper_name}).map(|loc| __flatc_rs_runtime::Table {{ buf: self._buf, loc: __flatc_rs_runtime::uoffset_target(self._buf, loc) }})"
@@ -709,6 +710,7 @@ fn gen_union_accessor(
 
                 w.blank();
                 w.line("#[inline]");
+                w.line("#[allow(non_snake_case)]");
                 w.line(&format!(
                     "pub fn {accessor_name}_as_{variant_snake}(&self) -> Option<{}> {{",
                     if opts.rust_pluggable_buffer {
@@ -722,9 +724,14 @@ fn gen_union_accessor(
                     "if self.{accessor_name}_type() == {enum_name}::{const_name} {{"
                 ));
                 w.indent();
-                w.line(&format!(
-                    "self.{accessor_name}().map(|t| unsafe {{ {table_name}::init_from_table(t) }})"
-                ));
+                w.line(&format!("self.{accessor_name}().map(|t| {{"));
+                w.indent();
+                w.line("// Safety:");
+                w.line("// Created from a valid Table for this object");
+                w.line("// Which contains a valid union in this slot");
+                w.line(&format!("unsafe {{ {table_name}::init_from_table(t) }}"));
+                w.dedent();
+                w.line("})");
                 w.dedent();
                 w.line("} else {");
                 w.indent();
@@ -739,6 +746,7 @@ fn gen_union_accessor(
 
                 w.blank();
                 w.line("#[inline]");
+                w.line("#[allow(non_snake_case)]");
                 w.line(&format!(
                     "pub fn {accessor_name}_as_{variant_snake}(&self) -> Option<&'a {struct_name}> {{"
                 ));
@@ -752,9 +760,16 @@ fn gen_union_accessor(
                         "self.{accessor_name}().and_then(|t| unsafe {{ __flatc_rs_runtime::follow_struct::<{struct_name}, B>(t.buf, t.loc) }})"
                     ));
                 } else {
+                    w.line(&format!("self.{accessor_name}().map(|t| {{"));
+                    w.indent();
+                    w.line("// Safety:");
+                    w.line("// Created from a valid Table for this object");
+                    w.line("// Which contains a valid union in this slot");
                     w.line(&format!(
-                        "self.{accessor_name}().map(|t| unsafe {{ <&'a {struct_name} as ::flatbuffers::Follow<'a>>::follow(t.buf(), t.loc()) }})"
+                        "unsafe {{ <&'a {struct_name} as ::flatbuffers::Follow<'a>>::follow(t.buf(), t.loc()) }}"
                     ));
+                    w.dedent();
+                    w.line("})");
                 }
                 w.dedent();
                 w.line("} else {");
@@ -815,8 +830,7 @@ pub(super) fn gen_verifiable_impl(
             }
 
             let fname = &field.name;
-            let escaped = type_map::escape_keyword(fname);
-            let upper = type_map::to_rust_upper_snake_case(&escaped);
+            let upper = type_map::rust_field_offset_name(fname);
             let is_required = field.is_required
                 || (helpers::has_key_attribute(field) && bt == BaseType::BASE_TYPE_STRING);
 
@@ -843,8 +857,7 @@ pub(super) fn gen_verifiable_impl(
                             obj.name, field.name
                         ))
                     })?;
-                let type_escaped = type_map::escape_keyword(&type_field.name);
-                let type_upper = type_map::to_rust_upper_snake_case(&type_escaped);
+                let type_upper = type_map::rust_field_offset_name(&type_field.name);
                 let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
                 let variants = union_enum
                     .values
@@ -878,9 +891,9 @@ pub(super) fn gen_verifiable_impl(
                     .collect::<Result<Vec<_>, CodeGenError>>()?;
 
                 return Ok(Some(VerifyEntry::Union {
-                    type_name: type_field.name.clone(),
+                    type_name: type_map::rust_field_name(&type_field.name),
                     type_upper,
-                    value_name: fname.clone(),
+                    value_name: type_map::rust_field_name(fname),
                     value_upper: upper,
                     enum_name,
                     is_required,
@@ -890,7 +903,7 @@ pub(super) fn gen_verifiable_impl(
 
             let verify_type = helpers::verifier_type_str(schema, field, current_ns)?;
             Ok(Some(VerifyEntry::Field {
-                name: fname.clone(),
+                name: type_map::rust_field_name(fname),
                 upper,
                 verify_type,
                 is_required,
@@ -962,10 +975,41 @@ pub(super) fn gen_verifiable_impl(
 /// Debug impl for the table.
 pub(super) fn gen_debug_impl(
     w: &mut CodeWriter,
+    schema: &ResolvedSchema,
     obj: &ResolvedObject,
     name: &str,
+    current_ns: &str,
     opts: &CodeGenOptions,
-) {
+) -> Result<(), CodeGenError> {
+    let union_fields = obj
+        .fields
+        .iter()
+        .filter(|field| !field.is_deprecated && helpers::is_union_field(field))
+        .map(|field| {
+            let enum_idx = field_type_index(field)?;
+            let union_enum = schema.enums.get(enum_idx).ok_or_else(|| {
+                CodeGenError::Internal(format!(
+                    "union field '{}' references missing enum index {enum_idx}",
+                    field.name
+                ))
+            })?;
+            let enum_name = type_map::resolve_enum_name(schema, current_ns, enum_idx);
+            let accessor = type_map::rust_field_name(&field.name);
+            let variants = union_enum
+                .values
+                .iter()
+                .filter(|value| value.name != "NONE")
+                .map(|value| {
+                    let constant =
+                        type_map::escape_keyword(&type_map::sanitize_union_const_name(&value.name));
+                    let method = type_map::to_rust_snake_case(&constant);
+                    (constant, method)
+                })
+                .collect::<Vec<_>>();
+            Ok((field.name.clone(), accessor, enum_name, variants))
+        })
+        .collect::<Result<Vec<_>, CodeGenError>>()?;
+
     let debug_impl = if opts.rust_pluggable_buffer {
         format!("impl<B: ?Sized + __flatc_rs_runtime::FlatBufferRead> ::core::fmt::Debug for {name}<'_, B>")
     } else {
@@ -977,13 +1021,51 @@ pub(super) fn gen_debug_impl(
             |w| {
                 w.line(&format!("let mut ds = f.debug_struct(\"{name}\");"));
                 for field in &obj.fields {
-                    if field.is_deprecated || helpers::is_union_field(field) {
+                    if field.is_deprecated {
                         continue;
                     }
                     let fname = &field.name;
-                    let escaped = type_map::escape_keyword(fname);
-                    let accessor = type_map::to_rust_snake_case(&escaped);
-                    w.line(&format!("ds.field(\"{fname}\", &self.{accessor}());"));
+                    let accessor = type_map::rust_field_name(fname);
+                    if !helpers::is_union_field(field) {
+                        w.line(&format!(
+                            "ds.field(\"{accessor}\", &self.{accessor}());"
+                        ));
+                        continue;
+                    }
+
+                    let (_, _, enum_name, variants) = union_fields
+                        .iter()
+                        .find(|(field_name, _, _, _)| field_name == fname)
+                        .expect("union field metadata must be precomputed");
+                    w.line(&format!("match self.{accessor}_type() {{"));
+                    w.indent();
+                    for (constant, method) in variants {
+                        w.line(&format!("{enum_name}::{constant} => {{"));
+                        w.indent();
+                        w.line(&format!(
+                            "if let Some(x) = self.{accessor}_as_{method}() {{"
+                        ));
+                        w.indent();
+                        w.line(&format!("ds.field(\"{accessor}\", &x)"));
+                        w.dedent();
+                        w.line("} else {");
+                        w.indent();
+                        w.line(&format!(
+                            "ds.field(\"{accessor}\", &\"InvalidFlatbuffer: Union discriminant does not match value.\")"
+                        ));
+                        w.dedent();
+                        w.line("}");
+                        w.dedent();
+                        w.line("},");
+                    }
+                    w.line("_ => {");
+                    w.indent();
+                    w.line("let x: Option<()> = None;");
+                    w.line(&format!("ds.field(\"{accessor}\", &x)"));
+                    w.dedent();
+                    w.line("},");
+                    w.dedent();
+                    w.line("};");
                 }
                 w.line("ds.finish()");
             },
@@ -1004,7 +1086,7 @@ pub(super) fn gen_debug_impl(
                     let n = obj
                         .fields
                         .iter()
-                        .filter(|f| !f.is_deprecated && !helpers::is_union_field(f))
+                        .filter(|f| !f.is_deprecated)
                         .count();
                     w.line("use ::serde::ser::SerializeStruct;");
                     let mutability = if n > 0 { "mut " } else { "" };
@@ -1012,13 +1094,35 @@ pub(super) fn gen_debug_impl(
                         "let {mutability}s = serializer.serialize_struct(\"{name}\", {n})?;"
                     ));
                     for field in &obj.fields {
-                        if field.is_deprecated || helpers::is_union_field(field) {
+                        if field.is_deprecated {
                             continue;
                         }
                         let fname = &field.name;
-                        let escaped = type_map::escape_keyword(fname);
-                        let accessor = type_map::to_rust_snake_case(&escaped);
-                        if field.type_.base_type == BaseType::BASE_TYPE_VECTOR {
+                        let accessor = type_map::rust_field_name(fname);
+                        if helpers::is_union_field(field) {
+                            let (_, _, enum_name, variants) = union_fields
+                                .iter()
+                                .find(|(field_name, _, _, _)| field_name == fname)
+                                .expect("union field metadata must be precomputed");
+                            w.line(&format!("match self.{accessor}_type() {{"));
+                            w.indent();
+                            w.line(&format!("{enum_name}::NONE => (),"));
+                            for (constant, method) in variants {
+                                w.line(&format!("{enum_name}::{constant} => {{"));
+                                w.indent();
+                                w.line(&format!(
+                                    "let value = self.{accessor}_as_{method}().expect(\"Invalid union table, expected `{enum_name}::{constant}`.\");"
+                                ));
+                                w.line(&format!(
+                                    "s.serialize_field(\"{accessor}\", &value)?;"
+                                ));
+                                w.dedent();
+                                w.line("}");
+                            }
+                            w.line("_ => unimplemented!(),");
+                            w.dedent();
+                            w.line("}");
+                        } else if field.type_.base_type == BaseType::BASE_TYPE_VECTOR {
                             let tmp = format!("{accessor}_vec");
                             if field.default_string.is_some() {
                                 w.line(&format!(
@@ -1029,10 +1133,12 @@ pub(super) fn gen_debug_impl(
                                     "let {tmp} = self.{accessor}().map(|v| v.iter().collect::<::std::vec::Vec<_>>());"
                                 ));
                             }
-                            w.line(&format!("s.serialize_field(\"{fname}\", &{tmp})?;"));
+                            w.line(&format!(
+                                "s.serialize_field(\"{accessor}\", &{tmp})?;"
+                            ));
                         } else {
                             w.line(&format!(
-                                "s.serialize_field(\"{fname}\", &self.{accessor}())?;"
+                                "s.serialize_field(\"{accessor}\", &self.{accessor}())?;"
                             ));
                         }
                     }
@@ -1041,6 +1147,7 @@ pub(super) fn gen_debug_impl(
             );
         });
     }
+    Ok(())
 }
 
 /// Generate the inline `create()` method inside the impl block (C++ flatc style).
@@ -1095,8 +1202,7 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
     // C++ emits: last non-scalar first, then scalars sorted by size desc then index desc
     for (_, field) in non_scalar_fields.iter().rev() {
         let fname = &field.name;
-        let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_rust_snake_case(&escaped);
+        let accessor = type_map::rust_field_name(fname);
         w.line(&format!(
             "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
         ));
@@ -1111,8 +1217,7 @@ fn gen_create_method(w: &mut CodeWriter, obj: &ResolvedObject, name: &str) {
 
     for (_, field) in &scalar_fields {
         let fname = &field.name;
-        let escaped = type_map::escape_keyword(fname);
-        let accessor = type_map::to_rust_snake_case(&escaped);
+        let accessor = type_map::rust_field_name(fname);
         if field.is_optional {
             w.line(&format!(
                 "if let Some(x) = args.{accessor} {{ builder.add_{accessor}(x); }}"
@@ -1136,8 +1241,7 @@ fn gen_key_methods(
     current_ns: &str,
 ) -> Result<(), CodeGenError> {
     let fname = &field.name;
-    let escaped = type_map::escape_keyword(fname);
-    let accessor = type_map::to_rust_snake_case(&escaped);
+    let accessor = type_map::rust_field_name(fname);
     let bt = field.type_.base_type;
 
     // Determine the key type and comparison style

@@ -290,6 +290,7 @@ fn rust_gen_matches_official_naming_root_helpers_and_follow_types() {
 namespace xlqy3;
 enum EntityKind:byte { Unknown }
 table SnapEntity { kind:EntityKind; }
+table TopTenRow { item0:string; item1:string; }
 table S2cWorldSnapshot { entities:[SnapEntity]; }
 root_type S2cWorldSnapshot;
 "#;
@@ -300,6 +301,11 @@ root_type S2cWorldSnapshot;
     // Assert
     assert!(code.contains("pub mod xlqy_3 {"));
     assert!(code.contains("ENUM_MIN_ENTITY_KIND"));
+    assert!(code.contains("pub const VT_ITEM0:"));
+    assert!(code.contains("pub fn item0(&self)"));
+    assert!(code.contains("pub fn add_item0(&mut self, item0:"));
+    assert!(code.contains("pub item0: Option<alloc::string::String>"));
+    assert!(!code.contains("VT_ITEM_0"));
     assert!(code.contains("pub fn root_as_s2c_world_snapshot_with_opts"));
     assert!(code.contains("pub unsafe fn size_prefixed_root_as_s2c_world_snapshot_unchecked"));
     assert!(code.contains("pub fn finish_s2c_world_snapshot_buffer"));
@@ -344,7 +350,9 @@ root_type Entity;
     let code = generate_rust_code(schema);
 
     // Assert
-    assert!(code.contains("/// A position.\n#[repr(transparent)]"));
+    assert!(
+        code.contains("/// A position.\n// struct Position, aligned to 4\n#[repr(transparent)]")
+    );
     assert!(code.contains("/// Horizontal coordinate.\n  pub fn x("));
     assert!(code.contains("/// Entity kinds.\n#[derive(Clone, Copy"));
     assert!(code.contains("/// An unknown entity.\n  pub const Unknown"));

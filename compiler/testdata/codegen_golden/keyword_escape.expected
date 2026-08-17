@@ -157,9 +157,9 @@ impl ::flatbuffers::Verifiable for KWTable<'_> {
     v: &mut ::flatbuffers::Verifier, pos: usize
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
-     .visit_field::<i32>("type", Self::VT_TYPE_, false)?
+     .visit_field::<i32>("type_", Self::VT_TYPE_, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("is", Self::VT_IS, false)?
-     .visit_field::<TestKW>("where", Self::VT_WHERE_, false)?
+     .visit_field::<TestKW>("where_", Self::VT_WHERE_, false)?
      .finish();
     Ok(())
   }
@@ -215,9 +215,9 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> KWTableBuilder<'a, 'b, A> {
 impl ::core::fmt::Debug for KWTable<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("KWTable");
-    ds.field("type", &self.type_());
+    ds.field("type_", &self.type_());
     ds.field("is", &self.is());
-    ds.field("where", &self.where_());
+    ds.field("where_", &self.where_());
     ds.finish()
   }
 }

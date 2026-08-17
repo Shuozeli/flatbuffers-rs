@@ -155,6 +155,21 @@ pub fn to_rust_upper_snake_case(name: &str) -> String {
     result
 }
 
+/// Preserve a schema field name as the official Rust generator does.
+///
+/// Rust historically uses `Case::kKeep` for fields and only escapes keywords.
+pub fn rust_field_name(name: &str) -> String {
+    escape_keyword(name)
+}
+
+/// Generate the legacy Rust vtable offset suffix used by official `flatc`.
+///
+/// This is `Case::kAllUpper`, not screaming snake case: `item0` becomes
+/// `ITEM0`, while an existing underscore in `session_revision` is preserved.
+pub fn rust_field_offset_name(name: &str) -> String {
+    escape_keyword(name).to_ascii_uppercase()
+}
+
 /// Emit schema documentation exactly as the official Rust generator does.
 pub fn gen_rust_doc_comment(w: &mut CodeWriter, documentation: Option<&Documentation>) {
     if let Some(documentation) = documentation {
@@ -366,6 +381,13 @@ mod tests {
         assert_eq!(to_rust_upper_snake_case("EntityKind"), "ENTITY_KIND");
         assert_eq!(to_rust_upper_snake_case("C2sMsgType"), "C_2S_MSG_TYPE");
         assert_eq!(to_rust_upper_snake_case("AnyS2c"), "ANY_S_2C");
+        assert_eq!(rust_field_name("item0"), "item0");
+        assert_eq!(rust_field_name("type"), "type_");
+        assert_eq!(rust_field_offset_name("item0"), "ITEM0");
+        assert_eq!(
+            rust_field_offset_name("session_revision"),
+            "SESSION_REVISION"
+        );
     }
 
     #[test]
