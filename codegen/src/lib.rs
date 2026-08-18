@@ -20,9 +20,9 @@ pub use codegen_core::CodeWriter;
 use std::collections::HashSet;
 
 use flatc_rs_schema::resolved::{
-    ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
+    ResolveError, ResolvedEnumVal, ResolvedField, ResolvedObject, ResolvedSchema, ResolvedType,
 };
-use flatc_rs_schema::{Attributes, BaseType};
+use flatc_rs_schema::Attributes;
 use python_gen::PythonGenerator;
 use rust_gen::RustGenerator;
 use ts_gen::TsGenerator;
@@ -30,6 +30,9 @@ use ts_gen::TsGenerator;
 /// Errors that can occur during code generation.
 #[derive(Debug, thiserror::Error)]
 pub enum CodeGenError {
+    #[error("invalid resolved schema: {0}")]
+    InvalidSchema(#[from] ResolveError),
+
     #[error("internal codegen error: {0}")]
     Internal(String),
 }
@@ -75,16 +78,22 @@ fn union_variant_type_index(val: &ResolvedEnumVal) -> Result<usize, CodeGenError
 
 /// Get the byte_size of an object (struct).
 fn obj_byte_size(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
-    obj.byte_size
-        .map(|s| s as usize)
-        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no byte_size", obj.name)))
+    usize::try_from(
+        obj.byte_size.ok_or_else(|| {
+            CodeGenError::Internal(format!("object '{}' has no byte_size", obj.name))
+        })?,
+    )
+    .map_err(|_| CodeGenError::Internal(format!("object '{}' has negative byte_size", obj.name)))
 }
 
 /// Get the min_align of an object (struct).
 fn obj_min_align(obj: &ResolvedObject) -> Result<usize, CodeGenError> {
-    obj.min_align
-        .map(|a| a as usize)
-        .ok_or_else(|| CodeGenError::Internal(format!("object '{}' has no min_align", obj.name)))
+    usize::try_from(
+        obj.min_align.ok_or_else(|| {
+            CodeGenError::Internal(format!("object '{}' has no min_align", obj.name))
+        })?,
+    )
+    .map_err(|_| CodeGenError::Internal(format!("object '{}' has negative min_align", obj.name)))
 }
 
 /// Get a struct field's byte offset.
@@ -100,123 +109,6 @@ fn field_id(field: &ResolvedField) -> Result<u32, CodeGenError> {
     field
         .id
         .ok_or_else(|| CodeGenError::Internal(format!("field '{}' has no id", field.name)))
-}
-
-fn validate_type_reference(
-    schema: &ResolvedSchema,
-    ty: &ResolvedType,
-    context: &str,
-) -> Result<(), CodeGenError> {
-    let check_index = |kind: &str, len: usize| -> Result<(), CodeGenError> {
-        let index = type_index(ty, context)?;
-        if index >= len {
-            return Err(CodeGenError::Internal(format!(
-                "{context} references {kind} index {index}, but only {len} {kind}s exist"
-            )));
-        }
-        Ok(())
-    };
-
-    match ty.base_type {
-        BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-            check_index("object", schema.objects.len())?;
-        }
-        BaseType::BASE_TYPE_UNION => check_index("enum", schema.enums.len())?,
-        BaseType::BASE_TYPE_ARRAY => {
-            match ty.fixed_length {
-                Some(length) if length > 0 => {}
-                _ => {
-                    return Err(CodeGenError::Internal(format!(
-                        "{context} has no positive fixed array length"
-                    )));
-                }
-            }
-            match ty.element_type_or_none() {
-                BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                    check_index("object", schema.objects.len())?;
-                }
-                BaseType::BASE_TYPE_UNION => check_index("enum", schema.enums.len())?,
-                element if element.is_scalar() && ty.index.is_some() => {
-                    check_index("enum", schema.enums.len())?;
-                }
-                _ => {}
-            }
-        }
-        BaseType::BASE_TYPE_VECTOR => match ty.element_type_or_none() {
-            BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
-                check_index("object", schema.objects.len())?;
-            }
-            BaseType::BASE_TYPE_UNION => check_index("enum", schema.enums.len())?,
-            element if element.is_scalar() && ty.index.is_some() => {
-                check_index("enum", schema.enums.len())?;
-            }
-            _ => {}
-        },
-        scalar if scalar.is_scalar() && ty.index.is_some() => {
-            check_index("enum", schema.enums.len())?;
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn validate_schema_for_codegen(schema: &ResolvedSchema) -> Result<(), CodeGenError> {
-    if let Some(index) = schema.root_table_index {
-        if index >= schema.objects.len() {
-            return Err(CodeGenError::Internal(format!(
-                "root table index {index} is out of bounds for {} objects",
-                schema.objects.len()
-            )));
-        }
-    }
-
-    for object in &schema.objects {
-        if object.is_struct {
-            let byte_size = obj_byte_size(object)?;
-            let min_align = obj_min_align(object)?;
-            if byte_size == 0 || min_align == 0 {
-                return Err(CodeGenError::Internal(format!(
-                    "struct '{}' has zero byte size or alignment",
-                    object.name
-                )));
-            }
-        }
-        for field in &object.fields {
-            let context = format!("field '{}.{}'", object.name, field.name);
-            if object.is_struct {
-                field_offset(field)?;
-            } else {
-                field_id(field)?;
-            }
-            validate_type_reference(schema, &field.type_, &context)?;
-        }
-    }
-
-    for enum_def in &schema.enums {
-        for variant in &enum_def.values {
-            if let Some(union_type) = &variant.union_type {
-                validate_type_reference(
-                    schema,
-                    union_type,
-                    &format!("union variant '{}.{}'", enum_def.name, variant.name),
-                )?;
-            }
-        }
-    }
-
-    for service in &schema.services {
-        for call in &service.calls {
-            if call.request_index >= schema.objects.len()
-                || call.response_index >= schema.objects.len()
-            {
-                return Err(CodeGenError::Internal(format!(
-                    "RPC method '{}.{}' references an out-of-bounds object",
-                    service.name, call.name
-                )));
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Options for Rust code generation.
@@ -299,7 +191,7 @@ pub fn generate_rust(
     schema: &ResolvedSchema,
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
-    validate_schema_for_codegen(schema)?;
+    schema.validate()?;
     #[cfg(feature = "grpc")]
     if schema
         .services
@@ -337,7 +229,7 @@ pub fn generate_typescript(
     schema: &ResolvedSchema,
     opts: &TsCodeGenOptions,
 ) -> Result<String, CodeGenError> {
-    validate_schema_for_codegen(schema)?;
+    schema.validate()?;
     let gen = TsGenerator::new(schema, opts);
     gen.generate()
 }
@@ -351,6 +243,7 @@ pub fn generate_python(
     schema: &ResolvedSchema,
     opts: &PythonCodeGenOptions,
 ) -> Result<String, CodeGenError> {
+    schema.validate()?;
     let gen = PythonGenerator::new(schema, opts);
     gen.generate()
 }

@@ -63,6 +63,7 @@ impl<'a> BinaryWalker<'a> {
     }
 
     pub fn walk(mut self, root_type_name: &str) -> Result<Vec<AnnotatedRegion>, WalkError> {
+        self.schema.validate()?;
         if self.reader.len() < 4 {
             return Err(WalkError::OutOfBounds {
                 offset: 0,

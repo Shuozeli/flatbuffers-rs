@@ -206,6 +206,10 @@ fn annotation_error(error: impl std::fmt::Display) -> ApiError {
     ApiError::new("annotation_error", error.to_string())
 }
 
+fn bfbs_error(error: impl std::fmt::Display) -> ApiError {
+    ApiError::new("bfbs_error", error.to_string())
+}
+
 /// Compile a .fbs schema and generate Rust code.
 ///
 /// This original single-source function remains available for compatibility.
@@ -294,7 +298,8 @@ pub fn compile_fbs_to_bfbs(source: &str) -> Result<Vec<u8>, JsError> {
         let result =
             flatc_rs_compiler::compile_single(&source).map_err(|e| JsError::new(&e.to_string()))?;
 
-        Ok(flatc_rs_compiler::bfbs::serialize_schema(&result.schema))
+        flatc_rs_compiler::bfbs::serialize_schema(&result.schema)
+            .map_err(|error| JsError::new(&error.to_string()))
     })
 }
 
@@ -304,7 +309,7 @@ pub fn compile_fbs_files_to_bfbs(request: &JsVirtualSchemaRequest) -> Result<Vec
     let request = request_js_value(request);
     catch_api(move || {
         let result = compile_request(parse_request(request)?)?;
-        Ok(flatc_rs_compiler::bfbs::serialize_schema(&result.schema))
+        flatc_rs_compiler::bfbs::serialize_schema(&result.schema).map_err(bfbs_error)
     })
     .map_err(api_error_to_js)
 }

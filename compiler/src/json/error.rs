@@ -2,6 +2,9 @@ use flatc_rs_schema::buf_reader::BoundsError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum JsonError {
+    #[error("invalid resolved schema: {0}")]
+    Schema(#[from] flatc_rs_schema::resolved::ResolveError),
+
     // -- Decoder errors (binary -> JSON) --
     #[error("buffer too small: need {need} bytes at offset {offset}, have {buf_len}")]
     OutOfBounds {

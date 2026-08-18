@@ -97,7 +97,8 @@ fn ts_codegen_returns_error_for_out_of_bounds_type_index() {
 
     // Assert
     let error = result.expect("codegen must not panic").unwrap_err();
-    assert!(error.to_string().contains("Root.child"));
+    assert!(error.to_string().contains("Root"));
+    assert!(error.to_string().contains("child"));
     assert!(error.to_string().contains("index 999"));
 }
 

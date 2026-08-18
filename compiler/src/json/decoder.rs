@@ -59,6 +59,7 @@ pub fn binary_to_json(
     root_type: &str,
     opts: &JsonOptions,
 ) -> Result<Value, JsonError> {
+    schema.validate()?;
     let reader = BufReader::new(buf);
     let mut decoder = Decoder::new(reader, schema, opts);
     decoder.decode(root_type)

@@ -49,9 +49,12 @@ use crate::reflection::reflection as refl;
 // Error type
 // ---------------------------------------------------------------------------
 
-/// Errors that can occur during BFBS deserialization.
+/// Errors that can occur during BFBS serialization or deserialization.
 #[derive(Debug, thiserror::Error)]
 pub enum BfbsError {
+    #[error("invalid resolved schema: {0}")]
+    Schema(#[from] schema::resolved::ResolveError),
+
     #[error("invalid BFBS buffer: {0}")]
     Invalid(String),
 
@@ -164,7 +167,8 @@ struct IndexMaps<'a> {
 ///
 /// The output is a valid FlatBuffer with file identifier "BFBS" conforming to
 /// the official `reflection.fbs` schema.
-pub fn serialize_schema(schema: &ResolvedSchema) -> Vec<u8> {
+pub fn serialize_schema(schema: &ResolvedSchema) -> Result<Vec<u8>, BfbsError> {
+    schema.validate()?;
     let mut b = FlatBufferBuilder::with_capacity(4096);
 
     // Sort objects and enums by name (reflection.fbs requires sorted vectors).
@@ -261,7 +265,7 @@ pub fn serialize_schema(schema: &ResolvedSchema) -> Vec<u8> {
     let schema_offset = b.end_table(start);
 
     b.finish(schema_offset, Some("BFBS"));
-    b.finished_data().to_vec()
+    Ok(b.finished_data().to_vec())
 }
 
 // ---------------------------------------------------------------------------
@@ -1109,7 +1113,7 @@ mod tests {
             advanced_features: schema::AdvancedFeatures(0),
             fbs_files: vec![],
         };
-        let buf = serialize_schema(&schema);
+        let buf = serialize_schema(&schema).expect("serialize schema");
         assert!(buf.len() >= 8, "buffer too small: {} bytes", buf.len());
         assert_eq!(&buf[4..8], b"BFBS", "missing BFBS file identifier");
     }
@@ -1164,7 +1168,7 @@ mod tests {
             fbs_files: vec![],
         };
 
-        let buf = serialize_schema(&schema);
+        let buf = serialize_schema(&schema).expect("serialize schema");
         assert_eq!(&buf[4..8], b"BFBS");
         assert!(buf.len() > 20, "buffer suspiciously small");
     }

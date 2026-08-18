@@ -180,6 +180,9 @@ impl RegionType {
 
 #[derive(Debug, thiserror::Error)]
 pub enum WalkError {
+    #[error("invalid resolved schema: {0}")]
+    Schema(#[from] flatc_rs_schema::resolved::ResolveError),
+
     #[error("read out of bounds: offset {offset}, size {size}, buffer length {buf_len}")]
     OutOfBounds {
         offset: usize,

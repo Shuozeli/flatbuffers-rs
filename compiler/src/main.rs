@@ -449,7 +449,13 @@ fn main() {
             } else {
                 input_result.schema.clone()
             };
-            let bfbs = serialize_schema(&schema_for_bfbs);
+            let bfbs = match serialize_schema(&schema_for_bfbs) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    eprintln!("error: failed to serialize schema: {error}");
+                    process::exit(1);
+                }
+            };
             let input_file = &input_result.input_file;
             let stem = input_file
                 .file_stem()

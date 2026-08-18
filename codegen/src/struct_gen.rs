@@ -155,22 +155,25 @@ pub fn generate(
     }
 
     w.blank();
-    w.try_block(&format!("impl<'a> {name}"), |w| {
-        gen_constructor(w, schema, obj)?;
-        w.blank();
-
-        for field in &obj.fields {
-            gen_field_getter(w, schema, field)?;
+    w.try_block(
+        &format!("impl<'a> {name}"),
+        |w| -> Result<(), CodeGenError> {
+            gen_constructor(w, schema, obj)?;
             w.blank();
-            gen_field_setter(w, schema, field)?;
-            w.blank();
-        }
 
-        if let Some(key_field) = find_key_field(obj) {
-            gen_struct_key_methods(w, schema, key_field, name)?;
-        }
-        Ok(())
-    })?;
+            for field in &obj.fields {
+                gen_field_getter(w, schema, field)?;
+                w.blank();
+                gen_field_setter(w, schema, field)?;
+                w.blank();
+            }
+
+            if let Some(key_field) = find_key_field(obj) {
+                gen_struct_key_methods(w, schema, key_field, name)?;
+            }
+            Ok(())
+        },
+    )?;
 
     if opts.rust_pluggable_buffer {
         w.blank();

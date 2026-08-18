@@ -14,6 +14,7 @@ pub fn walk_binary(
     schema: &ResolvedSchema,
     root_type_name: &str,
 ) -> Result<Vec<AnnotatedRegion>, WalkError> {
+    schema.validate()?;
     let walker = BinaryWalker::new(binary, schema);
     walker.walk(root_type_name)
 }

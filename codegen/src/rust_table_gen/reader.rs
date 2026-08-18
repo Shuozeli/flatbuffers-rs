@@ -110,7 +110,7 @@ pub(super) fn gen_impl_block(
         format!("impl<'a> {name}<'a>")
     };
 
-    w.try_block(&impl_header, |w| {
+    w.try_block(&impl_header, |w| -> Result<(), CodeGenError> {
         // VTable offset constants
         for (upper, vt_offset) in &vt_offsets {
             w.line(&format!(

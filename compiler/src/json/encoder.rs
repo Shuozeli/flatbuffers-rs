@@ -41,6 +41,7 @@ pub fn json_to_binary_with_opts(
     root_type: &str,
     opts: &EncoderOptions,
 ) -> Result<Vec<u8>, JsonError> {
+    schema.validate()?;
     let mut enc = Encoder::new(schema, opts);
     enc.encode(json, root_type)
 }
