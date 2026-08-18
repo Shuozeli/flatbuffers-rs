@@ -126,6 +126,13 @@ jobs:
       - name: Install wasm-bindgen CLI
         run: cargo install wasm-bindgen-cli --version 0.2.114 --locked
 
+      - name: Verify WASM excludes CLI dependencies
+        run: |
+          if cargo tree -p flatc-rs-wasm -e normal | grep -q 'clap v'; then
+            echo 'flatc-rs-wasm must not depend on clap' >&2
+            exit 1
+          fi
+
       - name: Build release WASM package
         run: |
           cargo build --release -p flatc-rs-wasm \

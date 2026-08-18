@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-08-18T19:21:13Z -->
+<!-- agent-updated: 2026-08-18T20:29:09Z -->
 # CLI Flag Parity: C++ flatc vs Rust flatc
 
 Last updated: 2026-08-18
@@ -135,8 +135,10 @@ These control details of the `--schema` / `-b` output.
 ## gRPC
 
 gRPC generation is a compile-time capability rather than a runtime CLI flag.
-Enable the forwarding `grpc` feature on `flatc-rs-compiler` (or directly on
-`flatc-rs-codegen`) and pass `--rust --gen-object-api`. The generated file
+Build the binary with the `cli` feature, enable the forwarding `grpc` feature
+on `flatc-rs-compiler` (or directly on `flatc-rs-codegen`), and pass
+`--rust --gen-object-api`. For example, use
+`cargo run -p flatc-rs-compiler --features cli,grpc -- ...`. The generated file
 contains `FlatBufferGrpcMessage` implementations for the namespaced owned `*T`
 request/response types plus pure-grpc server and client modules for each
 `rpc_service`. Unary RPCs are supported. Streaming modes fail generation

@@ -12,20 +12,32 @@ categories.workspace = true
 [[bin]]
 name = "flatc"
 path = "src/main.rs"
+required-features = ["cli"]
+
+[[test]]
+name = "cli_language_codegen_test"
+path = "tests/cli_language_codegen_test.rs"
+required-features = ["cli"]
+
+[[test]]
+name = "official_rust_source_parity_test"
+path = "tests/official_rust_source_parity_test.rs"
+required-features = ["cli"]
 
 [[test]]
 name = "grpc_codegen_compile_test"
 path = "tests/grpc_codegen_compile_test.rs"
-required-features = ["grpc"]
+required-features = ["cli", "grpc"]
 
 [features]
 default = []
+cli = ["dep:clap", "dep:flatc-rs-annotator"]
 grpc = ["flatc-rs-codegen/grpc"]
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"], optional = true }
 flatbuffers = { version = "25.12.19" }
-flatc-rs-annotator = { path = "../annotator" }
+flatc-rs-annotator = { path = "../annotator", optional = true }
 flatc-rs-codegen = { path = "../codegen" }
 flatc-rs-parser = { path = "../parser" }
 flatc-rs-schema = { path = "../schema" }
@@ -34,6 +46,7 @@ thiserror = "2"
 
 [dev-dependencies]
 flatbuffers = { version = "25.12.19", features = ["serialize"] }
+flatc-rs-annotator = { path = "../annotator" }
 flatc-rs-runtime = { path = "../runtime" }
 flatc-rs-fbs-gen = { path = "../fbs-gen" }
 flatc-rs-test-utils = { path = "../test-utils" }

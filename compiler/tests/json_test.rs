@@ -8,6 +8,7 @@ use flatc_rs_compiler::{
     },
 };
 use serde_json::{json, Value};
+#[cfg(feature = "cli")]
 use std::process::Command;
 
 fn default_opts() -> JsonOptions {
@@ -942,6 +943,7 @@ fn namespaced_roots_require_an_fqn_when_the_short_name_is_ambiguous() {
 }
 
 #[test]
+#[cfg(feature = "cli")]
 fn cli_uses_declared_root_fqn_but_rejects_an_explicit_ambiguous_short_name() {
     let tmp = tempfile::tempdir().unwrap();
     let schema = tmp.path().join("namespaced.fbs");
@@ -1005,6 +1007,7 @@ fn cli_uses_declared_root_fqn_but_rejects_an_explicit_ambiguous_short_name() {
 }
 
 #[test]
+#[cfg(feature = "cli")]
 fn cli_round_trips_relaxed_and_strict_json_with_file_identifier() {
     // Arrange
     let tmp = tempfile::tempdir().unwrap();
@@ -1280,6 +1283,7 @@ fn numeric_union_discriminants_are_checked() {
 }
 
 #[test]
+#[cfg(feature = "cli")]
 fn cli_reports_the_out_of_range_field_and_value() {
     // Arrange
     let tmp = tempfile::tempdir().unwrap();

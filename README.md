@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-08-18T19:21:13Z -->
+<!-- agent-updated: 2026-08-18T20:29:09Z -->
 # flatbuffers-rs
 
 A pure Rust implementation of the [FlatBuffers](https://flatbuffers.dev/) compiler (`flatc`).
@@ -26,34 +26,38 @@ Drop-in replacement: same `.fbs` input, same generated code output, same binary 
 ## Quick Start
 
 ```bash
-# Build
+# Build compiler libraries
 cargo build --release --workspace
 
+# Build or install the CLI (CLI dependencies are opt-in)
+cargo build --release -p flatc-rs-compiler --features cli --bin flatc
+cargo install --path compiler --features cli --bin flatc
+
 # Generate Rust code
-cargo run --release -p flatc-rs-compiler -- --rust -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler --features cli -- --rust -o out/ schema.fbs
 
 # Generate Rust with Object API
-cargo run --release -p flatc-rs-compiler -- --rust --gen-object-api -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler --features cli -- --rust --gen-object-api -o out/ schema.fbs
 
 # Generate unary FlatBuffers gRPC codecs and stubs
-cargo run --release -p flatc-rs-compiler --features grpc -- \
+cargo run --release -p flatc-rs-compiler --features cli,grpc -- \
   --rust --gen-object-api -o out/ schema.fbs
 
 # Generate Rust readers over a pluggable byte-buffer abstraction
-cargo run --release -p flatc-rs-compiler -- \
+cargo run --release -p flatc-rs-compiler --features cli -- \
   --rust --rust-pluggable-buffer -o out/ schema.fbs
 
 # Generate TypeScript
-cargo run --release -p flatc-rs-compiler -- --ts -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler --features cli -- --ts -o out/ schema.fbs
 
 # Generate TypeScript for Node.js projects
-cargo run --release -p flatc-rs-compiler -- --nodejs -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler --features cli -- --nodejs -o out/ schema.fbs
 
 # Generate Python model code
-cargo run --release -p flatc-rs-compiler -- --python -o out/ schema.fbs
+cargo run --release -p flatc-rs-compiler --features cli -- --python -o out/ schema.fbs
 
 # Generate multiple language outputs in one invocation
-cargo run --release -p flatc-rs-compiler -- \
+cargo run --release -p flatc-rs-compiler --features cli -- \
   --rust --ts --python -o out/ schema.fbs
 ```
 
@@ -85,7 +89,10 @@ Union accessors for struct variants also compile without importing
 `flatbuffers::Follow`: generated code uses the fully qualified trait and the
 public `Table::buf()`/`Table::loc()` API.
 
-When `flatc-rs-compiler` is built with its `grpc` Cargo feature, Rust output for
+The `flatc` binary is gated by the `cli` Cargo feature so compiler-library and
+WASM consumers do not compile command-line dependencies. Build or install the
+binary with `--features cli`. When `flatc-rs-compiler` is also built with its
+`grpc` Cargo feature, Rust output for
 `rpc_service` declarations also contains `FlatBufferGrpcMessage` codecs and
 pure-grpc server/client modules. RPC messages use the owned Object API `*T`
 types, so `--gen-object-api` is required. Unary methods are supported;
@@ -167,12 +174,15 @@ dependencies are not published on crates.io. See
 reproducible install/package commands.
 
 ```bash
-# Run all tests
+# Run compiler-core tests without CLI dependencies
 CARGO_INCREMENTAL=0 cargo test --release --workspace --locked
+
+# Run the complete suite, including CLI and optional backends
+CARGO_INCREMENTAL=0 cargo test --release --workspace --all-features --locked
 
 # Exercise optional gRPC generation and compile an isolated downstream crate
 CARGO_INCREMENTAL=0 cargo test --release --locked \
-  -p flatc-rs-compiler --features grpc --test grpc_codegen_compile_test
+  -p flatc-rs-compiler --features cli,grpc --test grpc_codegen_compile_test
 
 # Regenerate golden files after intentional output changes
 UPDATE_GOLDEN=1 CARGO_INCREMENTAL=0 cargo test --release --workspace --locked
