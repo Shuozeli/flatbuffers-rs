@@ -1,0 +1,15 @@
+{
+  // Official relaxed JSON accepts comments, bare names and trailing commas.
+  count: 7,
+  maybe: null,
+  name: "fixture",
+  empty_values: [],
+  arrays: {
+    values: [1, 2, 3],
+    colors: [Red, Green],
+    points: [{ x: 4, y: 5 }, { x: 6, y: 7 }],
+  },
+  colors: [Green, Red],
+  equipment_type: [Sword, Shield],
+  equipment: [{ damage: 10 }, { defense: 20 }],
+}

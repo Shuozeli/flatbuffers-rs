@@ -37,6 +37,9 @@ pub enum JsonError {
     #[error("failed to reserve JSON storage for {count} vector elements")]
     VectorAllocationFailed { count: usize },
 
+    #[error("buffer identifier mismatch: expected '{expected}', found '{actual}'")]
+    FileIdentifierMismatch { expected: String, actual: String },
+
     // -- Encoder errors (JSON -> binary) --
     #[error("expected JSON object for table/struct '{type_name}', got {actual}")]
     ExpectedObject { type_name: String, actual: String },
@@ -60,6 +63,12 @@ pub enum JsonError {
         field_name: String,
     },
 
+    #[error("required field '{field_name}' is missing from table '{type_name}'")]
+    MissingRequiredField {
+        type_name: String,
+        field_name: String,
+    },
+
     #[error("unknown enum value '{value}' for enum '{enum_name}'")]
     UnknownEnumValue { enum_name: String, value: String },
 
@@ -68,6 +77,22 @@ pub enum JsonError {
 
     #[error("struct field '{field_name}' is missing in JSON (structs require all fields)")]
     MissingStructField { field_name: String },
+
+    #[error("fixed array field '{field_name}' requires {expected} elements, got {actual}")]
+    FixedArrayLength {
+        field_name: String,
+        expected: usize,
+        actual: usize,
+    },
+
+    #[error(
+        "union vector field '{field_name}' has {value_count} values but {type_count} discriminants"
+    )]
+    UnionVectorLengthMismatch {
+        field_name: String,
+        type_count: usize,
+        value_count: usize,
+    },
 
     #[error("missing type index for {context}")]
     MissingTypeIndex { context: String },

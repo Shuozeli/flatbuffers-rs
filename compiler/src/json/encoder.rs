@@ -18,8 +18,6 @@ pub struct EncoderOptions {
     /// When false (default), error on unknown fields.
     pub unknown_json: bool,
     /// When true, emit fields even when they equal the default value.
-    /// Our encoder always writes all fields present in JSON, so this is
-    /// effectively always true. Accepted for C++ flatc CLI compatibility.
     pub force_defaults: bool,
 }
 
@@ -130,6 +128,17 @@ impl<'a> Encoder<'a> {
             })
     }
 
+    fn should_store_field(&self, field: &ResolvedField, value: &Value) -> Result<bool, JsonError> {
+        let bt = field.type_.base_type;
+        if self.opts.force_defaults || field.is_optional || !bt.is_scalar() {
+            return Ok(true);
+        }
+
+        let mut encoded = Vec::new();
+        self.encode_scalar_value(value, bt, &field.type_, &field.name, &mut encoded)?;
+        Ok(encoded != scalar_default_bytes(field, bt))
+    }
+
     // -------------------------------------------------------------------
     // Buffer helpers
     // -------------------------------------------------------------------
@@ -188,6 +197,15 @@ impl<'a> Encoder<'a> {
             actual: json_type_name(json),
         })?;
 
+        for field in obj.fields.iter().filter(|field| field.is_required) {
+            if json_obj.get(&field.name).is_none_or(Value::is_null) {
+                return Err(JsonError::MissingRequiredField {
+                    type_name: type_name.clone(),
+                    field_name: field.name.clone(),
+                });
+            }
+        }
+
         // Check for unknown JSON fields (unless --unknown-json is set)
         if !self.opts.unknown_json {
             let schema_field_names: std::collections::HashSet<&str> =
@@ -238,7 +256,10 @@ impl<'a> Encoder<'a> {
             let ty = &field.type_;
             let bt = ty.base_type;
 
-            let present = json_obj.contains_key(fname);
+            let present = match json_obj.get(fname) {
+                Some(Value::Null) | None => false,
+                Some(value) => self.should_store_field(field, value)?,
+            };
             let (size, alignment) = field_inline_size(bt, ty, self.schema);
 
             slots.push(FieldSlot {
@@ -379,7 +400,17 @@ impl<'a> Encoder<'a> {
                 }
 
                 BaseType::BASE_TYPE_VECTOR => {
-                    let target = self.encode_vector(json_val, ty, fname, depth + 1)?;
+                    let target = if ty.element_type == Some(BaseType::BASE_TYPE_UNION) {
+                        let type_field_name = format!("{fname}_type");
+                        let type_values = json_obj.get(&type_field_name).ok_or_else(|| {
+                            JsonError::MissingUnionType {
+                                field_name: fname.clone(),
+                            }
+                        })?;
+                        self.encode_union_vector(json_val, type_values, ty, fname, depth + 1)?
+                    } else {
+                        self.encode_vector(json_val, ty, fname, depth + 1)?
+                    };
                     let uoffset = (target - field_pos) as u32;
                     self.patch_u32_le(field_pos, uoffset);
                 }
@@ -686,6 +717,12 @@ impl<'a> Encoder<'a> {
                     let end = (field_offset + inner_bytes.len()).min(byte_size);
                     data[field_offset..end].copy_from_slice(&inner_bytes[..end - field_offset]);
                 }
+                BaseType::BASE_TYPE_ARRAY => {
+                    let array_bytes =
+                        self.encode_fixed_array_inline(json_field_val, ty, fname, depth + 1)?;
+                    let end = (field_offset + array_bytes.len()).min(byte_size);
+                    data[field_offset..end].copy_from_slice(&array_bytes[..end - field_offset]);
+                }
                 _ => {
                     let mut buf = Vec::new();
                     self.encode_scalar_value(json_field_val, bt, ty, fname, &mut buf)?;
@@ -696,6 +733,58 @@ impl<'a> Encoder<'a> {
         }
 
         Ok(data)
+    }
+
+    fn encode_fixed_array_inline(
+        &self,
+        json_val: &Value,
+        ty: &ResolvedType,
+        field_name: &str,
+        depth: usize,
+    ) -> Result<Vec<u8>, JsonError> {
+        let values = json_val
+            .as_array()
+            .ok_or_else(|| JsonError::ExpectedArray {
+                field_name: field_name.to_string(),
+                actual: json_type_name(json_val),
+            })?;
+        let expected = ty.fixed_length.unwrap_or(0) as usize;
+        if values.len() != expected {
+            return Err(JsonError::FixedArrayLength {
+                field_name: field_name.to_string(),
+                expected,
+                actual: values.len(),
+            });
+        }
+
+        let elem_bt = ty.element_type.unwrap_or(BaseType::BASE_TYPE_U_BYTE);
+        let mut output = Vec::new();
+        match elem_bt {
+            BaseType::BASE_TYPE_STRUCT => {
+                let object_index = require_type_index(ty, field_name)?;
+                for (index, value) in values.iter().enumerate() {
+                    output.extend(self.encode_struct_inline(
+                        value,
+                        object_index,
+                        &format!("{field_name}[{index}]"),
+                        depth + 1,
+                    )?);
+                }
+            }
+            bt if bt.is_scalar() => {
+                for (index, value) in values.iter().enumerate() {
+                    self.encode_scalar_value(
+                        value,
+                        bt,
+                        ty,
+                        &format!("{field_name}[{index}]"),
+                        &mut output,
+                    )?;
+                }
+            }
+            _ => {}
+        }
+        Ok(output)
     }
 
     // -------------------------------------------------------------------
@@ -812,6 +901,68 @@ impl<'a> Encoder<'a> {
         }
     }
 
+    fn encode_union_vector(
+        &mut self,
+        json_val: &Value,
+        type_values: &Value,
+        ty: &ResolvedType,
+        field_name: &str,
+        depth: usize,
+    ) -> Result<usize, JsonError> {
+        let values = json_val
+            .as_array()
+            .ok_or_else(|| JsonError::ExpectedArray {
+                field_name: field_name.to_string(),
+                actual: json_type_name(json_val),
+            })?;
+        let discriminants = type_values
+            .as_array()
+            .ok_or_else(|| JsonError::ExpectedArray {
+                field_name: format!("{field_name}_type"),
+                actual: json_type_name(type_values),
+            })?;
+        if values.len() != discriminants.len() {
+            return Err(JsonError::UnionVectorLengthMismatch {
+                field_name: field_name.to_string(),
+                type_count: discriminants.len(),
+                value_count: values.len(),
+            });
+        }
+
+        let enum_index = require_type_index(ty, field_name)?;
+        self.align(4);
+        let position = self.buf.len();
+        self.write_u32_le(values.len() as u32);
+        let mut placeholders = Vec::with_capacity(values.len());
+        for _ in values {
+            placeholders.push(self.buf.len());
+            self.write_u32_le(0);
+        }
+
+        for (index, (value, discriminant)) in values.iter().zip(discriminants.iter()).enumerate() {
+            let discriminant = self.resolve_enum_value(
+                discriminant,
+                enum_index,
+                &format!("{field_name}_type[{index}]"),
+            )?;
+            if discriminant == 0 {
+                continue;
+            }
+            let discriminant = u8::try_from(discriminant).map_err(|_| {
+                number_out_of_range(
+                    &format!("{field_name}_type[{index}]"),
+                    BaseType::BASE_TYPE_U_TYPE,
+                    &discriminants[index],
+                )
+            })?;
+            let target =
+                self.encode_union_data(value, enum_index, discriminant, field_name, depth + 1)?;
+            self.patch_u32_le(placeholders[index], (target - placeholders[index]) as u32);
+        }
+
+        Ok(position)
+    }
+
     // -------------------------------------------------------------------
     // Union data encoding
     // -------------------------------------------------------------------
@@ -854,6 +1005,16 @@ impl<'a> Encoder<'a> {
                     actual: json_type_name(json_val),
                 })?;
                 Ok(self.encode_string(s))
+            }
+            BaseType::BASE_TYPE_STRUCT => {
+                let inner_idx = require_type_index(&union_type, "union variant")?;
+                let object = self.get_object(inner_idx)?;
+                self.align(object.min_align.unwrap_or(1) as usize);
+                let position = self.buf.len();
+                let bytes =
+                    self.encode_struct_inline(json_val, inner_idx, field_name, depth + 1)?;
+                self.write_bytes(&bytes);
+                Ok(position)
             }
             _ => Ok(self.buf.len()),
         }
@@ -1067,11 +1228,32 @@ fn json_as_f64(v: &Value, field_name: &str, bt: BaseType) -> Result<f64, JsonErr
             value: n.to_string(),
         }),
         Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+        Value::String(value) if matches!(value.as_str(), "nan" | "+nan" | "-nan") => Ok(f64::NAN),
+        Value::String(value) if matches!(value.as_str(), "inf" | "+inf") => Ok(f64::INFINITY),
+        Value::String(value) if value == "-inf" => Ok(f64::NEG_INFINITY),
         _ => Err(JsonError::ExpectedNumber {
             field_name: field_name.to_string(),
             base_type: format!("{bt:?}"),
             actual: json_type_name(v),
         }),
+    }
+}
+
+fn scalar_default_bytes(field: &ResolvedField, bt: BaseType) -> Vec<u8> {
+    let integer = field.default_integer.unwrap_or(0);
+    let real = field.default_real.unwrap_or(0.0);
+    match bt {
+        BaseType::BASE_TYPE_BOOL | BaseType::BASE_TYPE_BYTE => vec![integer as u8],
+        BaseType::BASE_TYPE_U_BYTE | BaseType::BASE_TYPE_U_TYPE => vec![integer as u8],
+        BaseType::BASE_TYPE_SHORT => (integer as i16).to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_U_SHORT => (integer as u16).to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_INT => (integer as i32).to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_U_INT => (integer as u32).to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_LONG => integer.to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_U_LONG => (integer as u64).to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_FLOAT => (real as f32).to_le_bytes().to_vec(),
+        BaseType::BASE_TYPE_DOUBLE => real.to_le_bytes().to_vec(),
+        _ => Vec::new(),
     }
 }
 

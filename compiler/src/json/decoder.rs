@@ -10,6 +10,7 @@ use flatc_rs_schema::resolved::{
 };
 use flatc_rs_schema::BaseType;
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 
 use super::error::JsonError;
 
@@ -27,6 +28,8 @@ pub struct JsonOptions {
     pub output_enum_identifiers: bool,
     /// Treat input binary as size-prefixed (4-byte length header before the FlatBuffer).
     pub size_prefixed: bool,
+    /// Skip file identifier validation when a schema declares one.
+    pub raw_binary: bool,
     /// Maximum number of elements decoded from any single vector.
     pub max_vector_elements: usize,
 }
@@ -38,6 +41,7 @@ impl Default for JsonOptions {
             output_defaults: false,
             output_enum_identifiers: true,
             size_prefixed: false,
+            raw_binary: false,
             max_vector_elements: DEFAULT_MAX_VECTOR_ELEMENTS,
         }
     }
@@ -71,6 +75,12 @@ struct Decoder<'a> {
     object_index: ObjectIndex,
 }
 
+#[derive(Default)]
+struct TableUnionValues {
+    scalars: HashMap<String, u8>,
+    vectors: HashMap<String, Vec<u8>>,
+}
+
 impl<'a> Decoder<'a> {
     fn new(reader: BufReader<'a>, schema: &'a ResolvedSchema, opts: &'a JsonOptions) -> Self {
         let object_index = schema.build_object_index();
@@ -92,6 +102,18 @@ impl<'a> Decoder<'a> {
                 need: 4,
                 buf_len: self.reader.len(),
             });
+        }
+
+        if !self.opts.raw_binary {
+            if let Some(identifier) = self.schema.file_ident.as_deref() {
+                let bytes = self.reader.read_bytes(base + 4, 4)?;
+                if bytes != identifier.as_bytes() {
+                    return Err(JsonError::FileIdentifierMismatch {
+                        expected: identifier.to_string(),
+                        actual: String::from_utf8_lossy(bytes).into_owned(),
+                    });
+                }
+            }
         }
 
         let root_offset = self.reader.read_u32_le(base)? as usize + base;
@@ -160,14 +182,16 @@ impl<'a> Decoder<'a> {
         let vtable_size = self.reader.read_u16_le(vtable_offset)? as usize;
 
         // Two-pass: first collect union type discriminants, then decode all fields
-        let mut union_type_values: std::collections::HashMap<String, u8> =
-            std::collections::HashMap::new();
+        let mut union_values = TableUnionValues::default();
 
         // First pass: read _type fields (BASE_TYPE_U_TYPE)
         for field in &fields {
             let ty = &field.type_;
             let bt = ty.base_type;
-            if bt != BaseType::BASE_TYPE_U_TYPE {
+            let is_scalar_type = bt == BaseType::BASE_TYPE_U_TYPE;
+            let is_vector_type = bt == BaseType::BASE_TYPE_VECTOR
+                && ty.element_type == Some(BaseType::BASE_TYPE_U_TYPE);
+            if !is_scalar_type && !is_vector_type {
                 continue;
             }
 
@@ -183,10 +207,40 @@ impl<'a> Decoder<'a> {
             }
 
             let field_data_offset = table_offset + field_offset_in_table;
-            let val = self.reader.read_u8(field_data_offset)?;
             let fname = &field.name;
             let union_name = fname.strip_suffix("_type").unwrap_or(fname).to_string();
-            union_type_values.insert(union_name, val);
+            if is_scalar_type {
+                union_values
+                    .scalars
+                    .insert(union_name, self.reader.read_u8(field_data_offset)?);
+            } else {
+                let uoffset = usize::try_from(self.reader.read_u32_le(field_data_offset)?)
+                    .map_err(|_| JsonError::ArithmeticOverflow {
+                        context: format!("union type vector '{fname}' offset"),
+                    })?;
+                let vector_start =
+                    checked_add(field_data_offset, uoffset, "union type vector target")?;
+                let count =
+                    usize::try_from(self.reader.read_u32_le(vector_start)?).map_err(|_| {
+                        JsonError::ArithmeticOverflow {
+                            context: format!("union type vector '{fname}' count"),
+                        }
+                    })?;
+                if count > self.opts.max_vector_elements {
+                    return Err(JsonError::VectorElementLimitExceeded {
+                        count,
+                        max: self.opts.max_vector_elements,
+                    });
+                }
+                let values = self
+                    .reader
+                    .read_bytes(
+                        checked_add(vector_start, 4, "union type vector data")?,
+                        count,
+                    )?
+                    .to_vec();
+                union_values.vectors.insert(union_name, values);
+            }
         }
 
         // Second pass: decode all fields
@@ -218,7 +272,7 @@ impl<'a> Decoder<'a> {
             let fname = field.name.clone();
 
             let value =
-                self.decode_field(field_data_offset, bt, ty, &fname, depth, &union_type_values)?;
+                self.decode_field(field_data_offset, bt, ty, &fname, depth, &union_values)?;
 
             if let Some(v) = value {
                 result.insert(fname, v);
@@ -239,7 +293,7 @@ impl<'a> Decoder<'a> {
         ty: &ResolvedType,
         fname: &str,
         depth: usize,
-        union_type_values: &std::collections::HashMap<String, u8>,
+        union_values: &TableUnionValues,
     ) -> Result<Option<Value>, JsonError> {
         match bt {
             // Scalars
@@ -330,13 +384,22 @@ impl<'a> Decoder<'a> {
                     }
                 })?;
                 let vec_start = checked_add(offset, uoffset, "vector field target")?;
-                let val = self.decode_vector(vec_start, ty, depth + 1)?;
+                let val = if ty.element_type == Some(BaseType::BASE_TYPE_UNION) {
+                    let discriminants = union_values.vectors.get(fname).ok_or_else(|| {
+                        JsonError::MissingUnionType {
+                            field_name: fname.to_string(),
+                        }
+                    })?;
+                    self.decode_union_vector(vec_start, ty, fname, discriminants, depth + 1)?
+                } else {
+                    self.decode_vector(vec_start, ty, depth + 1)?
+                };
                 Ok(Some(val))
             }
 
             // Union data
             BaseType::BASE_TYPE_UNION => {
-                if let Some(&discriminant) = union_type_values.get(fname) {
+                if let Some(&discriminant) = union_values.scalars.get(fname) {
                     if discriminant == 0 {
                         return Ok(None);
                     }
@@ -550,6 +613,57 @@ impl<'a> Decoder<'a> {
         Ok(Value::Array(arr))
     }
 
+    fn decode_union_vector(
+        &self,
+        vector_start: usize,
+        ty: &ResolvedType,
+        field_name: &str,
+        discriminants: &[u8],
+        depth: usize,
+    ) -> Result<Value, JsonError> {
+        let count = usize::try_from(self.reader.read_u32_le(vector_start)?).map_err(|_| {
+            JsonError::ArithmeticOverflow {
+                context: format!("union vector '{field_name}' count"),
+            }
+        })?;
+        if count != discriminants.len() {
+            return Err(JsonError::UnionVectorLengthMismatch {
+                field_name: field_name.to_string(),
+                type_count: discriminants.len(),
+                value_count: count,
+            });
+        }
+        if count > self.opts.max_vector_elements {
+            return Err(JsonError::VectorElementLimitExceeded {
+                count,
+                max: self.opts.max_vector_elements,
+            });
+        }
+        let data_start = checked_add(vector_start, 4, "union vector data")?;
+        self.reader
+            .check_bounds(data_start, checked_mul(count, 4, "union vector storage")?)?;
+
+        let mut values = Vec::new();
+        values
+            .try_reserve_exact(count)
+            .map_err(|_| JsonError::VectorAllocationFailed { count })?;
+        for (index, &discriminant) in discriminants.iter().enumerate() {
+            if discriminant == 0 {
+                values.push(Value::Null);
+                continue;
+            }
+            let element = checked_vector_element_offset(data_start, index, 4)?;
+            let uoffset = usize::try_from(self.reader.read_u32_le(element)?).map_err(|_| {
+                JsonError::ArithmeticOverflow {
+                    context: format!("union vector '{field_name}' element offset"),
+                }
+            })?;
+            let target = checked_add(element, uoffset, "union vector element target")?;
+            values.push(self.decode_union_data(target, ty, discriminant, depth + 1)?);
+        }
+        Ok(Value::Array(values))
+    }
+
     // -------------------------------------------------------------------
     // Union data decoding
     // -------------------------------------------------------------------
@@ -654,7 +768,8 @@ impl<'a> Decoder<'a> {
             }
             BaseType::BASE_TYPE_U_TYPE => {
                 let v = self.reader.read_u8(offset)?;
-                Ok(json!(v))
+                let enum_idx = require_type_index(ty, "union type vector element")?;
+                Ok(self.enum_value_to_json(v as i64, enum_idx))
             }
             _ => Ok(Value::Null),
         }
@@ -698,6 +813,9 @@ impl<'a> Decoder<'a> {
         bt: BaseType,
         ty: &ResolvedType,
     ) -> Option<Value> {
+        if field.is_optional && bt.is_scalar() {
+            return Some(Value::Null);
+        }
         // Use the field's default_integer / default_real if available,
         // otherwise use the type's zero value.
         match bt {
@@ -725,7 +843,6 @@ impl<'a> Decoder<'a> {
                 let enum_idx = ty.index.filter(|&i| i >= 0).map(|i| i as usize)?;
                 Some(self.enum_value_to_json(v, enum_idx))
             }
-            BaseType::BASE_TYPE_STRING => Some(Value::Null),
             _ => None,
         }
     }
@@ -771,9 +888,12 @@ fn require_type_index(ty: &ResolvedType, context: &str) -> Result<usize, JsonErr
 
 /// Convert an f64 to a JSON value, preserving integer representation for whole numbers.
 fn float_to_json(v: f64) -> Value {
-    if v.is_nan() || v.is_infinite() {
-        // serde_json doesn't support NaN/Infinity natively, use null
-        Value::Null
+    if v.is_nan() {
+        Value::String("nan".to_string())
+    } else if v == f64::INFINITY {
+        Value::String("inf".to_string())
+    } else if v == f64::NEG_INFINITY {
+        Value::String("-inf".to_string())
     } else {
         json!(v)
     }

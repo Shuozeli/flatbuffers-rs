@@ -13,7 +13,10 @@ use flatc_rs_compiler::{
     },
     compile, compile_inputs,
     conform::check_conform,
-    json::{binary_to_json, json_to_binary_with_opts, EncoderOptions, JsonOptions},
+    json::{
+        binary_to_json, format_json_text, json_to_binary_with_opts, parse_json_text,
+        EncoderOptions, JsonOptions,
+    },
     CompilerOptions,
 };
 use flatc_rs_schema::resolved::ResolvedSchema;
@@ -142,6 +145,10 @@ struct Cli {
     /// Treat input binary as size-prefixed (4-byte length header).
     #[arg(long)]
     size_prefixed: bool,
+
+    /// Allow binary input without checking the schema file identifier.
+    #[arg(long)]
+    raw_binary: bool,
 
     // -- Codegen control --
     /// Don't generate include statements for dependent schemas.
@@ -488,6 +495,7 @@ fn main() {
             output_defaults: cli.defaults_json,
             output_enum_identifiers: true,
             size_prefixed: cli.size_prefixed,
+            raw_binary: cli.raw_binary,
             ..JsonOptions::default()
         };
 
@@ -514,12 +522,7 @@ fn main() {
                     }
                 };
 
-                let json_str = if cli.strict_json {
-                    serde_json::to_string(&json_val)
-                } else {
-                    serde_json::to_string_pretty(&json_val)
-                }
-                .unwrap_or_else(|e| {
+                let json_str = format_json_text(&json_val, cli.strict_json).unwrap_or_else(|e| {
                     eprintln!("error: failed to serialize JSON: {e}");
                     process::exit(1);
                 });
@@ -546,7 +549,7 @@ fn main() {
                         process::exit(1);
                     }
                 };
-                let json_val: serde_json::Value = match serde_json::from_str(&json_str) {
+                let json_val = match parse_json_text(&json_str, cli.strict_json) {
                     Ok(v) => v,
                     Err(e) => {
                         eprintln!("error: failed to parse JSON {}: {e}", data_file.display());

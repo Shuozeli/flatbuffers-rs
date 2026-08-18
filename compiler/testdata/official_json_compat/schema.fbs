@@ -1,0 +1,31 @@
+namespace compat;
+
+enum Color:ubyte { Red, Green }
+
+struct Point {
+  x:int;
+  y:int;
+}
+
+struct Arrays {
+  values:[int:3];
+  colors:[Color:2];
+  points:[Point:2];
+}
+
+table Sword { damage:int; }
+table Shield { defense:int; }
+union Equipment { Sword, Shield }
+
+table Root {
+  count:int = 7;
+  maybe:int = null;
+  name:string;
+  empty_values:[int];
+  arrays:Arrays;
+  colors:[Color];
+  equipment:[Equipment];
+}
+
+root_type Root;
+file_identifier "JTST";

@@ -3,8 +3,8 @@
 use flatc_rs_compiler::{
     compile_single,
     json::{
-        binary_to_json, json_to_binary, json_to_binary_with_opts, EncoderOptions, JsonError,
-        JsonOptions,
+        binary_to_json, json_to_binary, json_to_binary_with_opts, parse_json_text, EncoderOptions,
+        JsonError, JsonOptions,
     },
 };
 use serde_json::{json, Value};
@@ -16,8 +16,37 @@ fn default_opts() -> JsonOptions {
         output_defaults: false,
         output_enum_identifiers: true,
         size_prefixed: false,
+        raw_binary: false,
         ..JsonOptions::default()
     }
+}
+
+#[test]
+fn official_json_fixture_is_compatible_in_both_directions() {
+    // Arrange
+    let schema_source = include_str!("../testdata/official_json_compat/schema.fbs");
+    let input_source = include_str!("../testdata/official_json_compat/input.json");
+    let official_binary = include_bytes!("../testdata/official_json_compat/official.bin");
+    let official_json: Value = serde_json::from_str(include_str!(
+        "../testdata/official_json_compat/official.json"
+    ))
+    .unwrap();
+    let schema = compile_single(schema_source).unwrap().schema;
+    let options = JsonOptions {
+        output_defaults: true,
+        ..default_opts()
+    };
+
+    // Act
+    let decoded_official =
+        binary_to_json(official_binary, &schema, "compat.Root", &options).unwrap();
+    let parsed_input = parse_json_text(input_source, false).unwrap();
+    let encoded_by_us = json_to_binary(&parsed_input, &schema, "compat.Root").unwrap();
+    let decoded_by_us = binary_to_json(&encoded_by_us, &schema, "compat.Root", &options).unwrap();
+
+    // Assert
+    assert_eq!(decoded_official, official_json);
+    assert_eq!(decoded_by_us, official_json);
 }
 
 // ---------------------------------------------------------------------------
@@ -379,6 +408,232 @@ fn round_trip_union() {
     assert_eq!(output["equipment"]["damage"], 25);
 }
 
+#[test]
+fn null_values_are_treated_as_absent_and_optional_defaults_are_null() {
+    // Arrange
+    let result = compile_single(
+        "table Root {
+           maybe:int = null;
+           child:Child;
+           name:string;
+           values:[int];
+         }
+         table Child { value:int; }
+         root_type Root;",
+    )
+    .unwrap();
+    let input = json!({
+        "maybe": null,
+        "child": null,
+        "name": null,
+        "values": null
+    });
+
+    // Act
+    let bytes = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let without_defaults = binary_to_json(&bytes, &result.schema, "Root", &default_opts()).unwrap();
+    let with_defaults = binary_to_json(
+        &bytes,
+        &result.schema,
+        "Root",
+        &JsonOptions {
+            output_defaults: true,
+            ..default_opts()
+        },
+    )
+    .unwrap();
+    let explicit_bytes = json_to_binary(&json!({"maybe": 0}), &result.schema, "Root").unwrap();
+    let explicit =
+        binary_to_json(&explicit_bytes, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert_eq!(without_defaults, json!({}));
+    assert_eq!(with_defaults["maybe"], Value::Null);
+    assert!(with_defaults.get("name").is_none());
+    assert_eq!(explicit["maybe"], 0);
+}
+
+#[test]
+fn empty_strings_and_vectors_remain_present() {
+    // Arrange
+    let result =
+        compile_single("table Root { name:string; values:[int]; } root_type Root;").unwrap();
+    let input = json!({"name": "", "values": []});
+
+    // Act
+    let bytes = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let output = binary_to_json(&bytes, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert_eq!(output, input);
+}
+
+#[test]
+fn force_defaults_controls_equal_default_scalar_storage() {
+    // Arrange
+    let result = compile_single("table Root { count:int = 7; } root_type Root;").unwrap();
+    let input = json!({"count": 7});
+
+    // Act
+    let omitted =
+        json_to_binary_with_opts(&input, &result.schema, "Root", &EncoderOptions::default())
+            .unwrap();
+    let forced = json_to_binary_with_opts(
+        &input,
+        &result.schema,
+        "Root",
+        &EncoderOptions {
+            force_defaults: true,
+            ..EncoderOptions::default()
+        },
+    )
+    .unwrap();
+    let omitted_json = binary_to_json(&omitted, &result.schema, "Root", &default_opts()).unwrap();
+    let forced_json = binary_to_json(&forced, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert!(omitted_json.get("count").is_none());
+    assert_eq!(forced_json["count"], 7);
+}
+
+#[test]
+fn fixed_arrays_of_scalars_enums_and_structs_round_trip() {
+    // Arrange
+    let result = compile_single(
+        "enum Color:ubyte { Red, Green }
+         struct Pair { x:int; y:int; }
+         struct Arrays {
+           values:[int:3];
+           colors:[Color:2];
+           pairs:[Pair:2];
+         }
+         table Root { arrays:Arrays; }
+         root_type Root;",
+    )
+    .unwrap();
+    let input = json!({
+        "arrays": {
+            "values": [1, 2, 3],
+            "colors": ["Red", "Green"],
+            "pairs": [{"x": 4, "y": 5}, {"x": 6, "y": 7}]
+        }
+    });
+
+    // Act
+    let bytes = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let output = binary_to_json(&bytes, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert_eq!(output, input);
+}
+
+#[test]
+fn fixed_array_rejects_the_wrong_element_count() {
+    // Arrange
+    let result = compile_single(
+        "struct Values { items:[int:3]; } table Root { values:Values; } root_type Root;",
+    )
+    .unwrap();
+
+    // Act
+    let error = json_to_binary(
+        &json!({"values": {"items": [1, 2]}}),
+        &result.schema,
+        "Root",
+    )
+    .unwrap_err();
+
+    // Assert
+    assert!(matches!(
+        error,
+        JsonError::FixedArrayLength {
+            expected: 3,
+            actual: 2,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn vector_of_enums_round_trips_names() {
+    // Arrange
+    let result = compile_single(
+        "enum Color:ubyte { Red, Green } table Root { colors:[Color]; } root_type Root;",
+    )
+    .unwrap();
+    let input = json!({"colors": ["Red", "Green"]});
+
+    // Act
+    let bytes = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let output = binary_to_json(&bytes, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert_eq!(output, input);
+}
+
+#[test]
+fn vector_of_unions_round_trips_discriminants_and_values() {
+    // Arrange
+    let result = compile_single(
+        "table Sword { damage:int; }
+         table Shield { defense:int; }
+         union Equipment { Sword, Shield }
+         table Root { equipment:[Equipment]; }
+         root_type Root;",
+    )
+    .unwrap();
+    let input = json!({
+        "equipment_type": ["Sword", "Shield"],
+        "equipment": [{"damage": 10}, {"defense": 20}]
+    });
+
+    // Act
+    let bytes = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let output = binary_to_json(&bytes, &result.schema, "Root", &default_opts()).unwrap();
+
+    // Assert
+    assert_eq!(output, input);
+}
+
+#[test]
+fn special_float_tokens_are_accepted_in_relaxed_text() {
+    // Arrange
+    let result = compile_single(
+        "table Root { nan_value:double; positive:double; negative:double; } root_type Root;",
+    )
+    .unwrap();
+    let input =
+        parse_json_text("{ nan_value: nan, positive: inf, negative: -inf }", false).unwrap();
+
+    // Act
+    let encoded = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let decoded = binary_to_json(&encoded, &result.schema, "Root", &default_opts()).unwrap();
+    let reencoded = json_to_binary(&decoded, &result.schema, "Root");
+
+    // Assert
+    assert_eq!(decoded["nan_value"], "nan");
+    assert_eq!(decoded["positive"], "inf");
+    assert_eq!(decoded["negative"], "-inf");
+    assert!(reencoded.is_ok());
+}
+
+#[test]
+fn required_field_rejects_missing_and_null_values() {
+    // Arrange
+    let result = compile_single("table Root { name:string (required); } root_type Root;").unwrap();
+
+    // Act
+    let missing = json_to_binary(&json!({}), &result.schema, "Root");
+    let null = json_to_binary(&json!({"name": null}), &result.schema, "Root");
+
+    // Assert
+    assert!(matches!(
+        missing,
+        Err(JsonError::MissingRequiredField { .. })
+    ));
+    assert!(matches!(null, Err(JsonError::MissingRequiredField { .. })));
+}
+
 // ---------------------------------------------------------------------------
 // Cross-compat: read C++ flatc binary data
 // ---------------------------------------------------------------------------
@@ -469,6 +724,38 @@ fn decode_empty_buffer_fails() {
     assert!(err.is_err());
 }
 
+#[test]
+fn file_identifier_is_validated_unless_raw_binary_is_enabled() {
+    // Arrange
+    let result =
+        compile_single("table Root { value:int; } root_type Root; file_identifier \"TEST\";")
+            .unwrap();
+    let valid = json_to_binary(&json!({"value": 1}), &result.schema, "Root").unwrap();
+    let mut invalid = valid.clone();
+    invalid[4..8].copy_from_slice(b"FAIL");
+
+    // Act
+    let valid_result = binary_to_json(&valid, &result.schema, "Root", &default_opts());
+    let invalid_result = binary_to_json(&invalid, &result.schema, "Root", &default_opts());
+    let raw_result = binary_to_json(
+        &invalid,
+        &result.schema,
+        "Root",
+        &JsonOptions {
+            raw_binary: true,
+            ..default_opts()
+        },
+    );
+
+    // Assert
+    assert!(valid_result.is_ok());
+    assert!(matches!(
+        invalid_result,
+        Err(JsonError::FileIdentifierMismatch { .. })
+    ));
+    assert!(raw_result.is_ok());
+}
+
 fn read_u16_at(bytes: &[u8], offset: usize) -> u16 {
     u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap())
 }
@@ -477,14 +764,52 @@ fn read_u32_at(bytes: &[u8], offset: usize) -> u32 {
     u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
 }
 
-fn corrupt_vector_count(bytes: &mut [u8], field_id: usize) {
+fn table_field_position(bytes: &[u8], field_id: usize) -> usize {
     let root = read_u32_at(bytes, 0) as usize;
     let vtable_distance = i32::from_le_bytes(bytes[root..root + 4].try_into().unwrap());
     let vtable = root - usize::try_from(vtable_distance).unwrap();
     let field_offset = read_u16_at(bytes, vtable + 4 + field_id * 2) as usize;
-    let field_position = root + field_offset;
+    root + field_offset
+}
+
+fn corrupt_vector_count(bytes: &mut [u8], field_id: usize) {
+    let field_position = table_field_position(bytes, field_id);
     let vector = field_position + read_u32_at(bytes, field_position) as usize;
     bytes[vector..vector + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+}
+
+#[test]
+fn malformed_root_and_offset_targets_are_rejected() {
+    // Arrange
+    let result = compile_single(
+        "table Child { value:int; }
+         table Root { name:string; child:Child; }
+         root_type Root;",
+    )
+    .unwrap();
+    let input = json!({"name": "value", "child": {"value": 1}});
+    let valid = json_to_binary(&input, &result.schema, "Root").unwrap();
+    let mut invalid_root = valid.clone();
+    invalid_root[0..4].copy_from_slice(&u32::MAX.to_le_bytes());
+    let mut invalid_string = valid.clone();
+    let string_position = table_field_position(&invalid_string, 0);
+    invalid_string[string_position..string_position + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+    let mut invalid_table = valid;
+    let table_position = table_field_position(&invalid_table, 1);
+    invalid_table[table_position..table_position + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+
+    // Act
+    let invalid_root_result =
+        binary_to_json(&invalid_root, &result.schema, "Root", &default_opts());
+    let invalid_string_result =
+        binary_to_json(&invalid_string, &result.schema, "Root", &default_opts());
+    let invalid_table_result =
+        binary_to_json(&invalid_table, &result.schema, "Root", &default_opts());
+
+    // Assert
+    assert!(invalid_root_result.is_err());
+    assert!(invalid_string_result.is_err());
+    assert!(invalid_table_result.is_err());
 }
 
 #[test]
@@ -533,7 +858,9 @@ fn malformed_vector_counts_are_rejected_before_allocation() {
         assert!(
             matches!(
                 error,
-                Err(JsonError::OutOfBounds { .. } | JsonError::ArithmeticOverflow { .. })
+                Err(JsonError::OutOfBounds { .. }
+                    | JsonError::ArithmeticOverflow { .. }
+                    | JsonError::UnionVectorLengthMismatch { .. })
             ),
             "{name} vector did not fail structural validation: {error:?}"
         );
@@ -675,6 +1002,83 @@ fn cli_uses_declared_root_fqn_but_rejects_an_explicit_ambiguous_short_name() {
         "stderr: {}",
         String::from_utf8_lossy(&explicit.stderr)
     );
+}
+
+#[test]
+fn cli_round_trips_relaxed_and_strict_json_with_file_identifier() {
+    // Arrange
+    let tmp = tempfile::tempdir().unwrap();
+    let schema = tmp.path().join("schema.fbs");
+    let input = tmp.path().join("data.json");
+    let encoded_dir = tmp.path().join("encoded");
+    let relaxed_dir = tmp.path().join("relaxed");
+    let strict_dir = tmp.path().join("strict");
+    std::fs::write(
+        &schema,
+        "enum Color:ubyte { Red, Green }
+         table Root { name:string; color:Color; values:[int]; }
+         root_type Root;
+         file_identifier \"TEST\";",
+    )
+    .unwrap();
+    std::fs::write(
+        &input,
+        "{ // fixture\n name: \"hero\", color: Green, values: [1, 2,], }",
+    )
+    .unwrap();
+
+    // Act
+    let encoded = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .args(["-b", "-o"])
+        .arg(&encoded_dir)
+        .arg(&schema)
+        .arg("--")
+        .arg(&input)
+        .output()
+        .unwrap();
+    let binary = encoded_dir.join("data.bin");
+    let relaxed = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .args(["-t", "-o"])
+        .arg(&relaxed_dir)
+        .arg(&schema)
+        .arg("--")
+        .arg(&binary)
+        .output()
+        .unwrap();
+    let strict = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .args(["-t", "--strict-json", "-o"])
+        .arg(&strict_dir)
+        .arg(&schema)
+        .arg("--")
+        .arg(&binary)
+        .output()
+        .unwrap();
+    let strict_input = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .args(["-b", "--strict-json", "-o"])
+        .arg(tmp.path().join("strict-input"))
+        .arg(&schema)
+        .arg("--")
+        .arg(&input)
+        .output()
+        .unwrap();
+
+    // Assert
+    assert!(
+        encoded.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&encoded.stderr)
+    );
+    assert!(relaxed.status.success());
+    assert!(strict.status.success());
+    assert!(!strict_input.status.success());
+    let bytes = std::fs::read(binary).unwrap();
+    assert_eq!(&bytes[4..8], b"TEST");
+    let relaxed_text = std::fs::read_to_string(relaxed_dir.join("data.json")).unwrap();
+    assert!(relaxed_text.contains("name: \"hero\""));
+    assert!(relaxed_text.contains("color: \"Green\""));
+    let strict_text = std::fs::read_to_string(strict_dir.join("data.json")).unwrap();
+    let strict_value: Value = serde_json::from_str(&strict_text).unwrap();
+    assert_eq!(strict_value["values"], json!([1, 2]));
 }
 
 #[test]
