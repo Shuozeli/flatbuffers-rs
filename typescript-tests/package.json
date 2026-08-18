@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "cargo run --quiet -p flatc-rs-compiler --bin flatc -- --ts --gen-object-api -o generated schemas/union_vector.fbs",
+    "generate": "cargo run --quiet -p flatc-rs-compiler --features cli --bin flatc -- --ts --gen-object-api -o generated schemas/union_vector.fbs",
     "test": "pnpm run generate && tsc && node dist/union_vector.test.js"
   },
   "dependencies": {
