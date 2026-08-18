@@ -304,73 +304,6 @@ impl ResolvedSchema {
     }
 }
 
-#[cfg(test)]
-mod object_index_tests {
-    use super::*;
-
-    fn object(name: &str, namespace: Option<&str>) -> ResolvedObject {
-        ResolvedObject {
-            name: name.to_string(),
-            fields: Vec::new(),
-            is_struct: false,
-            min_align: None,
-            byte_size: None,
-            attributes: None,
-            documentation: None,
-            declaration_file: None,
-            namespace: namespace.map(|namespace| Namespace {
-                namespace: Some(namespace.to_string()),
-            }),
-            span: None,
-        }
-    }
-
-    fn schema(objects: Vec<ResolvedObject>) -> ResolvedSchema {
-        ResolvedSchema {
-            objects,
-            enums: Vec::new(),
-            file_ident: None,
-            file_ext: None,
-            root_table_index: None,
-            services: Vec::new(),
-            advanced_features: AdvancedFeatures::default(),
-            fbs_files: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn resolves_nested_fqns_and_rejects_ambiguous_short_names() {
-        let schema = schema(vec![
-            object("Root", Some("A.Nested")),
-            object("Root", Some("B")),
-        ]);
-        let index = schema.build_object_index();
-
-        assert_eq!(index.resolve("A.Nested.Root"), Ok(0));
-        assert_eq!(index.resolve("B.Root"), Ok(1));
-        assert_eq!(
-            index.resolve("Root"),
-            Err(ObjectLookupError::Ambiguous {
-                name: "Root".to_string(),
-                candidates: vec!["A.Nested.Root".to_string(), "B.Root".to_string()],
-            })
-        );
-    }
-
-    #[test]
-    fn preserves_names_that_are_already_fully_qualified() {
-        let schema = schema(vec![object("A.Nested.Root", Some("A.Nested"))]);
-        let index = schema.build_object_index();
-
-        assert_eq!(index.resolve("A.Nested.Root"), Ok(0));
-        assert_eq!(index.resolve("Root"), Ok(0));
-        assert!(matches!(
-            index.resolve("A.Nested.A.Nested.Root"),
-            Err(ObjectLookupError::NotFound { .. })
-        ));
-    }
-}
-
 impl super::Object {
     /// Return the canonical fully-qualified object name when the parsed object
     /// has a name.
@@ -783,5 +716,72 @@ impl ResolvedSchema {
             advanced_features: schema.advanced_features,
             fbs_files: schema.fbs_files.clone(),
         })
+    }
+}
+
+#[cfg(test)]
+mod object_index_tests {
+    use super::*;
+
+    fn object(name: &str, namespace: Option<&str>) -> ResolvedObject {
+        ResolvedObject {
+            name: name.to_string(),
+            fields: Vec::new(),
+            is_struct: false,
+            min_align: None,
+            byte_size: None,
+            attributes: None,
+            documentation: None,
+            declaration_file: None,
+            namespace: namespace.map(|namespace| Namespace {
+                namespace: Some(namespace.to_string()),
+            }),
+            span: None,
+        }
+    }
+
+    fn schema(objects: Vec<ResolvedObject>) -> ResolvedSchema {
+        ResolvedSchema {
+            objects,
+            enums: Vec::new(),
+            file_ident: None,
+            file_ext: None,
+            root_table_index: None,
+            services: Vec::new(),
+            advanced_features: AdvancedFeatures::default(),
+            fbs_files: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn resolves_nested_fqns_and_rejects_ambiguous_short_names() {
+        let schema = schema(vec![
+            object("Root", Some("A.Nested")),
+            object("Root", Some("B")),
+        ]);
+        let index = schema.build_object_index();
+
+        assert_eq!(index.resolve("A.Nested.Root"), Ok(0));
+        assert_eq!(index.resolve("B.Root"), Ok(1));
+        assert_eq!(
+            index.resolve("Root"),
+            Err(ObjectLookupError::Ambiguous {
+                name: "Root".to_string(),
+                candidates: vec!["A.Nested.Root".to_string(), "B.Root".to_string()],
+            })
+        );
+    }
+
+    #[test]
+    fn preserves_names_that_are_already_fully_qualified() {
+        let schema = schema(vec![object("A.Nested.Root", Some("A.Nested"))]);
+        let index = schema.build_object_index();
+
+        assert_eq!(index.resolve("A.Nested.Root"), Ok(0));
+        assert_eq!(index.resolve("Root"), Ok(0));
+        assert!(matches!(
+            index.resolve("A.Nested.A.Nested.Root"),
+            Err(ObjectLookupError::NotFound { .. })
+        ));
     }
 }

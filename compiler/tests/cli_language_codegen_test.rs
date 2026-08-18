@@ -1,6 +1,8 @@
+#[cfg(feature = "grpc")]
 use std::path::Path;
 use std::process::Command;
 
+#[cfg(feature = "grpc")]
 fn assert_multi_input_services_are_isolated(flag: &str, extension: &str, extra_flags: &[&str]) {
     // Arrange
     let tmp = tempfile::tempdir().unwrap();
@@ -32,6 +34,7 @@ fn assert_multi_input_services_are_isolated(flag: &str, extension: &str, extra_f
     assert!(b_code.contains("ServiceB"));
 }
 
+#[cfg(feature = "grpc")]
 fn write_service_schema(path: &Path, namespace: &str, suffix: &str) {
     std::fs::write(
         path,
@@ -113,6 +116,25 @@ fn cli_nodejs_alias_generates_typescript() {
 }
 
 #[test]
+fn cli_rejects_removed_dart_backend() {
+    // Arrange
+    let tmp = tempfile::tempdir().unwrap();
+    let schema = tmp.path().join("empty.fbs");
+    std::fs::write(&schema, "table Empty {}\n").unwrap();
+
+    // Act
+    let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("--dart")
+        .arg(&schema)
+        .output()
+        .unwrap();
+
+    // Assert
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unexpected argument '--dart'"));
+}
+
+#[test]
 fn cli_multi_input_codegen_isolates_each_output_for_every_language() {
     // Arrange
     let tmp = tempfile::tempdir().unwrap();
@@ -129,12 +151,7 @@ fn cli_multi_input_codegen_isolates_each_output_for_every_language() {
     )
     .unwrap();
 
-    for (flag, extension) in [
-        ("--rust", "rs"),
-        ("--ts", "ts"),
-        ("--python", "py"),
-        ("--dart", "dart"),
-    ] {
+    for (flag, extension) in [("--rust", "rs"), ("--ts", "ts"), ("--python", "py")] {
         let out_dir = tmp.path().join(extension);
 
         // Act
@@ -210,54 +227,6 @@ fn cli_multi_input_allows_independent_duplicate_type_names() {
     assert!(b_code.contains("pub fn beta"));
     assert!(a_code.contains("root_as_root"));
     assert!(b_code.contains("root_as_root"));
-}
-
-#[test]
-fn cli_multi_input_dart_services_are_isolated() {
-    assert_multi_input_services_are_isolated("--dart", "dart", &[]);
-}
-
-#[test]
-fn cli_dart_included_services_follow_gen_all() {
-    // Arrange
-    let tmp = tempfile::tempdir().unwrap();
-    let shared = tmp.path().join("shared.fbs");
-    let schema = tmp.path().join("main.fbs");
-    let direct_out = tmp.path().join("direct");
-    let all_out = tmp.path().join("all");
-    write_service_schema(&shared, "Shared", "Shared");
-    std::fs::write(
-        &schema,
-        "include \"shared.fbs\";\ntable Local { value:int; }\n",
-    )
-    .unwrap();
-
-    // Act
-    let direct = Command::new(env!("CARGO_BIN_EXE_flatc"))
-        .arg("-o")
-        .arg(&direct_out)
-        .arg("--dart")
-        .arg(&schema)
-        .output()
-        .unwrap();
-    let all = Command::new(env!("CARGO_BIN_EXE_flatc"))
-        .arg("-o")
-        .arg(&all_out)
-        .arg("--dart")
-        .arg("--gen-all")
-        .arg(&schema)
-        .output()
-        .unwrap();
-
-    // Assert
-    assert!(direct.status.success());
-    assert!(all.status.success());
-    let direct_code = std::fs::read_to_string(direct_out.join("main_generated.dart")).unwrap();
-    let all_code = std::fs::read_to_string(all_out.join("main_generated.dart")).unwrap();
-    assert!(!direct_code.contains("ServiceShared"));
-    assert!(!direct_code.contains("package:grpc/grpc.dart"));
-    assert!(all_code.contains("ServiceShared"));
-    assert!(all_code.contains("package:grpc/grpc.dart"));
 }
 
 #[cfg(feature = "grpc")]

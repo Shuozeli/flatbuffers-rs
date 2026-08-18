@@ -1,5 +1,0 @@
-enum Color:ubyte (bit_flags) {
-  Red = 0,
-  Green,
-  Blue = 3,
-}

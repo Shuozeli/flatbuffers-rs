@@ -1671,6 +1671,33 @@ fn object_api_struct_unpack_from_constructor() {
     assert_eq!(t.z, 30.0);
 }
 
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types
+)]
+mod object_api_struct_array_runtime {
+    extern crate flatbuffers;
+    include!("../testdata/codegen_golden/struct_array.expected");
+}
+
+#[test]
+fn object_api_struct_array_pack_unpack_roundtrip() {
+    use object_api_struct_array_runtime::*;
+    let original = OuterT {
+        a: [10, 20, 30],
+        b: TestEnum::B,
+        c: [TestEnum::A, TestEnum::C],
+        d: [InnerT { x: 1, y: 2 }, InnerT { x: 3, y: 4 }],
+        e: 5.5,
+    };
+
+    let unpacked = original.pack().unpack();
+
+    assert_eq!(unpacked, original);
+}
+
 // ==========================================================================
 // Object API: table T pack/unpack
 // ==========================================================================

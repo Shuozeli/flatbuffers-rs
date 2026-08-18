@@ -62,6 +62,45 @@ fn generate_ts_default(schema_src: &str) -> String {
     )
 }
 
+#[test]
+fn ts_codegen_returns_error_for_missing_struct_layout() {
+    // Arrange
+    let parser = FbsParser::new("struct Vec3 { x: float; }");
+    let mut schema = analyze(parser.parse().unwrap()).unwrap();
+    schema.objects[0].byte_size = None;
+
+    // Act
+    let result =
+        std::panic::catch_unwind(|| generate_typescript(&schema, &TsCodeGenOptions::default()));
+
+    // Assert
+    let error = result.expect("codegen must not panic").unwrap_err();
+    assert!(error.to_string().contains("Vec3"));
+    assert!(error.to_string().contains("byte_size"));
+}
+
+#[test]
+fn ts_codegen_returns_error_for_out_of_bounds_type_index() {
+    // Arrange
+    let parser = FbsParser::new("table Child {} table Root { child: Child; }");
+    let mut schema = analyze(parser.parse().unwrap()).unwrap();
+    let root = schema
+        .objects
+        .iter_mut()
+        .find(|object| object.name == "Root")
+        .unwrap();
+    root.fields[0].type_.index = Some(999);
+
+    // Act
+    let result =
+        std::panic::catch_unwind(|| generate_typescript(&schema, &TsCodeGenOptions::default()));
+
+    // Assert
+    let error = result.expect("codegen must not panic").unwrap_err();
+    assert!(error.to_string().contains("Root.child"));
+    assert!(error.to_string().contains("index 999"));
+}
+
 // ---------------------------------------------------------------------------
 // Inline code generation tests
 // ---------------------------------------------------------------------------

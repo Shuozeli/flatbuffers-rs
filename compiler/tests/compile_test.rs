@@ -412,7 +412,6 @@ table Message {
 }
 
 #[test]
-#[ignore] // Known issue (G3.21): Object API skips struct types with array fields.
 fn compile_struct_array() {
     assert_compiles(
         r#"

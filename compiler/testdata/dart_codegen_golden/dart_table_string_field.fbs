@@ -1,4 +1,0 @@
-table Greeting {
-  message: string;
-  name: string (required);
-}

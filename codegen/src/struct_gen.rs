@@ -481,13 +481,6 @@ fn array_element_info(
     Ok((elem_type_str, fixed_len))
 }
 
-/// Returns true if any field in the struct is an array type.
-fn has_array_fields(obj: &ResolvedObject) -> bool {
-    obj.fields
-        .iter()
-        .any(|f| f.type_.base_type == BaseType::BASE_TYPE_ARRAY)
-}
-
 /// Find the key field in a struct.
 fn find_key_field(obj: &ResolvedObject) -> Option<&ResolvedField> {
     obj.fields
@@ -506,15 +499,6 @@ fn gen_object_api(
     let name = &obj.name;
     let vis = type_visibility(obj.attributes.as_ref(), opts);
     let t_name = format!("{name}T");
-
-    // Skip if it has array fields (complex; defer to future work)
-    if has_array_fields(obj) {
-        eprintln!(
-            "warning: Object API not generated for struct '{}' (contains array fields)",
-            name
-        );
-        return Ok(());
-    }
 
     // Pre-compute owned types for fields so we don't need Result inside closures
     let field_owned_types: Vec<String> = obj
@@ -555,6 +539,13 @@ fn gen_object_api(
                     if bt == BaseType::BASE_TYPE_STRUCT {
                         // Nested struct: pack and pass by reference
                         format!("&self.{fname}.pack()")
+                    } else if bt == BaseType::BASE_TYPE_ARRAY {
+                        let et = f.type_.element_type_or_none();
+                        if et == BaseType::BASE_TYPE_STRUCT {
+                            format!("&::flatbuffers::array_init(|i| self.{fname}[i].pack())")
+                        } else {
+                            format!("&self.{fname}")
+                        }
                     } else {
                         format!("self.{fname}")
                     }
@@ -575,6 +566,15 @@ fn gen_object_api(
                 let bt = field.type_.base_type;
                 if bt == BaseType::BASE_TYPE_STRUCT {
                     w.line(&format!("{fname}: self.{fname}().unpack(),"));
+                } else if bt == BaseType::BASE_TYPE_ARRAY {
+                    let et = field.type_.element_type_or_none();
+                    if et == BaseType::BASE_TYPE_STRUCT {
+                        w.line(&format!(
+                            "{fname}: {{ let {fname} = self.{fname}(); ::flatbuffers::array_init(|i| {fname}.get(i).unpack()) }},"
+                        ));
+                    } else {
+                        w.line(&format!("{fname}: self.{fname}().into(),"));
+                    }
                 } else {
                     w.line(&format!("{fname}: self.{fname}(),"));
                 }
@@ -596,6 +596,15 @@ fn struct_owned_field_type(
         let idx = field_type_index(field)?;
         let struct_name = &schema.objects[idx].name;
         Ok(format!("{struct_name}T"))
+    } else if bt == BaseType::BASE_TYPE_ARRAY {
+        let (element_type, fixed_len) = array_element_info(schema, field)?;
+        let owned_element_type = if field.type_.element_type_or_none() == BaseType::BASE_TYPE_STRUCT
+        {
+            format!("{element_type}T")
+        } else {
+            element_type
+        };
+        Ok(format!("[{owned_element_type}; {fixed_len}]"))
     } else if type_map::is_scalar(bt) {
         // Check for enum-typed field
         if has_type_index(field) {

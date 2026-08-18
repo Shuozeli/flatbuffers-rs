@@ -1,7 +1,7 @@
-<!-- agent-updated: 2026-07-21T21:46:21Z -->
+<!-- agent-updated: 2026-08-18T19:21:13Z -->
 # CLI Flag Parity: C++ flatc vs Rust flatc
 
-Last updated: 2026-07-21
+Last updated: 2026-08-18
 
 This document tracks every C++ `flatc` flag (excluding language backends we don't
 plan to support) and its status in the Rust implementation. Language-specific flags
@@ -28,7 +28,6 @@ are excluded entirely.
 | `-T, --ts` | DONE | TypeScript codegen |
 | `--nodejs` | DONE | Alias for TypeScript codegen for Node.js projects |
 | `-p, --python` | DONE | Python model codegen |
-| `-D, --dart` | DONE | Dart codegen |
 | `-b, --schema` | DONE | BFBS binary schema output |
 | `-t, --json` | DONE | Binary -> JSON conversion |
 | `--` (data files) | DONE | Data file separator for JSON/binary conversion |
@@ -74,14 +73,14 @@ These flags control the `flatc -t` (binary -> JSON) and `flatc -b ... -- data.js
 
 | Flag | Status | What it does |
 |------|--------|-------------|
-| `--strict-json` | DONE | Quoted field names, no trailing commas. Always true with serde_json. |
+| `--strict-json` | DONE | Require quoted field names and reject relaxed FlatBuffers JSON syntax. Without the flag, unquoted keys and trailing commas are accepted. |
 | `--defaults-json` | DONE | Output fields with default values in JSON. |
-| `--force-defaults` | DONE | When encoding JSON -> binary, emit fields even when they equal the default. Accepted as CLI flag; our encoder already writes all JSON-present fields. |
+| `--force-defaults` | DONE | When encoding JSON -> binary, emit scalar fields even when they equal the schema default. |
 | `--unknown-json` | DONE | When parsing JSON input, silently skip fields not in the schema instead of erroring. Default is strict (error on unknown); flag enables lenient mode. |
 | `--natural-utf8` | TODO | Output UTF-8 strings as-is instead of escaping to `\uXXXX`. serde_json already outputs natural UTF-8 by default, so this may already be our behavior. **Priority: LOW** -- may be a no-op for us. |
 | `--allow-non-utf8` | TODO | Allow non-UTF-8 byte sequences in string fields during parsing; emit `\xNN` escapes. For legacy data with broken encoding. **Priority: LOW** -- niche. |
 | `--json-nested-bytes` | TODO | Allow `nested_flatbuffer` fields to be parsed as a JSON byte array `[1,2,3,...]` instead of the nested schema's object representation. **Priority: LOW** -- backwards compat for legacy JSON formats. |
-| `--raw-binary` | TODO | Skip file_identifier check when reading binary input. Allows reading binaries that lack an identifier, at the risk of crashes on mismatched schemas. **Priority: LOW** -- debugging aid. |
+| `--raw-binary` | DONE | Skip file_identifier validation when reading binary input. |
 | `--size-prefixed` | DONE | Treat input binary files as size-prefixed (4-byte length header before the flatbuffer). Skips 4 bytes before reading root offset. |
 | `--flexbuffers` | WONT | Use FlexBuffers (schema-less) format instead of FlatBuffers. Completely different binary format and parser. Not in scope for this compiler. |
 

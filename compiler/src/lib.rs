@@ -31,7 +31,6 @@ pub mod type_index;
 pub use flatc_rs_codegen as codegen;
 
 pub use analyzer::{analyze, check_private_leak};
-pub use codegen::generate_dart;
 pub use codegen::generate_rust;
 pub use codegen::generate_typescript;
 pub use codegen::CodeGenError;

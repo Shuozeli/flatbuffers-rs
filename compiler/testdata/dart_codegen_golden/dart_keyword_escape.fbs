@@ -1,5 +1,0 @@
-table KWTable {
-  type: int;
-  delete: string;
-  class: bool;
-}

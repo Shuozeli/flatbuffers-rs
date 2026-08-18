@@ -439,3 +439,30 @@ impl<'a> Outer {
   }
 
 }
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct OuterT {
+  pub a: [i32; 3],
+  pub b: TestEnum,
+  pub c: [TestEnum; 2],
+  pub d: [InnerT; 2],
+  pub e: f32,
+}
+
+impl OuterT {
+  pub fn pack(&self) -> Outer {
+    Outer::new(&self.a, self.b, &self.c, &::flatbuffers::array_init(|i| self.d[i].pack()), self.e)
+  }
+}
+
+impl Outer {
+  pub fn unpack(&self) -> OuterT {
+    OuterT {
+      a: self.a().into(),
+      b: self.b(),
+      c: self.c().into(),
+      d: { let d = self.d(); ::flatbuffers::array_init(|i| d.get(i).unpack()) },
+      e: self.e(),
+    }
+  }
+}
