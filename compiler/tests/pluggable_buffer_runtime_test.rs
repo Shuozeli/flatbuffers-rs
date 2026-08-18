@@ -193,6 +193,134 @@ fn main() {
 }
 
 #[test]
+fn deduplicated_negative_vtable_offsets_read_through_custom_buffer() {
+    // Arrange
+    let tmp = tempfile::tempdir().expect("create tempdir");
+    let crate_dir = tmp.path().join("check");
+    let schema = r#"
+table Child {
+  value: int;
+  name: string (required);
+  scores: [int];
+}
+
+table Root {
+  children: [Child] (required);
+}
+
+root_type Root;
+"#;
+    write_generated_crate_for(
+        &crate_dir,
+        schema,
+        r#"
+use pluggable_buffer_check::*;
+
+struct OwnedBuffer {
+    bytes: Vec<u8>,
+}
+
+unsafe impl pluggable_buffer_check::__flatc_rs_runtime::FlatBufferRead for OwnedBuffer {
+    fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    fn range(&self, start: usize, len: usize) -> Option<&[u8]> {
+        self.bytes.get(start..start.checked_add(len)?)
+    }
+}
+
+fn u16_at(bytes: &[u8], offset: usize) -> u16 {
+    u16::from_le_bytes(bytes[offset..offset + 2].try_into().unwrap())
+}
+
+fn u32_at(bytes: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
+}
+
+fn i32_at(bytes: &[u8], offset: usize) -> i32 {
+    i32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap())
+}
+
+fn vtable_location(table: usize, offset: i32) -> usize {
+    if offset >= 0 {
+        table - offset as usize
+    } else {
+        table + offset.unsigned_abs() as usize
+    }
+}
+
+fn main() {
+    let mut fbb = flatbuffers::FlatBufferBuilder::new();
+
+    let name_a = fbb.create_string("one");
+    let scores_a = fbb.create_vector(&[10_i32, 11]);
+    let child_a = Child::create(
+        &mut fbb,
+        &ChildArgs { value: 1, name: Some(name_a), scores: Some(scores_a) },
+    );
+
+    let name_b = fbb.create_string("two");
+    let scores_b = fbb.create_vector(&[20_i32, 21]);
+    let child_b = Child::create(
+        &mut fbb,
+        &ChildArgs { value: 2, name: Some(name_b), scores: Some(scores_b) },
+    );
+
+    let name_c = fbb.create_string("three");
+    let scores_c = fbb.create_vector(&[30_i32, 31]);
+    let child_c = Child::create(
+        &mut fbb,
+        &ChildArgs { value: 3, name: Some(name_c), scores: Some(scores_c) },
+    );
+
+    let children = fbb.create_vector(&[child_a, child_b, child_c]);
+    let root = Root::create(&mut fbb, &RootArgs { children: Some(children) });
+    assert_eq!(fbb.num_written_vtables(), 2);
+    finish_root_buffer(&mut fbb, root);
+
+    let bytes = fbb.finished_data();
+    let root_loc = u32_at(bytes, 0) as usize;
+    let root_vtable = vtable_location(root_loc, i32_at(bytes, root_loc));
+    let children_field = root_loc
+        + u16_at(bytes, root_vtable + Root::<[u8]>::VT_CHILDREN as usize) as usize;
+    let vector_loc = children_field + u32_at(bytes, children_field) as usize;
+    let child_offsets = (0..u32_at(bytes, vector_loc) as usize).map(|index| {
+        let element = vector_loc + 4 + index * 4;
+        let child = element + u32_at(bytes, element) as usize;
+        i32_at(bytes, child)
+    }).collect::<Vec<_>>();
+    assert!(child_offsets.iter().any(|offset| *offset < 0), "expected a deduplicated negative vtable offset: {child_offsets:?}");
+
+    let buffer = OwnedBuffer { bytes: bytes.to_vec() };
+    let root = root_as_root_in(&buffer).expect("verified root");
+    let children = root.children().expect("children");
+    assert_eq!(children.len(), 3);
+
+    for (index, (value, name, scores)) in [
+        (1, "one", [10, 11]),
+        (2, "two", [20, 21]),
+        (3, "three", [30, 31]),
+    ].into_iter().enumerate() {
+        let child = children.get(index);
+        assert_eq!(child.value(), value);
+        assert_eq!(child.name(), name);
+        let actual_scores = child.scores().expect("scores");
+        assert_eq!(actual_scores.get(0), scores[0]);
+        assert_eq!(actual_scores.get(1), scores[1]);
+    }
+}
+"#,
+    );
+
+    // Act
+    let output = cargo_run(&crate_dir);
+
+    // Assert
+    assert_success(output, "deduplicated negative vtable offset reader");
+}
+
+#[test]
 fn verified_root_rejects_buffer_without_contiguous_view() {
     // Arrange
     let tmp = tempfile::tempdir().expect("create tempdir");

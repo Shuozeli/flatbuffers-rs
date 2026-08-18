@@ -163,7 +163,11 @@ pub mod __flatc_rs_runtime {
     #[inline]
     pub fn table_field_loc<B: ?Sized + FlatBufferRead>(buf: &B, table_loc: usize, slot: ::flatbuffers::VOffsetT) -> Option<usize> {
         let soff = read_scalar::<::flatbuffers::SOffsetT, B>(buf, table_loc);
-        let vtable_loc = table_loc.checked_sub(soff as usize)?;
+        let vtable_loc = if soff >= 0 {
+            table_loc.checked_sub(soff as usize)?
+        } else {
+            table_loc.checked_add(soff.unsigned_abs() as usize)?
+        };
         let vtable_len = read_scalar::<::flatbuffers::VOffsetT, B>(buf, vtable_loc);
         if slot >= vtable_len {
             return None;
