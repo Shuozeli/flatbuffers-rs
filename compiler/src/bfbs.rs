@@ -60,6 +60,9 @@ pub enum BfbsError {
 
     #[error("unknown base type byte: {0}")]
     UnknownBaseType(u8),
+
+    #[error("unresolved BFBS reference at {context}: '{target}'")]
+    UnresolvedReference { context: String, target: String },
 }
 
 // ---------------------------------------------------------------------------
@@ -694,12 +697,12 @@ fn fully_qualified_obj_name(obj: &schema::Object) -> String {
 // Deserialization: .bfbs -> Schema
 // ---------------------------------------------------------------------------
 
-/// Deserialize a .bfbs binary buffer into an owned `Schema`.
+/// Deserialize a .bfbs binary buffer into an owned, validated `ResolvedSchema`.
 ///
 /// The buffer must be a valid FlatBuffer with the "BFBS" file identifier.
 /// After initial conversion, a post-pass disambiguates TABLE vs STRUCT references
 /// using the `is_struct` flag on each object.
-pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
+pub fn deserialize_resolved_schema(buf: &[u8]) -> Result<ResolvedSchema, BfbsError> {
     if buf.len() < 8 {
         return Err(BfbsError::Invalid("buffer too small".into()));
     }
@@ -742,7 +745,7 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
 
     // Resolve RPC request/response indices by matching inline Object names
     // against the deserialized objects list.
-    resolve_rpc_indices(&mut out_services, &out_objects);
+    resolve_rpc_indices(&mut out_services, &out_objects)?;
 
     // Convert fbs_files
     let mut out_fbs_files: Vec<schema::SchemaFile> = Vec::new();
@@ -763,16 +766,10 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
             match found {
                 Some((idx, obj)) => (Some(obj.clone()), Some(idx)),
                 None => {
-                    // Fallback: create a minimal Object with just the name
-                    let (ns, short) = split_fq_name(rt_name);
-                    let obj = schema::Object {
-                        name: Some(short.to_string()),
-                        namespace: ns.map(|ns_str| schema::Namespace {
-                            namespace: Some(ns_str.to_string()),
-                        }),
-                        ..Default::default()
-                    };
-                    (Some(obj), None)
+                    return Err(BfbsError::UnresolvedReference {
+                        context: "schema.root_table".to_string(),
+                        target: rt_name.to_string(),
+                    });
                 }
             }
         }
@@ -781,7 +778,7 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
 
     let advanced_features = schema::AdvancedFeatures(root.advanced_features().bits());
 
-    Ok(schema::Schema {
+    let parsed = schema::Schema {
         objects: out_objects,
         enums: out_enums,
         file_ident: root.file_ident().map(|s| s.to_string()),
@@ -791,34 +788,71 @@ pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
         services: out_services,
         advanced_features,
         fbs_files: out_fbs_files,
-    })
+    };
+    ResolvedSchema::try_from_parsed(&parsed).map_err(BfbsError::Schema)
+}
+
+/// Deserialize a .bfbs buffer into the legacy parsed schema representation.
+///
+/// This compatibility API uses the strict resolved path and therefore never
+/// returns partial root or RPC references.
+pub fn deserialize_schema(buf: &[u8]) -> Result<schema::Schema, BfbsError> {
+    let resolved = deserialize_resolved_schema(buf)?;
+    let mut legacy = resolved.as_legacy()?;
+    for (legacy_service, resolved_service) in legacy.services.iter_mut().zip(&resolved.services) {
+        for (legacy_call, resolved_call) in
+            legacy_service.calls.iter_mut().zip(&resolved_service.calls)
+        {
+            legacy_call.request = Some(legacy.objects[resolved_call.request_index].clone());
+            legacy_call.response = Some(legacy.objects[resolved_call.response_index].clone());
+        }
+    }
+    Ok(legacy)
 }
 
 /// Resolve `request_index` and `response_index` on RpcCalls by matching
 /// the inline Object's fully-qualified name against the objects list.
-fn resolve_rpc_indices(services: &mut [schema::Service], objects: &[schema::Object]) {
-    for svc in services.iter_mut() {
-        for call in svc.calls.iter_mut() {
+fn resolve_rpc_indices(
+    services: &mut [schema::Service],
+    objects: &[schema::Object],
+) -> Result<(), BfbsError> {
+    for service in services.iter_mut() {
+        let service_name = service.name.as_deref().unwrap_or("<unnamed>");
+        for call in service.calls.iter_mut() {
+            let call_name = call.name.as_deref().unwrap_or("<unnamed>");
             if let Some(ref req) = call.request {
                 let fq = fully_qualified_obj_name(req);
-                if let Some(idx) = objects
+                let idx = objects
                     .iter()
                     .position(|o| fully_qualified_obj_name(o) == fq)
-                {
-                    call.request_index = Some(idx as i32);
-                }
+                    .ok_or_else(|| BfbsError::UnresolvedReference {
+                        context: format!("service '{service_name}' call '{call_name}' request"),
+                        target: fq,
+                    })?;
+                call.request_index = Some(i32::try_from(idx).map_err(|_| {
+                    BfbsError::Invalid(format!(
+                        "service '{service_name}' call '{call_name}' request index exceeds i32"
+                    ))
+                })?);
             }
             if let Some(ref resp) = call.response {
                 let fq = fully_qualified_obj_name(resp);
-                if let Some(idx) = objects
+                let idx = objects
                     .iter()
                     .position(|o| fully_qualified_obj_name(o) == fq)
-                {
-                    call.response_index = Some(idx as i32);
-                }
+                    .ok_or_else(|| BfbsError::UnresolvedReference {
+                        context: format!("service '{service_name}' call '{call_name}' response"),
+                        target: fq,
+                    })?;
+                call.response_index = Some(i32::try_from(idx).map_err(|_| {
+                    BfbsError::Invalid(format!(
+                        "service '{service_name}' call '{call_name}' response index exceeds i32"
+                    ))
+                })?);
             }
         }
     }
+    Ok(())
 }
 
 /// Split a fully-qualified name like "MyGame.Example.Monster" into
@@ -916,6 +950,7 @@ fn read_documentation(
 fn read_field(
     field: &refl::Field<'_>,
     is_struct_flags: &[bool],
+    parent_is_struct: bool,
 ) -> Result<schema::Field, BfbsError> {
     let ty = read_type(&field.type_(), is_struct_flags)?;
     let id = field.id();
@@ -927,7 +962,7 @@ fn read_field(
         name: Some(field.name().to_string()),
         type_: Some(ty),
         id: Some(id as u32),
-        offset: if offset != 0 {
+        offset: if parent_is_struct || offset != 0 {
             Some(offset as u32)
         } else {
             None
@@ -969,7 +1004,11 @@ fn read_object(
     let fields_vec = obj.fields();
     let mut fields: Vec<schema::Field> = Vec::with_capacity(fields_vec.len());
     for i in 0..fields_vec.len() {
-        fields.push(read_field(&fields_vec.get(i), is_struct_flags)?);
+        fields.push(read_field(
+            &fields_vec.get(i),
+            is_struct_flags,
+            obj.is_struct(),
+        )?);
     }
     // Sort fields by id to restore original declaration order
     fields.sort_by_key(|f| f.id.unwrap_or(0));
@@ -996,10 +1035,14 @@ fn read_object(
 fn read_enum_val(
     ev: &refl::EnumVal<'_>,
     is_struct_flags: &[bool],
+    is_union: bool,
 ) -> Result<schema::EnumVal, BfbsError> {
-    let union_type = match ev.union_type() {
-        Some(ut) => Some(read_type(&ut, is_struct_flags)?),
-        None => None,
+    let union_type = match (is_union, ev.union_type()) {
+        (true, Some(ut)) => {
+            let ty = read_type(&ut, is_struct_flags)?;
+            (ty.base_type != Some(schema::BaseType::BASE_TYPE_NONE)).then_some(ty)
+        }
+        _ => None,
     };
 
     Ok(schema::EnumVal {
@@ -1019,7 +1062,11 @@ fn read_enum(e: &refl::Enum<'_>, is_struct_flags: &[bool]) -> Result<schema::Enu
     let values_vec = e.values();
     let mut values: Vec<schema::EnumVal> = Vec::with_capacity(values_vec.len());
     for i in 0..values_vec.len() {
-        values.push(read_enum_val(&values_vec.get(i), is_struct_flags)?);
+        values.push(read_enum_val(
+            &values_vec.get(i),
+            is_struct_flags,
+            e.is_union(),
+        )?);
     }
 
     let underlying = read_type(&e.underlying_type(), is_struct_flags)?;
@@ -1100,6 +1147,62 @@ fn read_schema_file(sf: &refl::SchemaFile<'_>) -> schema::SchemaFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn compile_to_bfbs(source: &str) -> Vec<u8> {
+        let schema = crate::compile_single(source)
+            .expect("compile BFBS fixture")
+            .schema;
+        serialize_schema(&schema).expect("serialize BFBS fixture")
+    }
+
+    fn string_range(buf: &[u8], value: &str) -> std::ops::Range<usize> {
+        let start = value.as_ptr() as usize - buf.as_ptr() as usize;
+        start..start + value.len()
+    }
+
+    fn table_field_location(
+        buf: &[u8],
+        table_location: usize,
+        slot: flatbuffers::VOffsetT,
+    ) -> Option<usize> {
+        let soff = i32::from_le_bytes(
+            buf.get(table_location..table_location + 4)?
+                .try_into()
+                .ok()?,
+        );
+        let vtable_location = if soff >= 0 {
+            table_location.checked_sub(soff as usize)?
+        } else {
+            table_location.checked_add(soff.unsigned_abs() as usize)?
+        };
+        let vtable_length = u16::from_le_bytes(
+            buf.get(vtable_location..vtable_location + 2)?
+                .try_into()
+                .ok()?,
+        );
+        if slot >= vtable_length {
+            return None;
+        }
+        let field_offset = u16::from_le_bytes(
+            buf.get(vtable_location + slot as usize..vtable_location + slot as usize + 2)?
+                .try_into()
+                .ok()?,
+        ) as usize;
+        (field_offset != 0).then(|| table_location + field_offset)
+    }
+
+    fn set_first_field_type_index(buf: &mut [u8], object_name: &str, index: i32) {
+        let root = refl::root_as_schema(buf).expect("verified BFBS fixture");
+        let objects = root.objects();
+        let object = (0..objects.len())
+            .map(|position| objects.get(position))
+            .find(|object| object.name() == object_name)
+            .expect("fixture object");
+        let type_location = object.fields().get(0).type_()._tab.loc();
+        let index_location = table_field_location(buf, type_location, refl::Type::VT_INDEX)
+            .expect("serialized type index");
+        buf[index_location..index_location + 4].copy_from_slice(&index.to_le_bytes());
+    }
 
     #[test]
     fn test_serialize_empty_schema() {
@@ -1184,5 +1287,183 @@ mod tests {
             schema::BaseType::BASE_TYPE_VECTOR64.to_reflection_byte(),
             18
         );
+    }
+
+    #[test]
+    fn strict_deserializer_rejects_root_missing_from_objects() {
+        // Arrange
+        let mut buf = compile_to_bfbs("table RootA {} root_type RootA;");
+        let root = refl::root_as_schema(&buf).expect("verified BFBS fixture");
+        let objects_field = table_field_location(&buf, root._tab.loc(), refl::Schema::VT_OBJECTS)
+            .expect("objects field");
+        let objects_location = objects_field
+            + u32::from_le_bytes(buf[objects_field..objects_field + 4].try_into().unwrap())
+                as usize;
+        buf[objects_location..objects_location + 4].copy_from_slice(&0_u32.to_le_bytes());
+
+        // Act
+        let error = deserialize_resolved_schema(&buf).unwrap_err();
+
+        // Assert
+        assert!(error.to_string().contains("schema.root_table"));
+        assert!(error.to_string().contains("RootA"));
+    }
+
+    #[test]
+    fn strict_deserializer_rejects_missing_rpc_request_and_response() {
+        // Arrange
+        let source =
+            "table Request {} table Response {} rpc_service Api { Get(Request):Response; }";
+        let mutate_rpc_type = |member: &str, replacement: &[u8]| {
+            let mut buf = compile_to_bfbs(source);
+            let root = refl::root_as_schema(&buf).expect("verified BFBS fixture");
+            let call = root
+                .services()
+                .expect("services")
+                .get(0)
+                .calls()
+                .expect("calls")
+                .get(0);
+            let object = match member {
+                "request" => call.request(),
+                "response" => call.response(),
+                _ => unreachable!("known RPC member"),
+            };
+            let range = string_range(&buf, object.name());
+            buf[range].copy_from_slice(replacement);
+            buf
+        };
+
+        // Act
+        let request_error =
+            deserialize_resolved_schema(&mutate_rpc_type("request", b"Missing")).unwrap_err();
+        let response_error =
+            deserialize_resolved_schema(&mutate_rpc_type("response", b"Absent__")).unwrap_err();
+
+        // Assert
+        assert!(request_error.to_string().contains("call 'Get' request"));
+        assert!(request_error.to_string().contains("Missing"));
+        assert!(response_error.to_string().contains("call 'Get' response"));
+        assert!(response_error.to_string().contains("Absent__"));
+    }
+
+    #[test]
+    fn strict_deserializer_rejects_negative_and_out_of_bounds_object_indices() {
+        for index in [-2, 99] {
+            // Arrange
+            let mut buf =
+                compile_to_bfbs("table Child {} table Root { child:Child; } root_type Root;");
+            set_first_field_type_index(&mut buf, "Root", index);
+
+            // Act
+            let error = deserialize_resolved_schema(&buf).unwrap_err();
+
+            // Assert
+            assert!(
+                error.to_string().contains(&format!("index {index}")),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn strict_deserializer_rejects_negative_and_out_of_bounds_enum_indices() {
+        for index in [-2, 99] {
+            // Arrange
+            let mut buf = compile_to_bfbs(
+                "enum Color:byte { Red } table Root { color:Color; } root_type Root;",
+            );
+            set_first_field_type_index(&mut buf, "Root", index);
+
+            // Act
+            let error = deserialize_resolved_schema(&buf).unwrap_err();
+
+            // Assert
+            assert!(
+                error.to_string().contains(&format!("index {index}")),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn strict_deserializer_disambiguates_tables_and_structs() {
+        // Arrange
+        let buf = compile_to_bfbs(
+            "struct Point { x:int; } table Child {} table Root { point:Point; child:Child; } root_type Root;",
+        );
+
+        // Act
+        let schema = deserialize_resolved_schema(&buf).expect("strict BFBS schema");
+
+        // Assert
+        let root = schema
+            .objects
+            .iter()
+            .find(|object| object.name == "Root")
+            .unwrap();
+        assert_eq!(
+            root.fields[0].type_.base_type,
+            schema::BaseType::BASE_TYPE_STRUCT
+        );
+        assert_eq!(
+            root.fields[1].type_.base_type,
+            schema::BaseType::BASE_TYPE_TABLE
+        );
+        let point = schema
+            .objects
+            .iter()
+            .find(|object| object.name == "Point")
+            .unwrap();
+        assert_eq!(point.fields[0].offset, Some(0));
+    }
+
+    #[test]
+    fn valid_bfbs_is_codegen_ready_and_round_trips() {
+        // Arrange
+        let buf = compile_to_bfbs(
+            "struct Point { x:int; } table Root { point:Point; values:[int]; } root_type Root;",
+        );
+
+        // Act
+        let schema = deserialize_resolved_schema(&buf).expect("strict BFBS schema");
+        let generated =
+            flatc_rs_codegen::generate_rust(&schema, &flatc_rs_codegen::CodeGenOptions::default())
+                .expect("codegen from BFBS");
+        let round_trip = serialize_schema(&schema).expect("round-trip BFBS");
+
+        // Assert
+        assert!(generated.contains("pub struct Root"));
+        assert_eq!(deserialize_resolved_schema(&round_trip).unwrap(), schema);
+    }
+
+    #[test]
+    fn official_cpp_bfbs_fixture_is_codegen_ready_and_round_trips() {
+        // Arrange
+        let buf = include_bytes!("../testdata/official_bfbs/strict_roundtrip.bfbs");
+
+        // Act
+        let schema = deserialize_resolved_schema(buf).expect("official C++ BFBS fixture");
+        let generated = flatc_rs_codegen::generate_rust(
+            &schema,
+            &flatc_rs_codegen::CodeGenOptions {
+                gen_object_api: true,
+                ..Default::default()
+            },
+        )
+        .expect("codegen from official BFBS");
+        let round_trip = serialize_schema(&schema).expect("serialize official schema");
+
+        // Assert
+        assert!(generated.contains("pub struct Root"));
+        assert_eq!(schema.root_table_index, Some(2));
+        assert_eq!(schema.services[0].calls[0].request_index, 0);
+        assert_eq!(schema.services[0].calls[0].response_index, 1);
+        assert!(schema.enums[0]
+            .values
+            .iter()
+            .all(|value| value.union_type.is_none()));
+        assert!(schema.enums[1].values[0].union_type.is_none());
+        assert_eq!(deserialize_resolved_schema(&round_trip).unwrap(), schema);
     }
 }

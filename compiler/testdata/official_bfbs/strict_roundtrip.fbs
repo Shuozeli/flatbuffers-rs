@@ -1,0 +1,40 @@
+namespace StrictFixture;
+
+struct Vec3 {
+  x: float;
+  y: float;
+  z: float;
+}
+
+enum Color: byte {
+  Red,
+  Green,
+  Blue
+}
+
+table Request {
+  id: ulong;
+}
+
+table Response {
+  ok: bool;
+  point: Vec3;
+  color: Color = Blue;
+}
+
+union Payload {
+  Request,
+  Response
+}
+
+table Root {
+  payload: Payload;
+  requests: [Request];
+}
+
+rpc_service Api {
+  Get(Request): Response;
+}
+
+root_type Root;
+file_identifier "BFS1";
