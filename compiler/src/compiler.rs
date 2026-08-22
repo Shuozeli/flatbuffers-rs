@@ -92,6 +92,11 @@ pub struct CompilationResult {
 pub struct InputCompilationResult {
     /// Canonical path of the direct input file.
     pub input_file: PathBuf,
+    /// Canonical paths of the direct input and its transitive includes.
+    ///
+    /// Files are ordered with dependencies before the files that include them.
+    /// Build-system integrations can use this list for precise change tracking.
+    pub source_files: Vec<PathBuf>,
     /// The fully resolved schema for this input and its includes.
     pub schema: ResolvedSchema,
 }
@@ -144,6 +149,12 @@ pub fn compile_inputs(
 
     for input_file in &resolved.input_files {
         let closure = dependency_closure(input_file, &resolved.dependencies);
+        let source_files = resolved
+            .parsed_files
+            .iter()
+            .filter(|file| closure.contains(&file.path))
+            .map(|file| file.path.clone())
+            .collect();
         let merged = merge_schemas(
             resolved
                 .parsed_files
@@ -159,6 +170,7 @@ pub fn compile_inputs(
         let schema = analyzer::analyze(merged)?;
         results.push(InputCompilationResult {
             input_file: input_file.clone(),
+            source_files,
             schema,
         });
     }

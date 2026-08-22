@@ -1,0 +1,3 @@
+include "shared.fbs";
+table Game { shared:Shared; }
+root_type Game;

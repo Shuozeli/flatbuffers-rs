@@ -97,8 +97,22 @@ fn compile_inputs_isolates_direct_roots_and_reuses_shared_includes() {
 
     // Assert
     assert_eq!(results.len(), 2);
-    assert_eq!(results[0].input_file, fs::canonicalize(schema_a).unwrap());
-    assert_eq!(results[1].input_file, fs::canonicalize(schema_b).unwrap());
+    assert_eq!(results[0].input_file, fs::canonicalize(&schema_a).unwrap());
+    assert_eq!(results[1].input_file, fs::canonicalize(&schema_b).unwrap());
+    assert_eq!(
+        results[0].source_files,
+        vec![
+            fs::canonicalize(&shared).unwrap(),
+            fs::canonicalize(&schema_a).unwrap(),
+        ]
+    );
+    assert_eq!(
+        results[1].source_files,
+        vec![
+            fs::canonicalize(&shared).unwrap(),
+            fs::canonicalize(&schema_b).unwrap(),
+        ]
+    );
     assert_eq!(results[0].schema.file_ident.as_deref(), Some("AONE"));
     assert_eq!(results[1].schema.file_ident.as_deref(), Some("BTWO"));
     assert_eq!(results[0].schema.file_ext.as_deref(), Some("one"));

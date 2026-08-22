@@ -1,4 +1,4 @@
-<!-- agent-updated: 2026-08-18T20:29:09Z -->
+<!-- agent-updated: 2026-08-22T04:42:32Z -->
 # flatbuffers-rs
 
 A pure Rust implementation of the [FlatBuffers](https://flatbuffers.dev/) compiler (`flatc`).
@@ -60,6 +60,43 @@ cargo run --release -p flatc-rs-compiler --features cli -- --python -o out/ sche
 cargo run --release -p flatc-rs-compiler --features cli -- \
   --rust --ts --python -o out/ schema.fbs
 ```
+
+## Cargo Build Scripts
+
+Use `flatc-rs-build` when generated Rust should be produced automatically by
+Cargo. The helper discovers all transitive `.fbs` includes, emits precise
+`cargo::rerun-if-changed` directives, generates into `OUT_DIR`, and does not
+rewrite an output whose contents are unchanged.
+
+```toml
+[build-dependencies]
+flatc-rs-build = { git = "https://github.com/Shuozeli/flatbuffers-rs.git", rev = "<reviewed-revision>" }
+```
+
+```rust
+// build.rs
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    flatc_rs_build::Builder::new()
+        .schema("schemas/game.fbs")
+        .include_dir("schemas")
+        .gen_all()
+        .compile()?;
+    Ok(())
+}
+```
+
+```rust
+// src/lib.rs
+include!(concat!(env!("OUT_DIR"), "/game_generated.rs"));
+```
+
+With unchanged schemas, Cargo skips the build script and `flatc-rs` entirely.
+Each direct schema produces `{schema_stem}_generated.rs`; duplicate output
+names are rejected instead of being overwritten. Use `gen_all()` for one
+self-contained output that includes declarations from transitive schemas, or
+register those schemas as direct inputs when they should be separate generated
+modules. See [Cargo build integration](docs/cargo-build-integration.md) for the
+complete option and incremental-rebuild contract.
 
 ## Language Codegen Usage
 

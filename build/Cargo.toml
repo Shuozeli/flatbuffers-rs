@@ -1,0 +1,19 @@
+[package]
+name = "flatc-rs-build"
+description = "Cargo build-script integration for the flatc-rs FlatBuffers compiler"
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[dependencies]
+flatc-rs-compiler = { path = "../compiler" }
+thiserror = "2"
+
+[dev-dependencies]
+filetime = "0.2"
+tempfile = "3"
