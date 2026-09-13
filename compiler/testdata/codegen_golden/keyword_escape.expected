@@ -110,6 +110,7 @@ impl<'a> KWTable<'a> {
   pub const VT_TYPE_: ::flatbuffers::VOffsetT = 4;
   pub const VT_IS: ::flatbuffers::VOffsetT = 6;
   pub const VT_WHERE_: ::flatbuffers::VOffsetT = 8;
+  pub const VT_GEN_: ::flatbuffers::VOffsetT = 10;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -122,6 +123,7 @@ impl<'a> KWTable<'a> {
   ) -> ::flatbuffers::WIPOffset<KWTable<'bldr>> {
     let mut builder = KWTableBuilder::new(_fbb);
     if let Some(x) = args.is { builder.add_is(x); }
+    builder.add_gen_(args.gen_);
     builder.add_type_(args.type_);
     builder.add_where_(args.where_);
     builder.finish()
@@ -149,6 +151,13 @@ impl<'a> KWTable<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<TestKW>(KWTable::VT_WHERE_, Some(TestKW::None)).unwrap()}
   }
+  #[inline]
+  pub fn gen_(&self) -> i32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<i32>(KWTable::VT_GEN_, Some(0)).unwrap()}
+  }
 }
 
 impl ::flatbuffers::Verifiable for KWTable<'_> {
@@ -160,6 +169,7 @@ impl ::flatbuffers::Verifiable for KWTable<'_> {
      .visit_field::<i32>("type_", Self::VT_TYPE_, false)?
      .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("is", Self::VT_IS, false)?
      .visit_field::<TestKW>("where_", Self::VT_WHERE_, false)?
+     .visit_field::<i32>("gen_", Self::VT_GEN_, false)?
      .finish();
     Ok(())
   }
@@ -168,6 +178,7 @@ pub struct KWTableArgs<'a> {
     pub type_: i32,
     pub is: Option<::flatbuffers::WIPOffset<&'a str>>,
     pub where_: TestKW,
+    pub gen_: i32,
 }
 impl<'a> Default for KWTableArgs<'a> {
   #[inline]
@@ -176,6 +187,7 @@ impl<'a> Default for KWTableArgs<'a> {
       type_: 0,
       is: None,
       where_: TestKW::None,
+      gen_: 0,
     }
   }
 }
@@ -198,6 +210,10 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> KWTableBuilder<'a, 'b, A> {
     self.fbb_.push_slot::<TestKW>(KWTable::VT_WHERE_, where_, TestKW::None);
   }
   #[inline]
+  pub fn add_gen_(&mut self, gen_: i32) {
+    self.fbb_.push_slot::<i32>(KWTable::VT_GEN_, gen_, 0);
+  }
+  #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> KWTableBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     KWTableBuilder {
@@ -218,6 +234,7 @@ impl ::core::fmt::Debug for KWTable<'_> {
     ds.field("type_", &self.type_());
     ds.field("is", &self.is());
     ds.field("where_", &self.where_());
+    ds.field("gen_", &self.gen_());
     ds.finish()
   }
 }
@@ -228,6 +245,7 @@ pub struct KWTableT {
   pub type_: i32,
   pub is: Option<alloc::string::String>,
   pub where_: TestKW,
+  pub gen_: i32,
 }
 
 impl Default for KWTableT {
@@ -236,6 +254,7 @@ impl Default for KWTableT {
       type_: 0,
       is: None,
       where_: TestKW::None,
+      gen_: 0,
     }
   }
 }
@@ -248,10 +267,12 @@ impl KWTableT {
     let type_ = self.type_;
     let is = self.is.as_ref().map(|x| _fbb.create_string(x));
     let where_ = self.where_;
+    let gen_ = self.gen_;
     KWTable::create(_fbb, &KWTableArgs {
       type_,
       is,
       where_,
+      gen_,
     })
   }
 }
@@ -261,10 +282,12 @@ impl KWTable<'_> {
     let type_ = self.type_();
     let is = self.is().map(|x| x.to_string());
     let where_ = self.where_();
+    let gen_ = self.gen_();
     KWTableT {
       type_,
       is,
       where_,
+      gen_,
     }
   }
 }

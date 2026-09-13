@@ -201,7 +201,7 @@ fn rust_type_path(object: &ResolvedObject, owned: bool) -> String {
         .into_iter()
         .flat_map(|namespace| namespace.split('.'))
         .filter(|segment| !segment.is_empty())
-        .map(type_map::to_rust_snake_case)
+        .map(type_map::namespace_module)
         .collect::<Vec<_>>();
     segments.push(if owned {
         format!("{}T", object.name)

@@ -1144,6 +1144,7 @@ fn keyword_table_build_and_read() {
         type_: 42,
         is: Some(is_str),
         where_: TestKW::match_,
+        gen_: 7,
     };
     let offset = KWTable::create(&mut fbb, &args);
     fbb.finish_minimal(offset);
@@ -1152,6 +1153,38 @@ fn keyword_table_build_and_read() {
     assert_eq!(t.type_(), 42);
     assert_eq!(t.is(), Some("hello"));
     assert_eq!(t.where_(), TestKW::match_);
+    // `gen` is reserved in edition 2024. Unescaped it emits `pub fn gen(&self)`,
+    // which does not parse for any edition-2024 consumer.
+    assert_eq!(t.gen_(), 7);
+}
+
+// ==========================================================================
+// Keyword escaping: Rust keywords as namespace components
+// ==========================================================================
+
+#[allow(
+    unused_imports,
+    dead_code,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case
+)]
+mod keyword_namespace_runtime {
+    extern crate flatbuffers;
+    include!("../testdata/codegen_golden/keyword_namespace.expected");
+}
+
+#[test]
+fn keyword_namespace_modules_are_reachable() {
+    // Namespace components become `pub mod` declarations. `namespace type.gen;`
+    // emits `pub mod type { pub mod gen {` without escaping, which does not
+    // parse -- so merely compiling this module is most of the assertion.
+    use keyword_namespace_runtime::type_::gen_::*;
+    let mut fbb = ::flatbuffers::FlatBufferBuilder::new();
+    let offset = Inner::create(&mut fbb, &InnerArgs { a: 5 });
+    fbb.finish_minimal(offset);
+    let t = ::flatbuffers::root::<Inner>(fbb.finished_data()).unwrap();
+    assert_eq!(t.a(), 5);
 }
 
 #[test]
