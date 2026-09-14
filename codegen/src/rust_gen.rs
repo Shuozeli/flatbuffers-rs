@@ -71,7 +71,7 @@ impl<'a> RustGenerator<'a> {
 
     /// Recursively emit a namespace node as nested `pub mod` blocks.
     fn gen_namespace_node(&mut self, name: &str, node: &NamespaceNode) -> Result<(), CodeGenError> {
-        let mod_name = type_map::to_rust_snake_case(name);
+        let mod_name = type_map::namespace_module(name);
         self.w.blank();
         self.w.line("#[allow(unused_imports, dead_code)]");
         self.w.line(&format!("pub mod {mod_name} {{"));

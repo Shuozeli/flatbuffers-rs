@@ -256,6 +256,11 @@ pub fn is_rust_keyword(name: &str) -> bool {
         // Reserved keywords
         | "abstract" | "become" | "box" | "do" | "final" | "macro" | "override"
         | "priv" | "try" | "typeof" | "unsized" | "virtual" | "yield"
+        // Reserved in edition 2024. A schema field named `gen` otherwise emits
+        // `pub fn gen(&self)`, which is a syntax error for any edition-2024
+        // consumer -- unlike a name that merely shadows a trait method, this
+        // cannot be worked around at the call site.
+        | "gen"
     )
 }
 
@@ -266,6 +271,19 @@ pub fn escape_keyword(name: &str) -> String {
     } else {
         name.to_string()
     }
+}
+
+/// Module name for one namespace component.
+///
+/// Namespace components become `pub mod` declarations, so they need the same
+/// keyword escaping as field accessors: `namespace type.match;` would otherwise
+/// emit `pub mod type { pub mod match {`, which does not parse.
+///
+/// Every site that builds a namespace path must go through this function --
+/// the declaration and the references to it have to agree, or the generated
+/// code names modules that were never emitted.
+pub fn namespace_module(part: &str) -> String {
+    escape_keyword(&to_rust_snake_case(part))
 }
 
 /// Compute the qualified Rust module path for a type in `target_ns` when
@@ -300,7 +318,7 @@ pub fn qualified_name(current_ns: &str, target_ns: &str, type_name: &str) -> Str
     path.extend(
         target_parts[common_len..]
             .iter()
-            .map(|p| to_rust_snake_case(p)),
+            .map(|p| namespace_module(p)),
     );
 
     if path.is_empty() {
@@ -353,6 +371,31 @@ pub fn resolve_enum_name(schema: &ResolvedSchema, current_ns: &str, enum_idx: us
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gen_is_escaped_because_edition_2024_reserves_it() {
+        assert!(is_rust_keyword("gen"));
+        assert_eq!(escape_keyword("gen"), "gen_");
+    }
+
+    #[test]
+    fn namespace_components_are_escaped_like_any_other_identifier() {
+        // These become `pub mod` declarations.
+        assert_eq!(namespace_module("type"), "type_");
+        assert_eq!(namespace_module("match"), "match_");
+        assert_eq!(namespace_module("gen"), "gen_");
+        assert_eq!(namespace_module("MyGame"), "my_game");
+    }
+
+    #[test]
+    fn qualified_name_uses_the_escaped_module_path() {
+        // The reference has to match the declaration; if they disagree the
+        // generated code names a module that was never emitted.
+        assert_eq!(
+            qualified_name("Other", "type.match", "Thing"),
+            "super::type_::match_::Thing"
+        );
+    }
 
     #[test]
     fn snake_case_conversions() {

@@ -3,4 +3,5 @@ table KWTable {
   type: int;
   is: string;
   where: TestKW = None;
+  gen: int;
 }

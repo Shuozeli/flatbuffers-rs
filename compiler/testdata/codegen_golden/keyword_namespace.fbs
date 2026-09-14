@@ -1,0 +1,5 @@
+// Namespace components become `pub mod` declarations, so they need the same
+// keyword escaping as fields. Without it this schema emits `pub mod type {`.
+namespace type.gen;
+
+table Inner { a: int; }
