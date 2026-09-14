@@ -294,6 +294,24 @@ impl<'a> Encoder<'a> {
             table_data_size += 1;
         }
 
+        // The widest field decides where the table itself may start.
+        //
+        // Field offsets above are made multiples of each field's alignment
+        // *relative to the start of the table*. That only yields aligned
+        // absolute addresses if the table start is itself aligned to the
+        // widest field. Aligning the table to 4 while it holds an 8-byte
+        // scalar puts that scalar at `4 mod 8`, and the official runtime
+        // rejects the whole buffer:
+        //
+        //     Type `u64` at position 20 is unaligned.
+        let table_align = slots
+            .iter()
+            .filter(|s| s.present)
+            .map(|s| s.alignment)
+            .max()
+            .unwrap_or(4)
+            .max(4);
+
         // Write vtable
         let vtable_size: u16 = (4 + num_vtable_entries * 2) as u16;
         self.align(2);
@@ -304,8 +322,8 @@ impl<'a> Encoder<'a> {
             self.write_u16_le(*offset);
         }
 
-        // Align to 4 before table data
-        self.align(4);
+        // Align to the widest field before the table data, not just to 4.
+        self.align(table_align);
         let table_pos = self.buf.len();
 
         // Write soffset (table_pos - vtable_pos, as i32)

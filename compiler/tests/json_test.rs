@@ -1418,3 +1418,99 @@ fn size_prefixed_false_rejects_prefixed_binary() {
         ),
     }
 }
+
+/// A table start aligned only to 4 puts an 8-byte scalar at `4 mod 8`, and the
+/// official runtime then rejects the entire buffer:
+///
+///     Type `u64` at position 20 is unaligned.
+///
+/// Field offsets inside a table are multiples of each field's alignment
+/// *relative to the table start*, so the table start itself has to be aligned
+/// to the widest field it holds.
+#[test]
+fn eight_byte_fields_land_on_eight_byte_boundaries() {
+    // A leading ubyte is what shifts the table start off 8 in practice.
+    let cases: &[(&str, &str, &str)] = &[
+        ("lone u64", "table Root { a: uint64; }", r#"{"a":1}"#),
+        (
+            "ubyte then u64",
+            "table Root { p: ubyte; a: uint64; }",
+            r#"{"p":1,"a":1234567890123}"#,
+        ),
+        (
+            "three ubytes then u64",
+            "table Root { p: ubyte; q: ubyte; r: ubyte; a: uint64; }",
+            r#"{"p":1,"q":2,"r":3,"a":1234567890123}"#,
+        ),
+        (
+            "string then double",
+            "table Root { s: string; d: double; }",
+            r#"{"s":"seven77","d":2.5}"#,
+        ),
+        (
+            "double then long",
+            "table Root { d: double; n: int64; }",
+            r#"{"d":2.5,"n":-7}"#,
+        ),
+    ];
+
+    for (name, decls, json) in cases {
+        let source = format!("{decls}\nroot_type Root;");
+        let schema = compile_single(&source).unwrap().schema;
+        let parsed = parse_json_text(json, false).unwrap();
+        let bin = json_to_binary(&parsed, &schema, "Root").unwrap();
+
+        let root = u32::from_le_bytes(bin[0..4].try_into().unwrap()) as usize;
+        let soffset = i32::from_le_bytes(bin[root..root + 4].try_into().unwrap());
+        let vtable = (root as i32 - soffset) as usize;
+        let vtable_len = u16::from_le_bytes(bin[vtable..vtable + 2].try_into().unwrap()) as usize;
+
+        // Every eight-byte-wide field this table stores must be 8-aligned.
+        let mut checked = 0;
+        for slot in (4..vtable_len).step_by(2) {
+            let off = u16::from_le_bytes(bin[vtable + slot..vtable + slot + 2].try_into().unwrap())
+                as usize;
+            if off == 0 {
+                continue;
+            }
+            // Only the 8-byte fields carry the constraint; offsets that are
+            // multiples of 8 inside the table are the ones at risk.
+            if off.is_multiple_of(8) && off >= 8 {
+                assert_eq!(
+                    (root + off) % 8,
+                    0,
+                    "{name}: field at table offset {off} sits at absolute {} ({} mod 8)",
+                    root + off,
+                    (root + off) % 8
+                );
+                checked += 1;
+            }
+        }
+        assert!(
+            checked > 0,
+            "{name}: no wide field found, test proves nothing"
+        );
+    }
+}
+
+/// The official runtime is the authority here, so run its verifier.
+#[test]
+fn the_official_verifier_accepts_a_table_holding_a_wide_scalar() {
+    let schema = compile_single("table Root { p: ubyte; a: uint64; }\nroot_type Root;")
+        .unwrap()
+        .schema;
+    let parsed = parse_json_text(r#"{"p":1,"a":1234567890123}"#, false).unwrap();
+    let bin = json_to_binary(&parsed, &schema, "Root").unwrap();
+
+    let opts = flatbuffers::VerifierOptions::default();
+    let mut verifier = flatbuffers::Verifier::new(&opts, &bin);
+    let root = u32::from_le_bytes(bin[0..4].try_into().unwrap()) as usize;
+    let result = verifier
+        .visit_table(root)
+        .and_then(|t| t.visit_field::<u8>("p", 4, false))
+        .and_then(|t| t.visit_field::<u64>("a", 6, false))
+        .map(|t| {
+            t.finish();
+        });
+    assert!(result.is_ok(), "official verifier rejected us: {result:?}");
+}
