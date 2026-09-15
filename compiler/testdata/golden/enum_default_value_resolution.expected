@@ -11,6 +11,7 @@
             "index": 0
           },
           "id": 0,
+          "default_integer": 2,
           "default_string": "Blue",
           "span": {
             "file": "testdata/golden/enum_default_value_resolution.fbs",
@@ -26,6 +27,7 @@
             "index": 0
           },
           "id": 1,
+          "default_integer": 1,
           "default_string": "Green",
           "span": {
             "file": "testdata/golden/enum_default_value_resolution.fbs",
