@@ -153,6 +153,17 @@ pub enum AnalyzeError {
         span: Option<Span>,
     },
 
+    /// `field` is `Table.field`. Kept to three strings so this variant is no
+    /// larger than `DefaultValueOutOfRange`; a bigger one grows every
+    /// `Result<_, AnalyzeError>` past clippy's `result_large_err` threshold.
+    #[error("{span:?}: default value '{value}' for field '{field}' is not a value of enum '{enum_name}'")]
+    UnknownEnumDefault {
+        field: String,
+        enum_name: String,
+        value: String,
+        span: Option<Span>,
+    },
+
     #[error("enum value overflow in enum '{enum_name}': auto-assigned value after {last_value} exceeds i64 range")]
     EnumValueOverflow { enum_name: String, last_value: i64 },
 

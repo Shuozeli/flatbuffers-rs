@@ -72,6 +72,10 @@ pub fn analyze(output: ParseOutput) -> Result<ResolvedSchema> {
     // 3. Assign sequential enum values
     assign_enum_values(&mut schema)?;
 
+    // 3b. Resolve defaults written as enum value names to integers. Enum values
+    //     are only known after step 3.
+    resolve_enum_defaults(&mut schema)?;
+
     // 4. Resolve union variant types
     resolve_union_types(&mut schema, &index)?;
 
@@ -448,6 +452,67 @@ fn scalar_size(bt: BaseType) -> Option<u32> {
 // ---------------------------------------------------------------------------
 
 /// Assign sequential values to enum variants that don't have explicit values.
+/// Resolve defaults written as enum value names (`c: Color = Green`) to their
+/// integer value.
+///
+/// The parser can only record the identifier, in `default_string`; the value is
+/// known once `assign_enum_values` has run. Without this step `default_integer`
+/// stays `None`, and every consumer that reads it (the JSON encoder and decoder,
+/// .bfbs output, the TypeScript and Python generators) treats the default as 0.
+/// The encoder then omits a field whose value is the zero-valued enumerator as
+/// if it were the default, and readers see the declared default instead.
+///
+/// `default_string` is kept: the Rust generator emits the default by name.
+fn resolve_enum_defaults(schema: &mut schema::Schema) -> Result<()> {
+    let enums = &schema.enums;
+    for obj in &mut schema.objects {
+        let table_name = obj.name.as_deref().unwrap_or("").to_string();
+        for field in &mut obj.fields {
+            let Some(name) = field.default_string.as_deref() else {
+                continue;
+            };
+            let Some(ty) = field.type_.as_ref() else {
+                continue;
+            };
+            let bt = ty.base_type.unwrap_or(BaseType::BASE_TYPE_NONE);
+            // String defaults also live in default_string; only scalar fields
+            // that point at an enum are resolved here.
+            if !bt.is_scalar() {
+                continue;
+            }
+            let Some(enum_def) = ty
+                .index
+                .and_then(|i| usize::try_from(i).ok())
+                .and_then(|i| enums.get(i))
+            else {
+                continue;
+            };
+            if enum_def.is_union {
+                continue;
+            }
+            // `Color.Green` and `ns.Color.Green` name the same value as `Green`.
+            let short = name.rsplit('.').next().unwrap_or(name);
+            match enum_def
+                .values
+                .iter()
+                .find(|v| v.name.as_deref() == Some(short))
+                .and_then(|v| v.value)
+            {
+                Some(value) => field.default_integer = Some(value),
+                None => {
+                    return Err(AnalyzeError::UnknownEnumDefault {
+                        field: format!("{table_name}.{}", field.name.as_deref().unwrap_or("")),
+                        enum_name: enum_def.name.as_deref().unwrap_or("").to_string(),
+                        value: name.to_string(),
+                        span: field.span.clone(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn assign_enum_values(schema: &mut schema::Schema) -> Result<()> {
     for enum_decl in &mut schema.enums {
         if enum_decl.is_union {

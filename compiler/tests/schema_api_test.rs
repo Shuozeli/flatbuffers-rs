@@ -62,11 +62,11 @@ fn field_default_bool() {
 fn field_default_enum() {
     let s = analyze("enum Color:byte { Red, Green, Blue }\ntable T { c:Color = Green; }");
     let t = &s.objects[0];
-    // Enum defaults are stored as the string name, resolved to integer by codegen
-    assert!(
-        t.fields[0].default_integer == Some(1)
-            || t.fields[0].default_string.as_deref() == Some("Green")
-    );
+    // The analyzer resolves the name to its value; the name is kept for
+    // generators that emit defaults by name. This used to accept either one,
+    // which let `default_integer` stay unset and every consumer read it as 0.
+    assert_eq!(t.fields[0].default_integer, Some(1));
+    assert_eq!(t.fields[0].default_string.as_deref(), Some("Green"));
 }
 
 #[test]

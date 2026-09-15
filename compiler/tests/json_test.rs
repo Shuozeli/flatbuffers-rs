@@ -1514,3 +1514,63 @@ fn the_official_verifier_accepts_a_table_holding_a_wide_scalar() {
         });
     assert!(result.is_ok(), "official verifier rejected us: {result:?}");
 }
+
+const NAMED_DEFAULT_SCHEMA: &str =
+    "enum Kind : ubyte { Zero = 0, One = 1, Three = 3 }\ntable Root { k: Kind = Three; n: ubyte; }\nroot_type Root;";
+
+/// An enum field whose default is written by name (`k: Kind = Three`) must still
+/// store a value equal to the zero-valued enumerator.
+///
+/// The encoder compares against `default_integer`, which the analyzer did not
+/// fill for named defaults, so the default looked like 0 and `Zero` was dropped
+/// as if it were the default. Readers then saw `Three`.
+#[test]
+fn a_zero_enum_value_is_stored_when_the_named_default_is_not_zero() {
+    let schema = compile_single(NAMED_DEFAULT_SCHEMA).unwrap().schema;
+    let parsed = parse_json_text(r#"{"k":"Zero","n":1}"#, false).unwrap();
+    let bin = json_to_binary(&parsed, &schema, "Root").unwrap();
+    let back = binary_to_json(&bin, &schema, "Root", &default_opts()).unwrap();
+    assert_eq!(
+        back["k"],
+        json!("Zero"),
+        "Zero was dropped and would read back as Three"
+    );
+}
+
+/// With `output_defaults`, an absent enum field decodes to its declared default,
+/// not to the zero-valued enumerator.
+#[test]
+fn an_absent_enum_field_decodes_to_its_named_default() {
+    let schema = compile_single(NAMED_DEFAULT_SCHEMA).unwrap().schema;
+    let parsed = parse_json_text(r#"{"n":1}"#, false).unwrap();
+    let bin = json_to_binary(&parsed, &schema, "Root").unwrap();
+    let opts = JsonOptions {
+        output_defaults: true,
+        ..default_opts()
+    };
+    let back = binary_to_json(&bin, &schema, "Root", &opts).unwrap();
+    assert_eq!(back["k"], json!("Three"));
+}
+
+#[test]
+fn a_qualified_enum_default_resolves_like_the_bare_name() {
+    let schema = compile_single(
+        "enum Kind : ubyte { Zero = 0, Three = 3 }\ntable Root { k: Kind = Kind.Three; }\nroot_type Root;",
+    )
+    .unwrap()
+    .schema;
+    let parsed = parse_json_text(r#"{"k":"Zero"}"#, false).unwrap();
+    let bin = json_to_binary(&parsed, &schema, "Root").unwrap();
+    let back = binary_to_json(&bin, &schema, "Root", &default_opts()).unwrap();
+    assert_eq!(back["k"], json!("Zero"));
+}
+
+/// A default naming an enumerator that does not exist is an error, not a
+/// silent 0.
+#[test]
+fn a_default_naming_a_missing_enumerator_is_rejected() {
+    let result = compile_single(
+        "enum Kind : ubyte { Zero, One }\ntable Root { k: Kind = Nope; }\nroot_type Root;",
+    );
+    assert!(result.is_err(), "an unknown enum default compiled");
+}
