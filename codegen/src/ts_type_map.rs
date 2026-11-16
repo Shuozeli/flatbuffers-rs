@@ -1,6 +1,6 @@
 use flatc_rs_schema::{BaseType, Documentation};
 
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Returns the TypeScript type name for a scalar BaseType.
 ///

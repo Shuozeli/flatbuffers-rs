@@ -16,11 +16,9 @@ cargo package --locked -p flatc-rs-schema
 ```
 
 All other workspace crates are explicitly source-only with `publish = false`.
-The compiler and code generators depend on `codegen-infra` crates that are not
-available on crates.io. Those git dependencies use immutable revisions, and
-`Cargo.lock` is committed because the repository ships the `flatc` binary.
-The optional `pure-grpc-rs` dependency is also revision-pinned; locked builds
-therefore retain exact commits for its transitive git dependencies.
+The workspace has no git dependencies; every crate resolves from crates.io or
+a path inside this repository. `Cargo.lock` is committed because the
+repository ships the `flatc` binary.
 
 Install the CLI directly from a reviewed repository revision:
 

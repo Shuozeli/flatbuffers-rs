@@ -24,15 +24,9 @@ name = "official_rust_source_parity_test"
 path = "tests/official_rust_source_parity_test.rs"
 required-features = ["cli"]
 
-[[test]]
-name = "grpc_codegen_compile_test"
-path = "tests/grpc_codegen_compile_test.rs"
-required-features = ["cli", "grpc"]
-
 [features]
 default = []
 cli = ["dep:clap", "dep:flatc-rs-annotator"]
-grpc = ["flatc-rs-codegen/grpc"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }

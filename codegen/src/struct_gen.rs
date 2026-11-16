@@ -5,7 +5,7 @@ use flatc_rs_schema::BaseType;
 
 use super::type_map;
 use super::{type_visibility, CodeGenError, CodeGenOptions};
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Generate Rust code for the struct at `schema.objects[index]`.
 pub fn generate(

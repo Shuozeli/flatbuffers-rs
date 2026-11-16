@@ -1,9 +1,24 @@
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::{BaseType, Documentation};
 
-// Re-export case conversion helpers from codegen_writers
-pub use codegen_writers::to_pascal_case;
+/// Convert a `snake_case` identifier to `PascalCase` (`foo_bar` -> `FooBar`).
+/// Characters after the first in each segment keep their case.
+pub fn to_pascal_case(s: &str) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    for c in s.chars() {
+        if c == '_' {
+            capitalize_next = true;
+        } else if capitalize_next {
+            result.push(c.to_ascii_uppercase());
+            capitalize_next = false;
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
 
 /// Convert a PascalCase or camelCase identifier to snake_case.
 /// Handles consecutive uppercase letters: "HPMax" -> "hp_max" (not "hpmax")

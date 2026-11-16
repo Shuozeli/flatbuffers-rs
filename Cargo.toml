@@ -4,7 +4,6 @@ members = [
     "schema",
     "parser",
     "codegen",
-    "codegen-flatbuffers",
     "runtime",
     "compiler",
     "build",

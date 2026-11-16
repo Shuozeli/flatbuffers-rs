@@ -7,7 +7,7 @@ use super::rust_table_gen;
 use super::struct_gen;
 use super::type_map;
 use super::{CodeGenError, CodeGenOptions};
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Main code generator. Holds a reference to the resolved schema and produces
 /// Rust source code compatible with the `flatbuffers` runtime crate.

@@ -10,20 +10,7 @@ use flatc_rs_fbs_gen::{GenConfig, SchemaBuilder};
 const NUM_SEEDS: u64 = 500;
 
 fn general_codegen_config() -> GenConfig {
-    #[cfg(feature = "grpc")]
-    {
-        // The optional transport deliberately rejects streaming RPCs. Its
-        // unary behavior has a dedicated downstream compilation test, while
-        // this property test remains focused on general Rust/TS codegen.
-        GenConfig {
-            prob_rpc_service: 0.0,
-            ..GenConfig::default()
-        }
-    }
-    #[cfg(not(feature = "grpc"))]
-    {
-        GenConfig::default()
-    }
+    GenConfig::default()
 }
 
 #[test]

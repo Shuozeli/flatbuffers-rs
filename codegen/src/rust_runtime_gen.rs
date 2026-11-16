@@ -1,4 +1,4 @@
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 const RUNTIME_TEMPLATE: &str = r#"
 #[allow(dead_code, unused_imports)]

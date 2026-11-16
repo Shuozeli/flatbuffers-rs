@@ -6,7 +6,7 @@ use super::ts_struct_gen;
 use super::ts_table_gen;
 use super::CodeGenError;
 use super::TsCodeGenOptions;
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Main TypeScript code generator.
 pub struct TsGenerator<'a> {

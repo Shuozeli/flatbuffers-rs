@@ -9,7 +9,7 @@ use flatc_rs_schema::{BaseType, Documentation};
 
 use super::namespace_tree::{self, NamespaceNode, TypeEntry};
 use super::{field_type_index, type_index, type_map, CodeGenError, PythonCodeGenOptions};
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Main Python code generator.
 pub struct PythonGenerator<'a> {

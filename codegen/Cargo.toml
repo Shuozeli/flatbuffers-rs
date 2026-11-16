@@ -9,26 +9,6 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-[features]
-default = []
-grpc = [
-    "dep:grpc-codegen",
-    "dep:prettyplease",
-    "dep:proc-macro2",
-    "dep:quote",
-    "dep:syn",
-]
-
 [dependencies]
 flatc-rs-schema = { path = "../schema" }
 thiserror = "2"
-# Keep the FlatBuffers AST adapter in this crate. Enabling grpc-codegen's
-# FlatBuffers feature would make pure-grpc-rs depend back on flatbuffers-rs and
-# introduce two incompatible flatc-rs-schema instances.
-grpc-codegen = { git = "https://github.com/Shuozeli/pure-grpc-rs.git", rev = "2f13145a9d1f0dfa36a430a44e2fceb9ca24b44e", optional = true, default-features = false }
-proc-macro2 = { version = "1", optional = true }
-quote = { version = "1", optional = true }
-syn = { version = "2", optional = true }
-prettyplease = { version = "0.2", optional = true }
-codegen-core = { git = "https://github.com/shuozeli/codegen-infra.git", rev = "92fdb379bfb4598c889680935b9d055730c89dc2" }
-codegen-writers = { git = "https://github.com/shuozeli/codegen-infra.git", rev = "92fdb379bfb4598c889680935b9d055730c89dc2" }

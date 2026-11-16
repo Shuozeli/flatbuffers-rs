@@ -10,7 +10,7 @@ use super::ts_type_map;
 use super::type_map;
 use super::CodeGenError;
 use super::TsCodeGenOptions;
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Generate TypeScript code for the table at `schema.objects[index]`.
 pub fn generate(

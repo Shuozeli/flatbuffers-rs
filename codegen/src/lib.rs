@@ -1,11 +1,10 @@
+mod code_writer;
 mod enum_gen;
 mod namespace_tree;
 mod python_gen;
 mod rust_gen;
 mod rust_runtime_gen;
 mod rust_table_gen;
-#[cfg(feature = "grpc")]
-mod service_gen;
 mod struct_gen;
 mod ts_enum_gen;
 mod ts_gen;
@@ -14,8 +13,7 @@ mod ts_table_gen;
 mod ts_type_map;
 pub mod type_map;
 
-// Re-export CodeWriter from codegen-core
-pub use codegen_core::CodeWriter;
+pub use code_writer::CodeWriter;
 
 use std::collections::HashSet;
 
@@ -192,33 +190,8 @@ pub fn generate_rust(
     opts: &CodeGenOptions,
 ) -> Result<String, CodeGenError> {
     schema.validate()?;
-    #[cfg(feature = "grpc")]
-    if schema
-        .services
-        .iter()
-        .any(|service| should_generate(service.declaration_file.as_deref(), &opts.gen_only_files))
-        && !opts.gen_object_api
-    {
-        return Err(CodeGenError::Internal(
-            "FlatBuffers gRPC code generation requires gen_object_api".to_string(),
-        ));
-    }
-
     let gen = RustGenerator::new(schema, opts);
-    let code = gen.generate()?;
-
-    // Append gRPC service stubs when grpc feature is enabled
-    #[cfg(feature = "grpc")]
-    let code = {
-        let service_code = service_gen::generate_services(schema, &opts.gen_only_files)?;
-        if service_code.is_empty() {
-            code
-        } else {
-            format!("{code}\n{service_code}")
-        }
-    };
-
-    Ok(code)
+    gen.generate()
 }
 
 /// Generate TypeScript source code from a fully resolved FlatBuffers schema.

@@ -1,10 +1,13 @@
-/// Indentation-aware string builder for generating Rust source code.
+//! Indentation-aware string builder for generating source code.
+
+/// Indentation-aware string builder.
 pub struct CodeWriter {
     buf: String,
     indent: usize,
 }
 
 impl CodeWriter {
+    /// Create a new CodeWriter.
     pub fn new() -> Self {
         Self {
             buf: String::with_capacity(8192),
@@ -33,7 +36,7 @@ impl CodeWriter {
 
     /// Decrease indentation by one level.
     pub fn dedent(&mut self) {
-        assert!(self.indent > 0, "dedent below zero");
+        debug_assert!(self.indent > 0, "dedent below zero");
         self.indent -= 1;
     }
 
@@ -50,7 +53,7 @@ impl CodeWriter {
     }
 
     /// Like [`block`](Self::block) but the closure may return an error.
-    /// The closing `}` is emitted even on error (the partial output is still
+    /// The closing `}` is emitted even on error (partial output is still
     /// well-formed structurally), but the error is propagated to the caller.
     pub fn try_block<F, E>(&mut self, header: &str, f: F) -> Result<(), E>
     where
@@ -69,6 +72,17 @@ impl CodeWriter {
     pub fn finish(self) -> String {
         let trimmed = self.buf.trim_end_matches('\n');
         format!("{trimmed}\n")
+    }
+
+    /// Get a reference to the current buffer (for debugging).
+    pub fn buffer(&self) -> &str {
+        &self.buf
+    }
+}
+
+impl Default for CodeWriter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

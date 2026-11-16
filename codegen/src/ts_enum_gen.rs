@@ -4,7 +4,7 @@ use flatc_rs_schema::BaseType;
 use super::ts_type_map;
 use super::union_variant_type_index;
 use super::CodeGenError;
-use codegen_core::CodeWriter;
+use crate::code_writer::CodeWriter;
 
 /// Generate TypeScript code for the enum at `schema.enums[index]`.
 pub fn generate(
