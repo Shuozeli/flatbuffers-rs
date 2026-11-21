@@ -41,8 +41,14 @@ fn assert_compiles(schema_source: &str, opts: &CodeGenOptions, test_name: &str) 
     let src_path = dir.path().join(format!("{test_name}.rs"));
     std::fs::write(&src_path, full_source.as_bytes()).unwrap();
 
-    // Find the flatbuffers crate in our dependency tree
-    let flatbuffers_dir = find_flatbuffers_rlib();
+    // Find compiled dependency rlibs across both legacy `deps/` and newer
+    // Cargo `build/<pkg>/<hash>/out/` layouts.
+    let search_dirs = find_dep_search_dirs();
+    assert!(
+        !search_dirs.is_empty(),
+        "[{test_name}] could not locate Cargo dependency directories from {:?}",
+        std::env::current_exe()
+    );
 
     let mut cmd = Command::new("rustc");
     cmd.arg("--edition=2021")
@@ -52,18 +58,19 @@ fn assert_compiles(schema_source: &str, opts: &CodeGenOptions, test_name: &str) 
         .arg("-o")
         .arg(dir.path().join("out.rlib"));
 
-    if let Some(ref deps_dir) = flatbuffers_dir {
-        cmd.arg("-L").arg(deps_dir);
-        // Add --extern for crates used by generated code to avoid ambiguity
-        // when multiple versions exist in the deps directory.
-        for crate_name in &["flatbuffers", "flatc_rs_runtime", "serde"] {
-            let rlib = find_extern_rlib(deps_dir, crate_name).unwrap_or_else(|| {
-                panic!(
-                    "[{test_name}] no {crate_name} rlib compatible with the active rustc exists in {deps_dir}"
-                )
-            });
-            cmd.arg("--extern").arg(format!("{crate_name}={rlib}"));
-        }
+    for search_dir in search_dirs {
+        cmd.arg("-L")
+            .arg(format!("dependency={}", search_dir.display()));
+    }
+    // Add --extern for crates used by generated code to avoid ambiguity
+    // when multiple versions exist in the target directory.
+    for crate_name in &["flatbuffers", "flatc_rs_runtime", "serde"] {
+        let rlib = find_extern_rlib(search_dirs, crate_name).unwrap_or_else(|| {
+            panic!(
+                "[{test_name}] no {crate_name} rlib compatible with the active rustc exists in {search_dirs:?}"
+            )
+        });
+        cmd.arg("--extern").arg(format!("{crate_name}={rlib}"));
     }
 
     cmd.arg(&src_path);
@@ -83,35 +90,84 @@ fn assert_compiles(schema_source: &str, opts: &CodeGenOptions, test_name: &str) 
     }
 }
 
-/// Locate the directory containing the compiled `flatbuffers` rlib/rmeta.
-/// Searches the target/debug/deps directory.
-fn find_flatbuffers_rlib() -> Option<String> {
-    // Walk up from the test binary to find target/debug/deps
-    let exe = std::env::current_exe().ok()?;
-    let mut dir = exe.parent()?;
-
-    // test binary is in target/debug/deps/<binary>
-    // we want target/debug/deps/
-    if dir.ends_with("deps") {
-        return Some(dir.to_string_lossy().to_string());
-    }
-
-    // Try parent directories
-    for _ in 0..5 {
-        let deps_dir = dir.join("deps");
-        if deps_dir.is_dir() {
-            return Some(deps_dir.to_string_lossy().to_string());
+/// Locate all directories containing compiled dependency artifacts for the
+/// current test profile. Supports both legacy `target/<profile>/deps` and
+/// newer Cargo `target/<profile>/build/<pkg>/<hash>/out` layouts.
+fn find_dep_search_dirs() -> &'static [PathBuf] {
+    static DIRS: OnceLock<Vec<PathBuf>> = OnceLock::new();
+    DIRS.get_or_init(|| {
+        let Ok(exe) = std::env::current_exe() else {
+            return Vec::new();
+        };
+        let mut dirs = Vec::new();
+        let mut cursor = exe.parent();
+        for _ in 0..8 {
+            let Some(dir) = cursor else {
+                break;
+            };
+            if dir.ends_with("deps") && dir_has_compiled_crate(dir) {
+                dirs.push(dir.to_path_buf());
+                break;
+            }
+            let deps_dir = dir.join("deps");
+            if deps_dir.is_dir() && dir_has_compiled_crate(&deps_dir) {
+                dirs.push(deps_dir);
+            }
+            let build_dir = dir.join("build");
+            if build_dir.is_dir() {
+                collect_build_out_dirs(&build_dir, &mut dirs);
+            }
+            if !dirs.is_empty() {
+                break;
+            }
+            cursor = dir.parent();
         }
-        dir = dir.parent()?;
-    }
-
-    None
+        dirs.sort();
+        dirs.dedup();
+        dirs
+    })
 }
 
-/// Find a specific crate's rlib file in a deps directory.
+fn collect_build_out_dirs(build_dir: &Path, dirs: &mut Vec<PathBuf>) {
+    let Ok(packages) = std::fs::read_dir(build_dir) else {
+        return;
+    };
+    for pkg_entry in packages.flatten() {
+        let pkg_path = pkg_entry.path();
+        if !pkg_path.is_dir() {
+            continue;
+        }
+        let Ok(hashes) = std::fs::read_dir(&pkg_path) else {
+            continue;
+        };
+        for hash_entry in hashes.flatten() {
+            let out_dir = hash_entry.path().join("out");
+            if out_dir.is_dir() && dir_has_compiled_crate(&out_dir) {
+                dirs.push(out_dir);
+            }
+        }
+    }
+}
+
+fn dir_has_compiled_crate(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        name_str.ends_with(".rlib")
+            || name_str.ends_with(".rmeta")
+            || name_str.ends_with(".so")
+            || name_str.ends_with(".dylib")
+            || name_str.ends_with(".dll")
+    })
+}
+
+/// Find a specific crate's rlib file across dependency search directories.
 /// When multiple candidates exist (e.g., different features or a prior
 /// toolchain), pick the newest one that the active rustc can load.
-fn find_extern_rlib(deps_dir: &str, crate_name: &str) -> Option<String> {
+fn find_extern_rlib(search_dirs: &[PathBuf], crate_name: &str) -> Option<String> {
     static FLATBUFFERS: OnceLock<Option<String>> = OnceLock::new();
     static FLATC_RS_RUNTIME: OnceLock<Option<String>> = OnceLock::new();
     static SERDE: OnceLock<Option<String>> = OnceLock::new();
@@ -120,42 +176,40 @@ fn find_extern_rlib(deps_dir: &str, crate_name: &str) -> Option<String> {
         "flatbuffers" => &FLATBUFFERS,
         "flatc_rs_runtime" => &FLATC_RS_RUNTIME,
         "serde" => &SERDE,
-        _ => return find_compatible_extern_rlib(deps_dir, crate_name),
+        _ => return find_compatible_extern_rlib(search_dirs, crate_name),
     };
     cache
-        .get_or_init(|| find_compatible_extern_rlib(deps_dir, crate_name))
+        .get_or_init(|| find_compatible_extern_rlib(search_dirs, crate_name))
         .clone()
 }
 
-fn find_compatible_extern_rlib(deps_dir: &str, crate_name: &str) -> Option<String> {
-    let dir = std::path::Path::new(deps_dir);
-    if !dir.is_dir() {
-        return None;
-    }
+fn find_compatible_extern_rlib(search_dirs: &[PathBuf], crate_name: &str) -> Option<String> {
     let prefix = format!("lib{crate_name}-");
     let mut candidates: Vec<(PathBuf, SystemTime)> = Vec::new();
-    for entry in std::fs::read_dir(dir).ok()? {
-        let Ok(entry) = entry else {
+    for dir in search_dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
             continue;
         };
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        if name_str.starts_with(&prefix) && name_str.ends_with(".rlib") {
-            let Ok(mtime) = entry.metadata().and_then(|metadata| metadata.modified()) else {
-                continue;
-            };
-            candidates.push((entry.path(), mtime));
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with(&prefix) && name_str.ends_with(".rlib") {
+                let Ok(mtime) = entry.metadata().and_then(|metadata| metadata.modified()) else {
+                    continue;
+                };
+                candidates.push((entry.path(), mtime));
+            }
         }
     }
-    candidates.sort_by(|left, right| right.1.cmp(&left.1));
+    candidates.sort_by_key(|entry| std::cmp::Reverse(entry.1));
     candidates
         .into_iter()
         .map(|(path, _)| path)
-        .find(|path| rlib_is_compatible(dir, crate_name, path))
+        .find(|path| rlib_is_compatible(search_dirs, crate_name, path))
         .map(|path| path.to_string_lossy().to_string())
 }
 
-fn rlib_is_compatible(deps_dir: &Path, crate_name: &str, rlib: &Path) -> bool {
+fn rlib_is_compatible(search_dirs: &[PathBuf], crate_name: &str, rlib: &Path) -> bool {
     let Ok(probe_dir) = tempfile::tempdir() else {
         return false;
     };
@@ -164,17 +218,18 @@ fn rlib_is_compatible(deps_dir: &Path, crate_name: &str, rlib: &Path) -> bool {
         return false;
     }
     let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
-    Command::new(rustc)
-        .arg("--edition=2021")
+    let mut cmd = Command::new(rustc);
+    cmd.arg("--edition=2021")
         .arg("--crate-type=lib")
         .arg("--crate-name")
         .arg(format!("probe_{crate_name}"))
         .arg("--emit=metadata")
         .arg("--out-dir")
-        .arg(probe_dir.path())
-        .arg("-L")
-        .arg(format!("dependency={}", deps_dir.display()))
-        .arg("--extern")
+        .arg(probe_dir.path());
+    for dir in search_dirs {
+        cmd.arg("-L").arg(format!("dependency={}", dir.display()));
+    }
+    cmd.arg("--extern")
         .arg(format!("{crate_name}={}", rlib.display()))
         .arg(&source)
         .stdout(Stdio::null())
