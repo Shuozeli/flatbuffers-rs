@@ -267,9 +267,9 @@ export class Hero implements flatbuffers.IUnpackableObject<HeroT> {
     return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
   }
 
-  weapon<T extends flatbuffers.Table>(obj:T):T|null {
+  weapon<T extends {bb: flatbuffers.ByteBuffer|null, bb_pos: number}>(obj:T):T|null {
     const offset = this.bb!.__offset(this.bb_pos, 8);
-    return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
+    return offset ? this.bb!.__union(obj as flatbuffers.Table, this.bb_pos + offset) as T : null;
   }
 
   mutateWeaponType(value:Equipment):boolean {
@@ -324,14 +324,14 @@ export class Hero implements flatbuffers.IUnpackableObject<HeroT> {
     return new HeroT(
       this.name(),
       this.weaponType(),
-      (() => { const temp = unionToEquipment(this.weaponType(), (obj:any) => this.weapon(obj)); return temp === null ? null : temp.unpack() })()
+      (() => { const temp = unionToEquipment(this.weaponType(), (obj:any) => this.weapon(obj)); if (temp === null) { return null; } return temp.unpack() })()
     );
   }
 
   unpackTo(_o:HeroT):void {
     _o.name = this.name();
     _o.weaponType = this.weaponType();
-    _o.weapon = (() => { const temp = unionToEquipment(this.weaponType(), (obj:any) => this.weapon(obj)); return temp === null ? null : temp.unpack() })();
+    _o.weapon = (() => { const temp = unionToEquipment(this.weaponType(), (obj:any) => this.weapon(obj)); if (temp === null) { return null; } return temp.unpack() })();
   }
 }
 
@@ -344,11 +344,12 @@ export class HeroT implements flatbuffers.IGeneratedObject {
 
   pack(builder:flatbuffers.Builder):flatbuffers.Offset {
     const name = (this.name !== null ? builder.createString(this.name!) : 0);
+    const weapon = builder.createObjectOffset(this.weapon);
 
     Hero.startHero(builder);
     Hero.addName(builder, name);
     Hero.addWeaponType(builder, this.weaponType);
-    Hero.addWeapon(builder, (this.weapon !== null ? this.weapon!.pack(builder) : 0));
+    Hero.addWeapon(builder, weapon);
     return Hero.endHero(builder);
   }
 }

@@ -100,6 +100,14 @@ export class Inventory implements flatbuffers.IUnpackableObject<InventoryT> {
     builder.addFieldOffset(1, namesOffset, 0);
   }
 
+  static createNamesVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+    builder.startVector(4, data.length, 4);
+    for (let i = data.length - 1; i >= 0; i--) {
+      builder.addOffset(data[i]!);
+    }
+    return builder.endVector();
+  }
+
   static startNamesVector(builder:flatbuffers.Builder, numElems:number) {
     builder.startVector(4, numElems, 4);
   }

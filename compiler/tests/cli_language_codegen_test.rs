@@ -67,7 +67,80 @@ fn cli_generates_python() {
 
 #[test]
 fn cli_nodejs_alias_generates_typescript() {
-    run_flatc("nodejs_alias", &["--nodejs"], &["monster_generated.ts"]);
+    run_flatc(
+        "nodejs_alias",
+        &["--nodejs"],
+        &["monster.ts", "cli.ts", "cli/test.ts", "cli/test/monster.ts"],
+    );
+}
+
+#[test]
+fn cli_ts_generates_one_module_per_type_with_namespace_barrels() {
+    run_flatc(
+        "ts_modules",
+        &["--ts"],
+        &[
+            "monster.ts",
+            "cli.ts",
+            "cli/test.ts",
+            "cli/test/monster.ts",
+            "cli/test/vec3.ts",
+            "cli/test/color.ts",
+        ],
+    );
+}
+
+#[test]
+fn cli_ts_flat_files_keeps_the_single_file_layout() {
+    run_flatc(
+        "ts_flat_files",
+        &["--ts", "--ts-flat-files"],
+        &["monster_generated.ts"],
+    );
+}
+
+#[test]
+fn cli_ts_module_barrels_export_only_their_own_input() {
+    // Arrange
+    let tmp = tempfile::tempdir().unwrap();
+    let schema_a = tmp.path().join("a.fbs");
+    let schema_b = tmp.path().join("b.fbs");
+    std::fs::write(
+        &schema_a,
+        "table TableA { value:int; }\nroot_type TableA;\n",
+    )
+    .unwrap();
+    std::fs::write(
+        &schema_b,
+        "table TableB { value:int; }\nroot_type TableB;\n",
+    )
+    .unwrap();
+    let out_dir = tmp.path().join("ts");
+
+    // Act
+    let output = Command::new(env!("CARGO_BIN_EXE_flatc"))
+        .arg("-o")
+        .arg(&out_dir)
+        .arg("--ts")
+        .arg(&schema_a)
+        .arg(&schema_b)
+        .output()
+        .unwrap();
+
+    // Assert
+    assert!(
+        output.status.success(),
+        "--ts failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let a = std::fs::read_to_string(out_dir.join("a.ts")).unwrap();
+    let b = std::fs::read_to_string(out_dir.join("b.ts")).unwrap();
+    assert!(a.contains("export { TableA } from './table-a.js';"), "{a}");
+    assert!(!a.contains("TableB"), "{a}");
+    assert!(b.contains("export { TableB } from './table-b.js';"), "{b}");
+    assert!(!b.contains("TableA"), "{b}");
+    let table_a = std::fs::read_to_string(out_dir.join("table-a.ts")).unwrap();
+    assert!(table_a.contains("export class TableA"));
 }
 
 #[test]
@@ -106,7 +179,11 @@ fn cli_multi_input_codegen_isolates_each_output_for_every_language() {
     )
     .unwrap();
 
-    for (flag, extension) in [("--rust", "rs"), ("--ts", "ts"), ("--python", "py")] {
+    for (flag, extension, extra) in [
+        ("--rust", "rs", None),
+        ("--ts", "ts", Some("--ts-flat-files")),
+        ("--python", "py", None),
+    ] {
         let out_dir = tmp.path().join(extension);
 
         // Act
@@ -114,6 +191,7 @@ fn cli_multi_input_codegen_isolates_each_output_for_every_language() {
             .arg("-o")
             .arg(&out_dir)
             .arg(flag)
+            .args(extra)
             .arg(&schema_a)
             .arg(&schema_b)
             .output()

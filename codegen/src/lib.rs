@@ -8,6 +8,7 @@ mod rust_table_gen;
 mod struct_gen;
 mod ts_enum_gen;
 mod ts_gen;
+mod ts_names;
 mod ts_struct_gen;
 mod ts_table_gen;
 mod ts_type_map;
@@ -23,6 +24,7 @@ use flatc_rs_schema::resolved::{
 use flatc_rs_schema::Attributes;
 use python_gen::PythonGenerator;
 use rust_gen::RustGenerator;
+pub use ts_gen::TsFile;
 use ts_gen::TsGenerator;
 
 /// Errors that can occur during code generation.
@@ -205,6 +207,22 @@ pub fn generate_typescript(
     schema.validate()?;
     let gen = TsGenerator::new(schema, opts);
     gen.generate()
+}
+
+/// Generate TypeScript as one ES module per type (the upstream `flatc --ts`
+/// layout): `a/b/name.ts` for type `Name` in namespace `A.B`, a barrel module
+/// per namespace (`a/b.ts`, `a.ts`) and `<root_name>.ts` re-exporting the
+/// root namespace. Paths are relative to the output directory.
+///
+/// Unlike [`generate_typescript`] (one file of `export namespace` blocks),
+/// this layout lets bundlers drop types an application never imports.
+pub fn generate_typescript_modules(
+    schema: &ResolvedSchema,
+    opts: &TsCodeGenOptions,
+    root_name: &str,
+) -> Result<Vec<TsFile>, CodeGenError> {
+    schema.validate()?;
+    ts_gen::generate_modules(schema, opts, root_name)
 }
 
 /// Generate Python source code from a fully resolved FlatBuffers schema.

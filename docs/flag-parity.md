@@ -25,7 +25,8 @@ are excluded entirely.
 | `-o PATH` | DONE | Output directory prefix |
 | `-I PATH` | DONE | Include search paths |
 | `-r, --rust` | DONE | Rust codegen |
-| `-T, --ts` | DONE | TypeScript codegen |
+| `-T, --ts` | DONE | TypeScript codegen (one ES module per type, upstream layout) |
+| `--ts-flat-files` | DONE | Single-file TypeScript output (nested `export namespace` blocks) |
 | `--nodejs` | DONE | Alias for TypeScript codegen for Node.js projects |
 | `-p, --python` | DONE | Python model codegen |
 | `-b, --schema` | DONE | BFBS binary schema output |

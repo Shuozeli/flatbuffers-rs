@@ -230,9 +230,11 @@ export class Zoo implements flatbuffers.IUnpackableObject<ZooT> {
     return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
   }
 
-  pets(index: number, obj:any|string):any|string|null {
+  pets(index: number, obj:string):string|null;
+  pets<T extends {bb: flatbuffers.ByteBuffer|null, bb_pos: number}>(index: number, obj:T):T|null;
+  pets(index: number, obj:{bb: flatbuffers.ByteBuffer|null, bb_pos: number}|string):{bb: flatbuffers.ByteBuffer|null, bb_pos: number}|string|null {
     const offset = this.bb!.__offset(this.bb_pos, 6);
-    return offset ? this.bb!.__union_with_string(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;
+    return offset ? this.bb!.__union_with_string(obj as flatbuffers.Table|string, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;
   }
 
   petsLength():number {
@@ -262,6 +264,15 @@ export class Zoo implements flatbuffers.IUnpackableObject<ZooT> {
 
   static addPets(builder:flatbuffers.Builder, petsOffset:flatbuffers.Offset) {
     builder.addFieldOffset(1, petsOffset, 0);
+  }
+
+  static createPetsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+    builder.startVector(4, data.length, 4);
+    for (let i = data.length - 1; i >= 0; i--) {
+      const offset = data[i]!;
+      if (offset === 0) builder.addInt32(0); else builder.addOffset(offset);
+    }
+    return builder.endVector();
   }
 
   static startPetsVector(builder:flatbuffers.Builder, numElems:number) {

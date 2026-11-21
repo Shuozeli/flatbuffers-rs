@@ -1,6 +1,7 @@
 use flatc_rs_schema::resolved::{ResolvedEnum, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
+use super::ts_names::{self, Sym};
 use super::ts_type_map;
 use super::union_variant_type_index;
 use super::CodeGenError;
@@ -31,7 +32,7 @@ fn generate_regular_enum(w: &mut CodeWriter, enum_def: &ResolvedEnum) {
     ts_type_map::gen_doc_comment(w, enum_def.documentation.as_ref());
     w.block(&format!("export enum {name}"), |w| {
         for (i, val) in enum_def.values.iter().enumerate() {
-            let vname = &val.name;
+            let vname = ts_names::enum_member(&val.name);
             let vval = val.value;
             let comma = if i < enum_def.values.len() - 1 {
                 ","
@@ -58,7 +59,7 @@ fn generate_union_enum(
     ts_type_map::gen_doc_comment(w, enum_def.documentation.as_ref());
     w.block(&format!("export enum {name}"), |w| {
         for (i, val) in enum_def.values.iter().enumerate() {
-            let vname = &val.name;
+            let vname = ts_names::enum_member(&val.name);
             let vval = val.value;
             let comma = if i < enum_def.values.len() - 1 {
                 ","
@@ -105,9 +106,9 @@ fn union_variant_types(
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
                 let idx = union_variant_type_index(val)?;
-                let obj_name = &schema.objects[idx].name;
-                if !types.contains(obj_name) {
-                    types.push(obj_name.clone());
+                let obj_name = ts_names::sym(schema, Sym::Obj(idx));
+                if !types.contains(&obj_name) {
+                    types.push(obj_name);
                 }
             }
             BaseType::BASE_TYPE_STRING if !types.iter().any(|ty| ty == "string") => {
@@ -148,13 +149,17 @@ fn gen_union_to_helper(
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
                 let idx = union_variant_type_index(val)?;
-                let obj_name = &schema.objects[idx].name;
+                let obj_name = ts_names::sym(schema, Sym::Obj(idx));
+                let vname = ts_names::enum_member(vname);
                 variant_lines.push(format!(
                     "case '{vname}': return accessor(new {obj_name}())! as {obj_name};"
                 ));
             }
             BaseType::BASE_TYPE_STRING => {
-                variant_lines.push(format!("case '{vname}': return accessor('') as string;"));
+                variant_lines.push(format!(
+                    "case '{}': return accessor('') as string;",
+                    ts_names::enum_member(vname)
+                ));
             }
             _ => {}
         }
@@ -206,14 +211,16 @@ fn gen_union_list_to_helper(
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
                 let idx = union_variant_type_index(val)?;
-                let obj_name = &schema.objects[idx].name;
+                let obj_name = ts_names::sym(schema, Sym::Obj(idx));
+                let vname = ts_names::enum_member(vname);
                 variant_lines.push(format!(
                     "case '{vname}': return accessor(index, new {obj_name}())! as {obj_name};"
                 ));
             }
             BaseType::BASE_TYPE_STRING => {
                 variant_lines.push(format!(
-                    "case '{vname}': return accessor(index, '') as string;"
+                    "case '{}': return accessor(index, '') as string;",
+                    ts_names::enum_member(vname)
                 ));
             }
             _ => {}
@@ -248,9 +255,9 @@ fn gen_union_object_api(
     let t_name = format!("{name}T");
 
     // Collect variant info: (variant_name, type_name, base_type)
-    let mut variants: Vec<(&str, String, BaseType)> = Vec::new();
+    let mut variants: Vec<(String, String, BaseType)> = Vec::new();
     for val in &enum_def.values {
-        let vname = val.name.as_str();
+        let vname = ts_names::enum_member(&val.name);
         if vname == "NONE" {
             continue;
         }
@@ -262,7 +269,7 @@ fn gen_union_object_api(
         match variant_bt {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
                 let idx = union_variant_type_index(val)?;
-                let obj_name = schema.objects[idx].name.clone();
+                let obj_name = ts_names::sym(schema, Sym::ObjT(idx));
                 variants.push((vname, obj_name, variant_bt));
             }
             BaseType::BASE_TYPE_STRING => {
@@ -278,7 +285,7 @@ fn gen_union_object_api(
         let t_type = if *bt == BaseType::BASE_TYPE_STRING {
             "string".to_string()
         } else {
-            format!("{tname}T")
+            tname.clone()
         };
         if !variant_t_types.contains(&t_type) {
             variant_t_types.push(t_type);
@@ -315,7 +322,7 @@ fn gen_union_object_api(
                                 ));
                             } else {
                                 w.line(&format!(
-                                    "case {name}.{vname}: return (this.value as {tname}T).pack(builder);"
+                                    "case {name}.{vname}: return (this.value as {tname}).pack(builder);"
                                 ));
                             }
                         }

@@ -237,9 +237,9 @@ export namespace Game {
         return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
       }
 
-      items(index: number, obj?:Item):Item|null {
+      items(index: number, obj?:Game.Items.Item):Game.Items.Item|null {
         const offset = this.bb!.__offset(this.bb_pos, 6);
-        return offset ? (obj || new Item()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+        return offset ? (obj || new Game.Items.Item()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
       }
 
       itemsLength():number {
@@ -247,9 +247,9 @@ export namespace Game {
         return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
       }
 
-      favorite(obj?:Item):Item|null {
+      favorite(obj?:Game.Items.Item):Game.Items.Item|null {
         const offset = this.bb!.__offset(this.bb_pos, 8);
-        return offset ? (obj || new Item()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+        return offset ? (obj || new Game.Items.Item()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
       }
 
       static startInventory(builder:flatbuffers.Builder) {
@@ -262,6 +262,14 @@ export namespace Game {
 
       static addItems(builder:flatbuffers.Builder, itemsOffset:flatbuffers.Offset) {
         builder.addFieldOffset(1, itemsOffset, 0);
+      }
+
+      static createItemsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+        builder.startVector(4, data.length, 4);
+        for (let i = data.length - 1; i >= 0; i--) {
+          builder.addOffset(data[i]!);
+        }
+        return builder.endVector();
       }
 
       static startItemsVector(builder:flatbuffers.Builder, numElems:number) {
@@ -296,14 +304,14 @@ export namespace Game {
       unpack():InventoryT {
         return new InventoryT(
           this.owner(),
-          this.bb!.createObjList<Item, ItemT>(this.items.bind(this), this.itemsLength()),
+          this.bb!.createObjList<Game.Items.Item, Game.Items.ItemT>(this.items.bind(this), this.itemsLength()),
           (this.favorite() !== null ? this.favorite()!.unpack() : null)
         );
       }
 
       unpackTo(_o:InventoryT):void {
         _o.owner = this.owner();
-        _o.items = this.bb!.createObjList<Item, ItemT>(this.items.bind(this), this.itemsLength());
+        _o.items = this.bb!.createObjList<Game.Items.Item, Game.Items.ItemT>(this.items.bind(this), this.itemsLength());
         _o.favorite = (this.favorite() !== null ? this.favorite()!.unpack() : null);
       }
     }
@@ -311,8 +319,8 @@ export namespace Game {
     export class InventoryT implements flatbuffers.IGeneratedObject {
       constructor(
         public owner:string|null = null,
-        public items:(ItemT)[] = [],
-        public favorite:ItemT|null = null
+        public items:(Game.Items.ItemT)[] = [],
+        public favorite:Game.Items.ItemT|null = null
       ) {}
 
       pack(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -330,11 +338,12 @@ export namespace Game {
           itemsOffset = builder.endVector();
         }
         const items = itemsOffset;
+        const favorite = (this.favorite !== null ? this.favorite!.pack(builder) : 0);
 
         Inventory.startInventory(builder);
         Inventory.addOwner(builder, owner);
         Inventory.addItems(builder, items);
-        Inventory.addFavorite(builder, (this.favorite !== null ? this.favorite!.pack(builder) : 0));
+        Inventory.addFavorite(builder, favorite);
         return Inventory.endInventory(builder);
       }
     }

@@ -1,0 +1,17 @@
+// One ES module per type: a union stored in a table that is itself a union
+// member, a vector of tables, a uint64 vector, a string-capable union.
+namespace Game.Net;
+
+table ItemRef { slot:uint16; instance_id:uint64; }
+table Equip { item:ItemRef; }
+table Chat { text:string; }
+
+union Action { Equip, Chat, Note:string }
+
+table Command { seq:uint32; action:Action; items:[ItemRef]; ids:[uint64]; }
+
+union AnyMsg { Command }
+
+table Wrapper { msg:AnyMsg; }
+
+root_type Wrapper;

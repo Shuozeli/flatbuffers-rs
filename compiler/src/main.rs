@@ -8,8 +8,8 @@ use flatc_rs_compiler::{
     bfbs::serialize_schema,
     check_private_leak,
     codegen::{
-        generate_python, generate_rust, generate_typescript, CodeGenOptions, PythonCodeGenOptions,
-        TsCodeGenOptions,
+        generate_python, generate_rust, generate_typescript, generate_typescript_modules,
+        CodeGenOptions, PythonCodeGenOptions, TsCodeGenOptions,
     },
     compile, compile_inputs,
     conform::check_conform,
@@ -159,6 +159,12 @@ struct Cli {
     /// Generate mutate methods for scalar fields (TypeScript).
     #[arg(long)]
     gen_mutable: bool,
+
+    /// TypeScript: write one `<schema>_generated.ts` file of nested
+    /// `export namespace` blocks instead of the default one ES module per
+    /// type (plus per-namespace barrel modules and `<schema>.ts`).
+    #[arg(long)]
+    ts_flat_files: bool,
 
     // -- BFBS options --
     /// Include doc comments in binary schema output.
@@ -707,28 +713,57 @@ fn main() {
                 gen_only_files: gen_only_files.clone(),
                 gen_mutable: cli.gen_mutable,
             };
-            let ext = cli.filename_ext.as_deref().unwrap_or("ts");
-            let code = match generate_typescript(schema, &ts_opts) {
-                Ok(code) => code,
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    process::exit(1);
-                }
-            };
-            let out_path = match output_file_path(input_file, &cli.filename_suffix, ext, output_dir)
-            {
-                Ok(p) => p,
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    process::exit(1);
-                }
-            };
+            if cli.ts_flat_files {
+                let ext = cli.filename_ext.as_deref().unwrap_or("ts");
+                let code = match generate_typescript(schema, &ts_opts) {
+                    Ok(code) => code,
+                    Err(e) => {
+                        eprintln!("error: {e}");
+                        process::exit(1);
+                    }
+                };
+                let out_path =
+                    match output_file_path(input_file, &cli.filename_suffix, ext, output_dir) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            eprintln!("error: {e}");
+                            process::exit(1);
+                        }
+                    };
 
-            if cli.file_names_only {
-                println!("{}", out_path.display());
-            } else if let Err(e) = write_output(&out_path, &code) {
-                eprintln!("error: {e}");
-                process::exit(1);
+                if cli.file_names_only {
+                    println!("{}", out_path.display());
+                } else if let Err(e) = write_output(&out_path, &code) {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+            } else {
+                let root_name = match input_file.file_stem() {
+                    Some(stem) => stem.to_string_lossy().to_string(),
+                    None => {
+                        eprintln!(
+                            "error: input path has no file name: {}",
+                            input_file.display()
+                        );
+                        process::exit(1);
+                    }
+                };
+                let files = match generate_typescript_modules(schema, &ts_opts, &root_name) {
+                    Ok(files) => files,
+                    Err(e) => {
+                        eprintln!("error: {e}");
+                        process::exit(1);
+                    }
+                };
+                for file in files {
+                    let out_path = output_dir.join(&file.path);
+                    if cli.file_names_only {
+                        println!("{}", out_path.display());
+                    } else if let Err(e) = write_output(&out_path, &file.code) {
+                        eprintln!("error: {e}");
+                        process::exit(1);
+                    }
+                }
             }
         }
 

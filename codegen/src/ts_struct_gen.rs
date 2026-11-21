@@ -1,6 +1,7 @@
 use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
+use super::ts_names::{self, Sym};
 use super::ts_type_map;
 use super::type_map;
 use super::{field_offset, field_type_index, obj_byte_size, obj_min_align, type_index};
@@ -101,7 +102,7 @@ fn gen_field_accessor(w: &mut CodeWriter, schema: &ResolvedSchema, field: &Resol
 
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
-        let struct_name = &schema.objects[idx].name;
+        let struct_name = ts_names::sym(schema, Sym::Obj(idx));
         w.block(
             &format!("{fname}(obj?:{struct_name}):{struct_name}|null"),
             |w| {
@@ -143,7 +144,7 @@ fn gen_array_accessor(
 
     if et == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
-        let struct_name = &schema.objects[idx].name;
+        let struct_name = ts_names::sym(schema, Sym::Obj(idx));
         let struct_size = obj_byte_size(&schema.objects[idx]).unwrap();
 
         w.block(
@@ -304,8 +305,7 @@ fn gen_array_field_write(
 
     if et == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
-        let struct_name = &schema.objects[idx].name;
-        let t_name = format!("{struct_name}T");
+        let t_name = ts_names::sym(schema, Sym::ObjT(idx));
 
         w.block(&format!("for (let i = {max_idx}; i >= 0; --i)"), |w| {
             w.line(&format!("const item = {fname}?.[i];"));
@@ -442,16 +442,16 @@ fn object_api_field_type_and_default(
         let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
         if et == BaseType::BASE_TYPE_STRUCT {
             let idx = field_type_index(field).unwrap();
-            let struct_name = &schema.objects[idx].name;
-            (format!("({struct_name}T)[]"), "[]".to_string())
+            let t_name = ts_names::sym(schema, Sym::ObjT(idx));
+            (format!("({t_name})[]"), "[]".to_string())
         } else {
             let ts_type = array_elem_ts_type(schema, field, et);
             (format!("({ts_type})[]"), "[]".to_string())
         }
     } else if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
-        let struct_name = &schema.objects[idx].name;
-        (format!("{struct_name}T|null"), "null".to_string())
+        let t_name = ts_names::sym(schema, Sym::ObjT(idx));
+        (format!("{t_name}|null"), "null".to_string())
     } else {
         let ts_type = field_ts_type(schema, field, bt);
         let default = field_default_ts(field, bt);
@@ -463,14 +463,13 @@ fn object_api_field_type_and_default(
 fn field_ts_type(schema: &ResolvedSchema, field: &ResolvedField, bt: BaseType) -> String {
     if bt == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
-        return schema.objects[idx].name.clone();
+        return ts_names::sym(schema, Sym::Obj(idx));
     }
 
     // Check for enum type
     if type_map::is_scalar(bt) && type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
-        let enum_def = &schema.enums[enum_idx];
-        return enum_def.name.clone();
+        return ts_names::sym(schema, Sym::Enum(enum_idx));
     }
 
     ts_type_map::scalar_ts_type(bt).to_string()
@@ -515,7 +514,7 @@ fn array_elem_ts_type(schema: &ResolvedSchema, field: &ResolvedField, et: BaseTy
     // Check for enum index on the array type
     if type_map::is_scalar(et) && type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
-        schema.enums[enum_idx].name.clone()
+        ts_names::sym(schema, Sym::Enum(enum_idx))
     } else {
         ts_type_map::scalar_ts_type(et).to_string()
     }
@@ -526,8 +525,7 @@ fn create_param_array_type(schema: &ResolvedSchema, field: &ResolvedField) -> St
     let (et, _fixed_len, _elem_size) = array_element_info(schema, field);
     if et == BaseType::BASE_TYPE_STRUCT {
         let idx = field_type_index(field).unwrap();
-        let struct_name = &schema.objects[idx].name;
-        let t_name = format!("{struct_name}T");
+        let t_name = ts_names::sym(schema, Sym::ObjT(idx));
         format!("(any|{t_name})[]|null")
     } else {
         let ts_type = array_elem_ts_type(schema, field, et);
@@ -544,8 +542,8 @@ fn unpack_struct_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> S
         let (et, fixed_len, _elem_size) = array_element_info(schema, field);
         if et == BaseType::BASE_TYPE_STRUCT {
             let idx = field_type_index(field).unwrap();
-            let struct_name = &schema.objects[idx].name;
-            let t_name = format!("{struct_name}T");
+            let struct_name = ts_names::sym(schema, Sym::Obj(idx));
+            let t_name = ts_names::sym(schema, Sym::ObjT(idx));
             format!(
                 "this.bb!.createObjList<{struct_name}, {t_name}>(this.{fname}.bind(this), {fixed_len})"
             )

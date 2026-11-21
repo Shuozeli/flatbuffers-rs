@@ -55,6 +55,20 @@ fn main() {
     )
     .unwrap();
 
+    // TypeScript per-type module codegen golden tests
+    let ts_modules_dir = Path::new("testdata/ts_modules_golden");
+    println!("cargo:rerun-if-changed=testdata/ts_modules_golden");
+    let code = generate_tests_for_dir(
+        ts_modules_dir,
+        "ts_modules_",
+        "run_single_ts_modules_golden",
+    );
+    fs::write(
+        Path::new(&out_dir).join("ts_modules_tests_generated.rs"),
+        code,
+    )
+    .unwrap();
+
     // Serde codegen golden tests
     let serde_codegen_dir = Path::new("testdata/serde_codegen_golden");
     println!("cargo:rerun-if-changed=testdata/serde_codegen_golden");

@@ -3,6 +3,7 @@ use flatc_rs_schema::BaseType;
 
 use crate::code_writer::CodeWriter;
 use crate::field_type_index;
+use crate::ts_names::{self, Sym};
 use crate::ts_type_map;
 use crate::type_map;
 use crate::CodeGenError;
@@ -81,16 +82,18 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
                 }
                 BaseType::BASE_TYPE_TABLE => {
                     let idx = field_type_index(field).unwrap();
-                    let table_name = &schema.objects[idx].name;
+                    let table_name = ts_names::sym(schema, Sym::Obj(idx));
+                    let table_t = ts_names::sym(schema, Sym::ObjT(idx));
                     format!(
-                        "this.bb!.createObjList<{table_name}, {table_name}T>(this.{fname}.bind(this), this.{fname}Length())"
+                        "this.bb!.createObjList<{table_name}, {table_t}>(this.{fname}.bind(this), this.{fname}Length())"
                     )
                 }
                 BaseType::BASE_TYPE_STRUCT => {
                     let idx = field_type_index(field).unwrap();
-                    let struct_name = &schema.objects[idx].name;
+                    let struct_name = ts_names::sym(schema, Sym::Obj(idx));
+                    let struct_t = ts_names::sym(schema, Sym::ObjT(idx));
                     format!(
-                        "this.bb!.createObjList<{struct_name}, {struct_name}T>(this.{fname}.bind(this), this.{fname}Length())"
+                        "this.bb!.createObjList<{struct_name}, {struct_t}>(this.{fname}.bind(this), this.{fname}Length())"
                     )
                 }
                 BaseType::BASE_TYPE_UNION => unpack_union_vector_expr(schema, field, &fname),
@@ -101,9 +104,17 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
             // Unpack union using unionToXxx helper for proper type dispatch
             let idx = field.type_.index.unwrap_or(-1);
             if idx >= 0 && (idx as usize) < schema.enums.len() {
-                let enum_name = &schema.enums[idx as usize].name;
+                let union_to = ts_names::sym(schema, Sym::UnionTo(idx as usize));
+                let has_string = helpers::union_object_api_value_types(schema, idx as usize)
+                    .iter()
+                    .any(|t| t == "string");
+                let string_case = if has_string {
+                    " if (typeof temp === 'string') { return temp; }"
+                } else {
+                    ""
+                };
                 format!(
-                    "(() => {{ const temp = unionTo{enum_name}(this.{fname}Type(), (obj:any) => this.{fname}(obj)); return temp === null ? null : temp.unpack() }})()"
+                    "(() => {{ const temp = {union_to}(this.{fname}Type(), (obj:any) => this.{fname}(obj)); if (temp === null) {{ return null; }}{string_case} return temp.unpack() }})()"
                 )
             } else {
                 format!("this.{fname}()")
@@ -115,13 +126,14 @@ fn unpack_field_expr(schema: &ResolvedSchema, field: &ResolvedField) -> String {
 
 fn unpack_union_vector_expr(schema: &ResolvedSchema, field: &ResolvedField, fname: &str) -> String {
     let enum_index = field.type_.index.unwrap() as usize;
-    let enum_name = &schema.enums[enum_index].name;
+    let enum_name = ts_names::sym(schema, Sym::Enum(enum_index));
+    let union_list_to = ts_names::sym(schema, Sym::UnionListTo(enum_index));
     let mut value_types = helpers::union_object_api_value_types(schema, enum_index);
     value_types.push("null".to_string());
     let value_type = value_types.join("|");
 
     format!(
-        "(() => {{ const values:({value_type})[] = []; for (let i = 0; i < this.{fname}Length(); i++) {{ const type = this.{fname}Type(i); if (type === null || type === {enum_name}.NONE) {{ values.push(null); continue; }} const value = unionListTo{enum_name}(type, (index:number, obj:any) => this.{fname}(index, obj), i); values.push(value === null ? null : (typeof value === 'string' ? value : value.unpack())); }} return values; }})()"
+        "(() => {{ const values:({value_type})[] = []; for (let i = 0; i < this.{fname}Length(); i++) {{ const type = this.{fname}Type(i); if (type === null || type === {enum_name}.NONE) {{ values.push(null); continue; }} const value = {union_list_to}(type, (index:number, obj:any) => this.{fname}(index, obj), i); values.push(value === null ? null : (typeof value === 'string' ? value : value.unpack())); }} return values; }})()"
     )
 }
 
@@ -184,6 +196,19 @@ pub(super) fn gen_object_api_class(
                             BaseType::BASE_TYPE_VECTOR => {
                                 gen_pack_vector(w, schema, field, &fname, name);
                             }
+                            // Tables and union values are serialized before
+                            // the parent's startObject: the runtime refuses
+                            // nested objects (upstream flatc does the same).
+                            BaseType::BASE_TYPE_TABLE => {
+                                w.line(&format!(
+                                    "const {fname} = (this.{fname} !== null ? this.{fname}!.pack(builder) : 0);"
+                                ));
+                            }
+                            BaseType::BASE_TYPE_UNION => {
+                                w.line(&format!(
+                                    "const {fname} = builder.createObjectOffset(this.{fname});"
+                                ));
+                            }
                             _ => {}
                         }
                     }
@@ -219,20 +244,13 @@ pub(super) fn gen_object_api_class(
                                     ));
                                 }
                             }
-                            BaseType::BASE_TYPE_STRING | BaseType::BASE_TYPE_VECTOR => {
+                            BaseType::BASE_TYPE_STRING
+                            | BaseType::BASE_TYPE_VECTOR
+                            | BaseType::BASE_TYPE_TABLE
+                            | BaseType::BASE_TYPE_UNION => {
                                 w.line(&format!("{name}.add{pascal}(builder, {fname});"));
                             }
                             BaseType::BASE_TYPE_STRUCT => {
-                                w.line(&format!(
-                                    "{name}.add{pascal}(builder, (this.{fname} !== null ? this.{fname}!.pack(builder) : 0));"
-                                ));
-                            }
-                            BaseType::BASE_TYPE_TABLE => {
-                                w.line(&format!(
-                                    "{name}.add{pascal}(builder, (this.{fname} !== null ? this.{fname}!.pack(builder) : 0));"
-                                ));
-                            }
-                            BaseType::BASE_TYPE_UNION => {
                                 w.line(&format!(
                                     "{name}.add{pascal}(builder, (this.{fname} !== null ? this.{fname}!.pack(builder) : 0));"
                                 ));
@@ -344,7 +362,7 @@ fn gen_pack_vector(
         }
         BaseType::BASE_TYPE_UNION => {
             let enum_index = field.type_.index.unwrap() as usize;
-            let enum_name = &schema.enums[enum_index].name;
+            let enum_name = ts_names::sym(schema, Sym::Enum(enum_index));
             let type_fname = format!("{fname}Type");
             w.block(
                 &format!("if (this.{type_fname}.length !== this.{fname}.length)"),

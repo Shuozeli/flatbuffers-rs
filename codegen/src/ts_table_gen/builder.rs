@@ -146,6 +146,31 @@ pub(super) fn gen_vector_helpers(
             },
         );
         w.blank();
+    } else if matches!(
+        et,
+        BaseType::BASE_TYPE_STRING | BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_UNION
+    ) {
+        // createXxxVector for offset vectors (strings, tables, union values),
+        // as upstream flatc. A union value offset of 0 is a NONE element and is
+        // stored as a literal 0 rather than as a relative offset.
+        w.block(
+            &format!(
+                "static create{pascal}Vector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset"
+            ),
+            |w| {
+                w.line("builder.startVector(4, data.length, 4);");
+                w.block("for (let i = data.length - 1; i >= 0; i--)", |w| {
+                    if et == BaseType::BASE_TYPE_UNION {
+                        w.line("const offset = data[i]!;");
+                        w.line("if (offset === 0) builder.addInt32(0); else builder.addOffset(offset);");
+                    } else {
+                        w.line("builder.addOffset(data[i]!);");
+                    }
+                });
+                w.line("return builder.endVector();");
+            },
+        );
+        w.blank();
     }
 
     // startXxxVector for all vector types

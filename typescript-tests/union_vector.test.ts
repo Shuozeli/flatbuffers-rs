@@ -8,7 +8,7 @@ import {
   TagT,
   Zoo,
   ZooT,
-} from './generated/union_vector_generated.js';
+} from './generated/modules/union_vector.js';
 
 function roundTrip(value: ZooT): ZooT {
   const builder = new flatbuffers.Builder();

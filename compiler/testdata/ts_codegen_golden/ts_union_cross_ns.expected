@@ -10,30 +10,30 @@ export namespace A {
   export enum MyUnion {
     NONE = 0,
     Foo = 1,
-    B.Bar = 2
+    B_Bar = 2
   }
 
   export function unionToMyUnion(
   type: MyUnion,
-  accessor: (obj:Foo|Bar) => Foo|Bar|null
-): Foo|Bar|null {
+  accessor: (obj:Foo|B.Bar) => Foo|B.Bar|null
+): Foo|B.Bar|null {
     switch(MyUnion[type]) {
       case 'NONE': return null;
       case 'Foo': return accessor(new Foo())! as Foo;
-      case 'B.Bar': return accessor(new Bar())! as Bar;
+      case 'B_Bar': return accessor(new B.Bar())! as B.Bar;
       default: return null;
     }
   }
 
   export function unionListToMyUnion(
   type: MyUnion,
-  accessor: (index: number, obj:Foo|Bar) => Foo|Bar|null,
+  accessor: (index: number, obj:Foo|B.Bar) => Foo|B.Bar|null,
   index: number
-): Foo|Bar|null {
+): Foo|B.Bar|null {
     switch(MyUnion[type]) {
       case 'NONE': return null;
       case 'Foo': return accessor(index, new Foo())! as Foo;
-      case 'B.Bar': return accessor(index, new Bar())! as Bar;
+      case 'B_Bar': return accessor(index, new B.Bar())! as B.Bar;
       default: return null;
     }
   }
@@ -41,14 +41,14 @@ export namespace A {
   export class MyUnionT implements flatbuffers.IGeneratedObject {
     constructor(
   public type: MyUnion = MyUnion.NONE,
-  public value: FooT|BarT|null = null
+  public value: FooT|B.BarT|null = null
 ) {}
 
     pack(builder:flatbuffers.Builder): flatbuffers.Offset {
       switch(this.type) {
         case MyUnion.NONE: return 0;
         case MyUnion.Foo: return (this.value as FooT).pack(builder);
-        case MyUnion.B.Bar: return (this.value as BarT).pack(builder);
+        case MyUnion.B_Bar: return (this.value as B.BarT).pack(builder);
         default: return 0;
       }
     }
@@ -172,9 +172,9 @@ export namespace A {
       return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
     }
 
-    u<T extends flatbuffers.Table>(obj:T):T|null {
+    u<T extends {bb: flatbuffers.ByteBuffer|null, bb_pos: number}>(obj:T):T|null {
       const offset = this.bb!.__offset(this.bb_pos, 6);
-      return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
+      return offset ? this.bb!.__union(obj as flatbuffers.Table, this.bb_pos + offset) as T : null;
     }
 
     mutateUType(value:MyUnion):boolean {
@@ -223,27 +223,28 @@ export namespace A {
     unpack():RootT {
       return new RootT(
         this.uType(),
-        (() => { const temp = unionToMyUnion(this.uType(), (obj:any) => this.u(obj)); return temp === null ? null : temp.unpack() })()
+        (() => { const temp = unionToMyUnion(this.uType(), (obj:any) => this.u(obj)); if (temp === null) { return null; } return temp.unpack() })()
       );
     }
 
     unpackTo(_o:RootT):void {
       _o.uType = this.uType();
-      _o.u = (() => { const temp = unionToMyUnion(this.uType(), (obj:any) => this.u(obj)); return temp === null ? null : temp.unpack() })();
+      _o.u = (() => { const temp = unionToMyUnion(this.uType(), (obj:any) => this.u(obj)); if (temp === null) { return null; } return temp.unpack() })();
     }
   }
 
   export class RootT implements flatbuffers.IGeneratedObject {
     constructor(
       public uType:MyUnion = 0,
-      public u:FooT|BarT|null = null
+      public u:FooT|B.BarT|null = null
     ) {}
 
     pack(builder:flatbuffers.Builder):flatbuffers.Offset {
+      const u = builder.createObjectOffset(this.u);
 
       Root.startRoot(builder);
       Root.addUType(builder, this.uType);
-      Root.addU(builder, (this.u !== null ? this.u!.pack(builder) : 0));
+      Root.addU(builder, u);
       return Root.endRoot(builder);
     }
   }

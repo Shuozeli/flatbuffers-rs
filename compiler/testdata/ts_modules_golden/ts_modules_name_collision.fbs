@@ -1,0 +1,14 @@
+// Same type name in two namespaces: the second import is aliased
+// Namespace_Name (upstream flatc), and the root barrel re-exports the
+// root-namespace type next to `export * as Ns`.
+table Top { holder:C.Holder; }
+
+namespace A;
+table Item { a:int; }
+
+namespace B;
+table Item { b:int; }
+
+namespace C;
+union Pick { A.Item, B.Item }
+table Holder { first:A.Item; second:B.Item; pick:Pick; }

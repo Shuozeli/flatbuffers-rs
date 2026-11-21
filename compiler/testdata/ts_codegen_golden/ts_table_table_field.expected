@@ -182,10 +182,11 @@ export class ParentT implements flatbuffers.IGeneratedObject {
   ) {}
 
   pack(builder:flatbuffers.Builder):flatbuffers.Offset {
+    const child = (this.child !== null ? this.child!.pack(builder) : 0);
     const label = (this.label !== null ? builder.createString(this.label!) : 0);
 
     Parent.startParent(builder);
-    Parent.addChild(builder, (this.child !== null ? this.child!.pack(builder) : 0));
+    Parent.addChild(builder, child);
     Parent.addLabel(builder, label);
     return Parent.endParent(builder);
   }

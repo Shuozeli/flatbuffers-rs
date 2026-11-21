@@ -2,6 +2,7 @@ use flatc_rs_schema::resolved::{ResolvedField, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
 use crate::field_type_index;
+use crate::ts_names::{self, Sym};
 use crate::ts_type_map;
 use crate::type_map;
 use crate::union_variant_type_index;
@@ -14,7 +15,7 @@ pub(super) fn scalar_field_ts_type(
 ) -> String {
     if type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
-        schema.enums[enum_idx].name.clone()
+        ts_names::sym(schema, Sym::Enum(enum_idx))
     } else {
         ts_type_map::scalar_ts_type(bt).to_string()
     }
@@ -35,8 +36,7 @@ pub(super) fn scalar_default_value(
     } else if type_map::has_type_index(field) {
         // Enum default: check default_string first (e.g., "Blue"), format as EnumName.ValueName
         let enum_idx = field_type_index(field).unwrap();
-        let enum_def = &schema.enums[enum_idx];
-        let enum_name = &enum_def.name;
+        let enum_name = ts_names::sym(schema, Sym::Enum(enum_idx));
 
         if let Some(ref ds) = field.default_string {
             format!("{enum_name}.{ds}")
@@ -82,7 +82,7 @@ pub(super) fn object_api_field_type_and_default(
             // Check for enum type
             let type_name = if type_map::has_type_index(field) {
                 let enum_idx = field_type_index(field).unwrap();
-                schema.enums[enum_idx].name.clone()
+                ts_names::sym(schema, Sym::Enum(enum_idx))
             } else {
                 ts_type.to_string()
             };
@@ -109,13 +109,13 @@ pub(super) fn object_api_field_type_and_default(
         }
         BaseType::BASE_TYPE_STRUCT => {
             let idx = field_type_index(field).unwrap();
-            let struct_name = &schema.objects[idx].name;
-            (format!("{struct_name}T|null"), "null".to_string())
+            let struct_t = ts_names::sym(schema, Sym::ObjT(idx));
+            (format!("{struct_t}|null"), "null".to_string())
         }
         BaseType::BASE_TYPE_TABLE => {
             let idx = field_type_index(field).unwrap();
-            let table_name = &schema.objects[idx].name;
-            (format!("{table_name}T|null"), "null".to_string())
+            let table_t = ts_names::sym(schema, Sym::ObjT(idx));
+            (format!("{table_t}|null"), "null".to_string())
         }
         BaseType::BASE_TYPE_VECTOR => {
             let et = field.type_.element_type_or_none();
@@ -123,7 +123,7 @@ pub(super) fn object_api_field_type_and_default(
                 et if type_map::is_scalar(et) => {
                     if type_map::has_type_index(field) {
                         let enum_idx = field_type_index(field).unwrap();
-                        schema.enums[enum_idx].name.clone()
+                        ts_names::sym(schema, Sym::Enum(enum_idx))
                     } else {
                         ts_type_map::scalar_ts_type(et).to_string()
                     }
@@ -131,13 +131,11 @@ pub(super) fn object_api_field_type_and_default(
                 BaseType::BASE_TYPE_STRING => "string".to_string(),
                 BaseType::BASE_TYPE_TABLE => {
                     let idx = field_type_index(field).unwrap();
-                    let name = &schema.objects[idx].name;
-                    format!("{name}T")
+                    ts_names::sym(schema, Sym::ObjT(idx))
                 }
                 BaseType::BASE_TYPE_STRUCT => {
                     let idx = field_type_index(field).unwrap();
-                    let name = &schema.objects[idx].name;
-                    format!("{name}T")
+                    ts_names::sym(schema, Sym::ObjT(idx))
                 }
                 BaseType::BASE_TYPE_UNION => {
                     let idx = field_type_index(field).unwrap();
@@ -168,14 +166,12 @@ pub(super) fn object_api_field_type_and_default(
                         match vbt {
                             BaseType::BASE_TYPE_TABLE => {
                                 let vi = union_variant_type_index(v).unwrap();
-                                let name = &schema.objects[vi].name;
-                                Some(format!("{name}T"))
+                                Some(ts_names::sym(schema, Sym::ObjT(vi)))
                             }
                             BaseType::BASE_TYPE_STRING => Some("string".to_string()),
                             BaseType::BASE_TYPE_STRUCT => {
                                 let vi = union_variant_type_index(v).unwrap();
-                                let name = &schema.objects[vi].name;
-                                Some(format!("{name}T"))
+                                Some(ts_names::sym(schema, Sym::ObjT(vi)))
                             }
                             _ => None,
                         }
@@ -213,7 +209,7 @@ pub(super) fn union_object_api_value_types(
         {
             BaseType::BASE_TYPE_TABLE | BaseType::BASE_TYPE_STRUCT => {
                 let idx = union_variant_type_index(variant).unwrap();
-                format!("{}T", schema.objects[idx].name)
+                ts_names::sym(schema, Sym::ObjT(idx))
             }
             BaseType::BASE_TYPE_STRING => "string".to_string(),
             _ => continue,

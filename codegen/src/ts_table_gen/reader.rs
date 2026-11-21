@@ -2,6 +2,7 @@ use flatc_rs_schema::resolved::{ResolvedField, ResolvedObject, ResolvedSchema};
 use flatc_rs_schema::BaseType;
 
 use crate::code_writer::CodeWriter;
+use crate::ts_names::{self, Sym};
 use crate::ts_type_map;
 use crate::type_map;
 use crate::{field_id, field_type_index, obj_byte_size};
@@ -127,8 +128,7 @@ fn gen_enum_accessor(
     vt_offset: u32,
 ) {
     let enum_idx = field_type_index(field).unwrap();
-    let enum_def = &schema.enums[enum_idx];
-    let enum_name = &enum_def.name;
+    let enum_name = ts_names::sym(schema, Sym::Enum(enum_idx));
     let read_method = ts_type_map::bb_read_method(bt);
 
     let default_val = helpers::scalar_default_value(field, bt, schema);
@@ -184,7 +184,7 @@ fn gen_struct_accessor(
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let struct_name = &schema.objects[idx].name;
+    let struct_name = ts_names::sym(schema, Sym::Obj(idx));
 
     w.block(
         &format!("{fname}(obj?:{struct_name}):{struct_name}|null"),
@@ -207,7 +207,7 @@ fn gen_table_accessor(
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let table_name = &schema.objects[idx].name;
+    let table_name = ts_names::sym(schema, Sym::Obj(idx));
 
     w.block(
         &format!("{fname}(obj?:{table_name}):{table_name}|null"),
@@ -253,26 +253,58 @@ fn gen_union_accessor(
         })
         .unwrap_or(false);
 
-    let (signature, union_method) = if has_string {
-        (
-            format!("{fname}<T extends flatbuffers.Table>(obj:any|string):any|string|null"),
-            "__union_with_string",
-        )
-    } else {
-        (
-            format!("{fname}<T extends flatbuffers.Table>(obj:T):T|null"),
-            "__union",
-        )
-    };
+    gen_union_accessor_body(w, fname, "", "this.bb_pos + offset", has_string, vt_offset);
+}
 
-    w.block(&signature, |w| {
+/// Structural constraint satisfied by every generated table class. The
+/// runtime's `flatbuffers.Table` requires a non-null `bb`, which generated
+/// classes (`bb: ByteBuffer|null`) do not satisfy under `strict`.
+pub(super) const UNION_MEMBER_BOUND: &str = "{bb: flatbuffers.ByteBuffer|null, bb_pos: number}";
+
+/// Emit a typed union accessor: callers pass a fresh member instance and get
+/// the same type back; string-capable unions add a `string` overload.
+fn gen_union_accessor_body(
+    w: &mut CodeWriter,
+    fname: &str,
+    index_param: &str,
+    position: &str,
+    has_string: bool,
+    vt_offset: u32,
+) {
+    let bound = UNION_MEMBER_BOUND;
+    let body = |w: &mut CodeWriter, call: &str| {
         w.line(&format!(
             "const offset = this.bb!.__offset(this.bb_pos, {vt_offset});"
         ));
+        w.line(&format!("return offset ? {call} : null;"));
+    };
+    if has_string {
+        w.line(&format!("{fname}({index_param}obj:string):string|null;"));
         w.line(&format!(
-            "return offset ? this.bb!.{union_method}(obj, this.bb_pos + offset) : null;"
+            "{fname}<T extends {bound}>({index_param}obj:T):T|null;"
         ));
-    });
+        w.block(
+            &format!("{fname}({index_param}obj:{bound}|string):{bound}|string|null"),
+            |w| {
+                body(
+                    w,
+                    &format!(
+                        "this.bb!.__union_with_string(obj as flatbuffers.Table|string, {position})"
+                    ),
+                )
+            },
+        );
+    } else {
+        w.block(
+            &format!("{fname}<T extends {bound}>({index_param}obj:T):T|null"),
+            |w| {
+                body(
+                    w,
+                    &format!("this.bb!.__union(obj as flatbuffers.Table, {position}) as T"),
+                )
+            },
+        );
+    }
 }
 
 fn gen_vector_accessor(
@@ -328,16 +360,16 @@ fn gen_scalar_vector_accessor(
     // Check for enum element type
     let return_type = if type_map::has_type_index(field) {
         let enum_idx = field_type_index(field).unwrap();
-        schema.enums[enum_idx].name.clone()
+        ts_names::sym(schema, Sym::Enum(enum_idx))
     } else {
         ts_type.to_string()
     };
 
     // Element accessor
-    let (read_prefix, default_val) = if et == BaseType::BASE_TYPE_BOOL {
-        ("!!", "false")
-    } else {
-        ("", "0")
+    let (read_prefix, default_val) = match et {
+        BaseType::BASE_TYPE_BOOL => ("!!", "false"),
+        BaseType::BASE_TYPE_LONG | BaseType::BASE_TYPE_U_LONG => ("", "BigInt(0)"),
+        _ => ("", "0"),
     };
 
     w.block(&format!("{fname}(index: number):{return_type}|null"), |w| {
@@ -386,7 +418,7 @@ fn gen_table_vector_accessor(
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let table_name = &schema.objects[idx].name;
+    let table_name = ts_names::sym(schema, Sym::Obj(idx));
 
     w.block(
         &format!("{fname}(index: number, obj?:{table_name}):{table_name}|null"),
@@ -409,7 +441,7 @@ fn gen_struct_vector_accessor(
     vt_offset: u32,
 ) {
     let idx = field_type_index(field).unwrap();
-    let struct_name = &schema.objects[idx].name;
+    let struct_name = ts_names::sym(schema, Sym::Obj(idx));
     let struct_size = obj_byte_size(&schema.objects[idx]).unwrap();
 
     w.block(
@@ -446,22 +478,13 @@ fn gen_union_vector_accessor(
             })
         })
         .unwrap_or(false);
-    let union_method = if has_string {
-        "__union_with_string"
-    } else {
-        "__union"
-    };
-
-    w.block(
-        &format!("{fname}(index: number, obj:any|string):any|string|null"),
-        |w| {
-            w.line(&format!(
-                "const offset = this.bb!.__offset(this.bb_pos, {vt_offset});"
-            ));
-            w.line(&format!(
-                "return offset ? this.bb!.{union_method}(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;"
-            ));
-        },
+    gen_union_accessor_body(
+        w,
+        fname,
+        "index: number, ",
+        "this.bb!.__vector(this.bb_pos + offset) + index * 4",
+        has_string,
+        vt_offset,
     );
 }
 

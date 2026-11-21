@@ -101,8 +101,8 @@ complete option and incremental-rebuild contract.
 | Flag | Output | Runtime dependency | Notes |
 |------|--------|--------------------|-------|
 | `--rust` / `-r` | `schema_generated.rs` | `flatbuffers` crate | Full FlatBuffers readers, builders, verification, optional Object API, and opt-in pluggable buffer readers with `--rust-pluggable-buffer` |
-| `--ts` / `-T` | `schema_generated.ts` | `flatbuffers` npm package | TypeScript readers, builders, Object API, namespaces, unions, vectors, and mutate methods with `--gen-mutable` |
-| `--nodejs` | `schema_generated.ts` | `flatbuffers` npm package | Alias for `--ts`; useful when build scripts name the Node.js target explicitly |
+| `--ts` / `-T` | `schema.ts` + one module per type (`ns/type-name.ts`, namespace barrels) | `flatbuffers` npm package | TypeScript readers, builders, Object API, namespaces, unions, vectors, and mutate methods with `--gen-mutable`; tree-shakeable upstream layout. `--ts-flat-files` writes the single `schema_generated.ts` of `export namespace` blocks instead |
+| `--nodejs` | same as `--ts` | `flatbuffers` npm package | Alias for `--ts`; useful when build scripts name the Node.js target explicitly |
 | `--python` / `-p` | `schema_generated.py` | Python standard library | Python `dataclass(slots=True)` models and `IntEnum` enums |
 
 The Rust and TypeScript/Node.js backends generate FlatBuffers reader/builder code. The Python backend currently generates typed model code for application and tooling use; it preserves table/struct fields, scalar defaults, optional fields, vectors, namespaces, unions, enum defaults, and keyword-safe names, but it does not include binary encode/decode helpers.
@@ -138,6 +138,7 @@ Output names follow C++ `flatc` conventions: `{input_stem}{suffix}.{ext}`. The d
 | `--rust` / `-r` | Generate Rust code |
 | `--ts` / `-T` | Generate TypeScript code |
 | `--nodejs` | Generate TypeScript code for Node.js projects (alias for `--ts`) |
+| `--ts-flat-files` | TypeScript: one `schema_generated.ts` file of nested namespaces instead of one ES module per type |
 | `--python` / `-p` | Generate Python model code |
 | `-o <dir>` | Output directory (default: cwd) |
 | `-I <dir>` | Include search path |

@@ -1,0 +1,29 @@
+// Shapes the web companion needs (see web-companion/test-fixtures):
+// a union stored in a table that is itself carried by a union, a vector of
+// tables, a uint64 vector, a string-capable union, and the same type name in
+// two namespaces.
+namespace Other;
+
+table ItemRef { note:string; }
+
+namespace Game.Net;
+
+table ItemRef { slot:uint16; instance_id:uint64; }
+table Equip { item:ItemRef; }
+table Chat { text:string; }
+
+union Action { Equip, Chat, Note:string }
+
+table Command {
+  seq:uint32;
+  action:Action;
+  items:[ItemRef];
+  ids:[uint64];
+  other:Other.ItemRef;
+}
+
+union AnyMsg { Command }
+
+table Wrapper { msg:AnyMsg; }
+
+root_type Wrapper;
